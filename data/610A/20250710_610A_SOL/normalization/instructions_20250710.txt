@@ -1,0 +1,25 @@
+1. Using the dial, manually stretch specimen until it develops some passive force. Write down dial position X-10
+2. Run normalization_01_isometric.dpf and write down the maximum force (f0)
+3. Using the dial, manually make the specimen slack by at least 10mm. Write down dial position X-10 Run normalization_02_motorTo10mm.dpf
+4. Using the dial, manually stretch specimen (using the dial) until it passively develops 0.5 f0. Write down dial position.
+5. Run normalization_03_activeForceLength.dpf, and record
+  a. lref: specimen length at at fmax.
+  b. lzero: extrapolated length at which the active force is zero.
+  c. lceOpt, where 0.6*lceOpt = lzero-lref
+6. Adjust:
+  a. Machine: Using the dial, manually adjust end so that the specimen has a length of lref at a motor position of 0. 
+7. Run normalization_04_isometricForce.dpf, and record
+  a. Record fmax
+8. Measure lpeHalf, the distance from lref at which fpe = 1/2 fmax
+  a. Note current manual length setting.
+  b. Using the dial, manually stretch specimen until it passively develops 0.5 fmax
+  c. Record lpeHalf
+  d. Using the dial, manually return the length to lref using the dial
+9. Run normalization_05_forceVelocity_EDL.dpf or normalization_05_forceVelocity_SOL.dpf, and record
+  a. vmax in mm/s
+10. Update:
+  a. normalization/metaData_20250710.csv
+  b. main_generateProjectMimeProtocols610A.m
+  c. Using main_generateProjectMimeProtocols610A.m generate new protocol
+11. Run updated normalization_07_impedance.dpf
+Note: Save all generated data files using the same name as the dpf file but with the extension of ddf (the usual data file extension)
