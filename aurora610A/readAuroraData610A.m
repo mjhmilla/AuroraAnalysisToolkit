@@ -73,7 +73,34 @@ ddfData.Channel = parseDelimitedStringToCellArray(str0,char(9));
 idx0 = strfind(line,'Units')+5;
 str0 = strtrim(line(1,idx0:end));
 
-ddfData.Units = parseDelimitedStringToCellArray(str0,char(9));
+ddfData.Units = [];
+
+for i=1:1:length(ddfData.Channel)
+    i0 = 1;
+    t0 = strfind(str0,char(9));
+    if(isempty(t0)==0)        
+        i1 = t0(1,1);
+    else
+        i1 = length(str0);
+    end
+    
+    if((i1-i0)>0)
+        if(isempty(ddfData.Units)==1)
+            ddfData.Units = [{strtrim(str0(1,i0:i1))}];
+        else
+            ddfData.Units = [ddfData.Units, {strtrim(str0(1,i0:i1))}];            
+        end        
+    else
+        if(isempty(ddfData.Units)==1)
+            ddfData.Units = [{''}];
+        else
+            ddfData.Units = [ddfData.Units, {''}];            
+        end        
+    end
+    str0 = str0(1,(i1+1):end);    
+end
+
+%ddfData.Units = parseDelimitedStringToCellArray(str0,char(9));
 
 [line, ltout]= fgets(fid);
 idx0 = strfind(line,'Scale (units/V)')+15;

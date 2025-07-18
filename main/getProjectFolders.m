@@ -41,6 +41,8 @@ projectFolders.data_610A = fullfile(rootProjectDirectoryFullPath,'data','610A');
 
 projectFolders.common = fullfile(rootProjectDirectoryFullPath,'common');   
 
+projectFolders.postprocessing = fullfile(rootProjectDirectoryFullPath,'postprocessing');   
+
 
 projectFolders.aurora600A = fullfile(rootProjectDirectoryFullPath,'aurora600A');   
 projectFolders.aurora610A = fullfile(rootProjectDirectoryFullPath,'aurora610A');   

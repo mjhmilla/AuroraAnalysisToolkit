@@ -2,26 +2,38 @@ function cellArray = parseDelimitedStringToCellArray(str,delimiter)
 
 
 %char(9) is a tab
-sp0 = strfind(str,delimiter);
+strUpd = strtrim(str);
+sp0 = strfind(strUpd,delimiter);
+
 cellArray = [{''}];
 
-for i=1:1:(length(sp0)+1)
+idx=1;
+while(length(strUpd) > 0)
 
-    if(i==1)
-        i0 = 1;
-    else
-        i0 = sp0(1,i-1)+1;        
-    end
-    if(i==length(sp0)+1)
-        i1 = length(str);
-    else
-        i1 = sp0(1,i)-1;        
-    end
+    if(isempty(sp0)==0)
+        i0 =1;    
+        i1 = sp0(1,1)-1;
     
-    fieldName = str(1,i0:i1);
-    if(i==1)
-        cellArray = [{fieldName}];
+    
+        fieldName = strtrim(strUpd(1,i0:i1));
+        if(idx==1)
+            cellArray = [{fieldName}];
+        else
+            cellArray = [cellArray, {fieldName}];
+        end
+    
+        i1 = i1+2;
+        strUpd = strtrim(strUpd(1,i1:end));
+    
+        if(length(strUpd) >0)
+            sp0 = strfind(strUpd,delimiter);
+        end
     else
-        cellArray = [cellArray, {fieldName}];
+        fieldName = strtrim(strUpd);
+        if(length(fieldName)>0)
+            cellArray = [cellArray, {fieldName}];
+        end
+        strUpd = [];
     end
+    idx=idx+1;
 end
