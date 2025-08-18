@@ -8,7 +8,10 @@ i0 = strfind(line,':')-1;
 %special characters
 %%
 
-fieldNameStr = line(1,1:i0);
+fieldNameStr = line(1,1:i0(1));
+%fieldNameStr = extractBetween(line,1,i0);
+%regexPattern = ['^.{',num2str(1),'}{',num2str(i0(1)),'}.*'];
+%fieldNameStr = regexp(line,regexPattern);
 
 fieldNameStr = convertStringToValidStructFieldName(fieldNameStr);
 

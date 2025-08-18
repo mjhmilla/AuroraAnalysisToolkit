@@ -1,5 +1,6 @@
 function fieldNameStr = convertStringToValidStructFieldName(fieldNameStr)
 
+
 charsToReplace = [{' '}, {'/'}, {'('},{')'}, {'-'}];
 replacementChars=[{'_'}, {'_'}, {''}, {''}, {'_'}];
 

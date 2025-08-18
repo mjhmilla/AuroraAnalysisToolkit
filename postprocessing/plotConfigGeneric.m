@@ -43,11 +43,11 @@ subPlotPanelIndex = zeros(numberOfVerticalPlotRows,numberOfHorizontalPlotColumns
 idx=1;
 for ai=1:1:numberOfVerticalPlotRows
   vertOffset=0;
-  if(ai > 1)
-      for i=1:1:(ai-1)
-        vertOffset=vertOffset+ plotHeightNorm(i,1) + plotVertMargin;
-      end
-  end
+
+
+  vertOffset= sum(plotHeightNorm(1:ai,1)) + plotVertMargin*ai;
+
+
 
   for aj=1:1:numberOfHorizontalPlotColumns
 

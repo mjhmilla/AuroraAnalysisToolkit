@@ -45,6 +45,8 @@ projectFolders.postprocessing = fullfile(rootProjectDirectoryFullPath,'postproce
 
 
 projectFolders.aurora600A = fullfile(rootProjectDirectoryFullPath,'aurora600A');   
+projectFolders.aurora600ACompiled = fullfile(rootProjectDirectoryFullPath,'aurora600ACompiled');   
+
 projectFolders.aurora610A = fullfile(rootProjectDirectoryFullPath,'aurora610A');   
 
 projectFolders.output         = fullfile(rootProjectDirectoryFullPath,'output'        );  

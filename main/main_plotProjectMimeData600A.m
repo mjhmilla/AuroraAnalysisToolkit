@@ -14,6 +14,9 @@ addpath(projectFolders.postprocessing);
 
 folder600A = fullfile(projectFolders.data_600A,'20250602');
 
+
+flag_readDataOnly = 1;
+
 %%
 % Plot configuration
 %%
@@ -158,8 +161,8 @@ config(idx).stimulationCount = 9;
 
 idx=idx+1;
 config(idx).fileName = 'injury_02_FrequencyTests_10Lo_2025602.dat';
-config(idx).row = [2];
-config(idx).col = [3];
+config(idx).row = [1;2];
+config(idx).col = [3;3];
 config(idx).lineColors = [lineColorsA(3,:);...
                           lineColorsA(3,:)];
 config(idx).lineThickness = 1;
@@ -169,6 +172,14 @@ config(idx).addLegend = 1;
 
 
 fig=figure;
+
+for i=1:1:numberOfVerticalPlotRowsGeneric
+    for j=1:1:numberOfHorizontalPlotColumnsGeneric
+        subplot('Position',reshape(subPlotPanelGeneric(i,j,:),1,4));
+        here=1;
+    end
+end
+
 fmax = 0;
 lopt = 0;
 
@@ -189,15 +200,17 @@ for idx = 1:1:length(config)
     file600A   = fullfile(folder600A,...
                  config(idx).fileName );
     
-    % Read in the file        
-    datData = readAuroraData600A(file600A);
+    % Read in the file     
+    fprintf('%s\treading...\n',config(idx).fileName);
+    flag_readHeader=0;
+    datData = readAuroraData600A(file600A,flag_readHeader);
 
     %Extract the time in Bath 3: activation
     startTime = 0;
     endTime = 0;
-    for i=1:1:length(datData.Test_Protocol.Control_Function.value)
-        cf = datData.Test_Protocol.Control_Function.value{i};
-        opt = datData.Test_Protocol.Options.value{i};
+    for i=1:1:length(datData.Test_Protocol.Control_Function.Value)
+        cf = datData.Test_Protocol.Control_Function.Value{i};
+        opt = datData.Test_Protocol.Options.Value{i};
         arg1='';
         if(isempty(opt)==0)
             i1 = strfind(opt,' ');
@@ -205,28 +218,29 @@ for idx = 1:1:length(config)
         end
 
         if(strcmp(cf,'Bath') && arg1 == 3)
-            startTime = datData.Test_Protocol.Time.value(i,1);
+            startTime = datData.Test_Protocol.Time.Value(i,1);
         end
 
         if(strcmp(cf,'Data-Disable'))
-            endTime = datData.Test_Protocol.Time.value(i,1);
+            endTime = datData.Test_Protocol.Time.Value(i,1);
         end
     end
 
-    assert(strcmp(datData.Data.Time.unit,'ms'),...
+    assert(strcmp(datData.Data.Time.Unit,'ms'),...
             'Error: expected the time unit to be ms' );
     idx0=nan;
     idx1=nan;
-    if(strcmp(datData.Data.Time.unit,'ms'))
-        idx0 = floor(startTime*0.001-5)...
-                *datData.Setup_Parameters.A_D_Sampling_Rate.value;
-        idx1 = floor(endTime*0.001)...
-                *datData.Setup_Parameters.A_D_Sampling_Rate.value;
+    if(strcmp(datData.Data.Time.Unit,'ms'))
+        idx0 = floor(startTime*0.001...
+                    *datData.Setup_Parameters.A_D_Sampling_Rate.Value );
+        idx1 = floor((endTime)*0.001...
+                    *datData.Setup_Parameters.A_D_Sampling_Rate.Value);...  
+        idx1 = min([idx1,length(datData.Data.Time.Values)]);
     end
 
     if(idxSampleFmaxLopt==idx)
-        lopt = mean(datData.Data.Lin.value(idx0:idx1,1));
-        fmax = max(datData.Data.Fin.value(idx0:idx1,1));
+        lopt = mean(datData.Data.Lin.Values(idx0:idx1,1));
+        fmax = max(datData.Data.Fin.Values(idx0:idx1,1));
     end    
     
     col=config(idx).col(1,1); 
@@ -239,8 +253,8 @@ for idx = 1:1:length(config)
             plotLabel ={'E.','F.'};
     end
 
-    tmin = datData.Data.Time.value(idx0,1) .*(0.001);
-    tmax = datData.Data.Time.value(idx1,1) .*(0.001);
+    tmin = datData.Data.Time.Values(idx0,:) .*(0.001);
+    tmax = datData.Data.Time.Values(idx1,:) .*(0.001);
 
     % Plot the specimen length
     figure(fig);
@@ -248,8 +262,8 @@ for idx = 1:1:length(config)
              subPlotPanelGeneric(config(idx).row(1,1),...
                                  config(idx).col(1,1),:),1,4));
 
-    plot(datData.Data.Time.value(idx0:idx1,1) .*(0.001),...
-         datData.Data.Lin.value(idx0:idx1,1) .*(1/lopt),...
+    plot(datData.Data.Time.Values(idx0:idx1,:) .*(0.001),...
+         datData.Data.Lin.Values(idx0:idx1,:) .*(1/lopt),...
          '-',...
          'Color',config(idx).lineColors(1,:),...
          'LineWidth',config(idx).lineThickness,...
@@ -298,8 +312,8 @@ for idx = 1:1:length(config)
                                  config(idx).col(2,1),:),1,4));
 
 
-    plot(datData.Data.Time.value(idx0:idx1,1) .*(0.001),...
-         datData.Data.Fin.value(idx0:idx1,1) .* (1/fmax),...
+    plot(datData.Data.Time.Values(idx0:idx1,:) .*(0.001),...
+         datData.Data.Fin.Values(idx0:idx1,:) .* (1/fmax),...
          '-',...
          'Color',config(idx).lineColors(1,:),...
          'LineWidth',config(idx).lineThickness,...
