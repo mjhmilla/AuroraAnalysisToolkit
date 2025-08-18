@@ -202,8 +202,10 @@ for idx = 1:1:length(config)
     
     % Read in the file     
     fprintf('%s\treading...\n',config(idx).fileName);
-    flag_readHeader=0;
+    flag_readHeader=1;
+    time0=tic;
     datData = readAuroraData600A(file600A,flag_readHeader);
+    time1=toc(time0);
 
     %Extract the time in Bath 3: activation
     startTime = 0;
