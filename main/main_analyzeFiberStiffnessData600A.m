@@ -11,21 +11,36 @@ addpath(projectFolders.common);
 addpath(projectFolders.postprocessing);
 
 
+
 dataFolder600A = '20250818-209';
 dataFolderFullPath600A = fullfile(projectFolders.data_600A,dataFolder600A);
 trialNameKeywords = {'04_isometric_06Lo_2025',...
                      '05_isometric_10Lo_2025',...
                      '06_isometric_14Lo_2025'};
-bandwidthHzSq   = [1,10.]; %Power is 0.29
-bandwidthHzSine = [1,10.]; %Power is also 0.29
-trialColumns = [1,2,3];
-trialFmax    = 2;
-trialBandwidth= bandwidthHzSine;
+bandwidthHzSq    = [1,10.]; %Power is 0.29
+bandwidthHzSine  = [1,10.]; %Power is also 0.29
+trialColumns     = [1,2,3];
+trialFmax        = 2;
+trialBandwidth   = bandwidthHzSine;
 purturbationType = 'sine'; %'sine' or 'ramp'
+
+
+flag_10kHzData = contains(trialNameKeywords{1},'10kHz');
+
 
 impedancePlots.gain.ylim        = [0,43];
 impedancePlots.phase.ylim       = [-20,20];
 impedancePlots.coherenceSq.ylim = [0,1];
+
+%The raw data leads to a negative phase, which probably occurs because
+%the servo motor is on the opposite side of the fiber than the force
+%sensor. This introduces a small propagation delay. If there is any
+%additional delay such that the two samples for Lin and Fin are not
+%measured at exactly the same time, then this will completely ruin
+%the phase
+flag_shiftData= 0;                
+timeShiftInMs = 1.5; %m
+
 
 flag_readDataOnly = 0;
 
@@ -230,8 +245,18 @@ for i=1:1:length(config)
 
 
 
+            if(flag_shiftData==1)
+                yTimeDomainShift = interp1(datData.Data.Time.Values(:,1)-timeShiftInMs,...
+                                           datData.Data.(yFieldImp).Values(:,1),...
+                                           datData.Data.Time.Values(:,1),...
+                                           'linear','extrap');
+                yTimeDomain = yTimeDomainShift(idxA:idxB,1).*scaleYImp;
+            else
+                yTimeDomain = datData.Data.(yFieldImp).Values(idxA:idxB,1).*scaleYImp;
+            end
+
             xTimeDomain = datData.Data.(xFieldImp).Values(idxA:idxB,1).*scaleXImp;
-            yTimeDomain = datData.Data.(yFieldImp).Values(idxA:idxB,1).*scaleYImp;
+            
 
             xTimeDomain = xTimeDomain - mean(xTimeDomain);
             yTimeDomain = yTimeDomain - mean(yTimeDomain);
@@ -386,10 +411,15 @@ if(~exist(outputPlotDir,'dir'))
     mkdir(outputPlotDir);
 end
 
+nameMod10kHz='';
+if(flag_10kHzData==1)
+    nameMod10kHz = '_10kHz';
+end
+
 figInput=configPlotExporter(figInput, pageWidthGeneric, pageHeightGeneric);
 
 fileName =  ['fig_fiberImpedance_Input_',...
-              impedanceNameModification,'.pdf'];
+              impedanceNameModification,nameMod10kHz,'.pdf'];
 print('-dpdf', fullfile(outputPlotDir,fileName));
 
 if(isempty(impedanceNameModification)==0)
@@ -399,19 +429,19 @@ if(isempty(impedanceNameModification)==0)
     figPreprocessing=configPlotExporter(figPreprocessing,...
                         pageWidthGeneric, pageHeightGeneric);
     fileName =    ['fig_fiberImpedance_Preprocessing_',...
-                    impedanceNameModification,'.pdf'];
+                    impedanceNameModification,nameMod10kHz,'.pdf'];
     print('-dpdf', fullfile(outputPlotDir,fileName));
     
     figGainPhase=configPlotExporter(figGainPhase, ...
                         pageWidthGeneric, pageHeightGeneric);
     fileName =    ['fig_fiberImpedance_PhaseGain_',...
-                    impedanceNameModification,'.pdf'];
+                    impedanceNameModification,nameMod10kHz,'.pdf'];
     print('-dpdf', fullfile(outputPlotDir,fileName));
     
     figCoherenceSq=configPlotExporter(figCoherenceSq, ...
                         pageWidthGeneric, pageHeightGeneric);
     fileName =    ['fig_fiberImpedance_CoherenceSq_',...
-                    impedanceNameModification,'.pdf'];
+                    impedanceNameModification,nameMod10kHz,'.pdf'];
     print('-dpdf', fullfile(outputPlotDir,fileName));
 
 end
