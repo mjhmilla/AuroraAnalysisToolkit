@@ -34,6 +34,9 @@ assert(flag_rootDirPathValid==1, ['Error: the rootProjectDirectoryFullPath ',...
     'does not appear to be the root project directory because it is missing ',...
     'hidden file (.rootDirectory) that marks it as the root project directory.']);
 
+projectFolders.root = rootProjectDirectoryFullPath;
+
+projectFolders.main =  fullfile(rootProjectDirectoryFullPath,'main');
 
 projectFolders.data      = fullfile(rootProjectDirectoryFullPath,'data'        );   
 projectFolders.data_600A = fullfile(rootProjectDirectoryFullPath,'data','600A');   
