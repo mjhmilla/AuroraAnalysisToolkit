@@ -56,4 +56,12 @@ projectFolders.output         = fullfile(rootProjectDirectoryFullPath,'output'  
 projectFolders.output_plots   = fullfile(rootProjectDirectoryFullPath,'output','plots');  
 projectFolders.output_structs = fullfile(rootProjectDirectoryFullPath,'output','structs');  
 
+projectFolders.experiments    = fullfile(rootProjectDirectoryFullPath,'experiments'   );  
+projectFolders.experiments_SW1982        = fullfile(projectFolders.experiments, 'StephensonWilliams1982'              ); 
+projectFolders.experiments_TWHSS2021     = fullfile(projectFolders.experiments, 'TomalkaWeidnerHahnSieberlSiebert2021'); 
+projectFolders.experiments_TRSS2017      = fullfile(projectFolders.experiments, 'TomalkaRodeSchumacherSiebert2017'); 
+projectFolders.experiments_WTRS2024      = fullfile(projectFolders.experiments, 'WeidnerTomalkaRodeSiebert2024'); 
+projectFolders.experiments_ZHGL1995      = fullfile(projectFolders.experiments, 'ZuurbierHeslingaGrootLaarse1995'); 
+
+
 

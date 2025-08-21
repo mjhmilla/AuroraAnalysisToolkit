@@ -2,9 +2,9 @@ function config = getImpedanceDataConfiguration600A(folderName, ...
                                                     purturbationType,...
                                                     trialNameKeywords,...
                                                     trialColumns,...
+                                                    lineColors,...
                                                     projectFolders)
 
-lineColors = getPaulTolColourSchemes('bright');
 
 nFiles = length(trialNameKeywords);
 config(nFiles)=struct('fileName','','normLength',0);
@@ -195,6 +195,7 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
+    config(i).plots(idxP).impedance.isActive = 0;
     config(i).plots(idxP).impedance.xField = 'Lin';
     config(i).plots(idxP).impedance.yField = 'Fin';
     config(i).plots(idxP).impedance.xColor = lineColors.grey;
@@ -237,6 +238,7 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
+    config(i).plots(idxP).impedance.isActive = 1;
     config(i).plots(idxP).impedance.xField = 'Lin';
     config(i).plots(idxP).impedance.yField = 'Fin';
     config(i).plots(idxP).impedance.xColor = lineColors.grey;
