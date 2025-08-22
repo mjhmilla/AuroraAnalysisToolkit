@@ -31,6 +31,15 @@ if(strcmp(typeOfData,'fl-exp'))
          [0,0,0],'DisplayName',dataLegendEntry);
     hold on;
 
+    for i=1:1:length(dataX)
+        text(dataX(i,1),dataY(i,1),...
+             [' ',dataYAnnotation{i}],...
+             'FontSize',8,...
+             'VerticalAlignment','bottom',...
+             'HorizontalAlignment','left');
+        hold on;
+    end    
+
     yticks(round(sort(dataY),2));
     xticks(round(dataX,2));
 
@@ -58,13 +67,13 @@ if(strcmp(typeOfData,'im-exp'))
         text(dataX(i,1),dataY(i,1),...
              [dataYAnnotation{i},' '],...
              'FontSize',8,...
-             'VerticalAlignment','middle',...
+             'VerticalAlignment','top',...
              'HorizontalAlignment','right');
         hold on;
     end
 
     yticks(round(sort(dataY),2));
-    ylabel('Norm. Active Elastic Modulus ($$\sigma/\sigma_o$$)');
+    ylabel('Norm. Stiffness ($$k/k_o$$)');
 
     ylim([0,1.1]);
     box off;
@@ -109,7 +118,7 @@ if(strcmp(typeOfData,'ref-exp'))
     plot(activeForceLengthData(:,1),...
          activeForceLengthData(:,2),'o','Color',[1,1,1].*0.75,...
          'MarkerSize',markerSize,...
-         'MarkerFaceColor',[1,1,1],...
+         'MarkerFaceColor',[1,1,1].*0.75,...
          'DisplayName','SW1982: $$f^L$$');
     hold on;
     
@@ -127,6 +136,6 @@ if(strcmp(typeOfData,'ref-exp'))
     legend box off;
     
     xlabel('Norm. Length ($$\ell/\ell_o)$$');
-    ylabel('Norm. Stress ($$\sigma/\sigma_o$$)');
-    title('Force-Length-Active-Elastic-Modulus Relation');
+    ylabel('Norm. Force ($$f/f_0$$)');
+    title('Force-Length-Stiffness Relation');
 end

@@ -1,11 +1,14 @@
-function activeFiberModulus=calcEMC2025ActiveFiberModulus600A(...
-                                xTimeDomain,...
-                                yTimeDomain,...
-                                frequencyHzSubBand,...
-                                gainSubBand,...
-                                coherenceSqSubBand,...
-                                fiberForceMean,...
-                                fiberProperties)
+function [meanFiberModulus,...
+          meanGain,...
+          meanStress]=...
+            calcEMC2025FiberModulus600A(...
+                                        xTimeDomain,...
+                                        yTimeDomain,...
+                                        frequencyHzSubBand,...
+                                        gainSubBand,...
+                                        coherenceSqSubBand,...
+                                        fiberForceMean,...
+                                        fiberProperties)
 
 A = [frequencyHzSubBand, ones(size(frequencyHzSubBand))];
 b = gainSubBand;
@@ -21,6 +24,10 @@ freqAvg = mean(frequencyHzSubBand);
 
 gainAvg = [frequencyHzSubBand(idxAvg,1), 1]*x;
 coherenceSqAvg = coherenceSqSubBand(idxAvg,1);
+
+meanGain.Value=gainAvg;
+meanGain.Unit='mN/mm';
+
 
 flag_plotLinearGainModel=0;
 if(flag_plotLinearGainModel==1)
@@ -50,18 +57,15 @@ end
 
 %If the coherence of the signal is high, evaluate the
 %propagation delay            
-fiberLengthMM   = fiberProperties.lceMM;
-fiberLengthM    = fiberLengthMM/1000; 
 
-fiberRadiusMM =  fiberProperties.radiusMM;
-fiberRadiusM  = fiberRadiusMM/1000;
-
-fiberAreaMM     = fiberProperties.areaMM2;
-fiberAreaM      = pi*(fiberRadiusM*fiberRadiusM);
+fiberAreaM = fiberProperties.areaMM*(0.001*0.001);
+fiberLengthM = fiberProperties.lceMM*0.001;
 fiberForcemN    = fiberForceMean;                
 fiberForceN     = fiberForcemN/1000;
 
 fiberStress = fiberForceN/fiberAreaM;
+meanStress.Value = fiberStress;
+meanStress.Unit = 'Pa';
 dl = (fiberStress*fiberAreaM)/gainAvg;
 fiberE00 = fiberStress/ (dl/fiberLengthM); %Strain to develop this stress
 
@@ -83,5 +87,5 @@ fiberE02 = dsigmaNPM2/dxN;
 relError01 = abs(fiberE00-fiberE01)/(0.5*(fiberE00+fiberE01));
 relError02 = abs(fiberE01-fiberE02)/(0.5*(fiberE01+fiberE02));
 
-activeFiberModulus.Value = fiberE01;
-activeFiberModulus.Unit  = 'Pa';
+meanFiberModulus.Value = fiberE01;
+meanFiberModulus.Unit  = 'Pa';
