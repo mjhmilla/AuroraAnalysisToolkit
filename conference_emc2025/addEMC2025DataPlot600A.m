@@ -63,6 +63,17 @@ plot(trialData600A.Data.(xField).Values(idxA:idxB,1).*scaleX,...
      '-','Color',configPlotItem.lineColor,...
      'LineWidth',configPlotItem.lineWidth);
 hold on;
+axis tight;
+if(isempty(configPlotItem.xlimOffset)==0)
+    xlimSettings = [1,1].*mean(trialData600A.Data.(xField).Values(idxA:idxB,1).*scaleX);
+    xlimSettings = xlimSettings + configPlotItem.xlimOffset;
+    xlim(xlimSettings);
+end
+if(isempty(configPlotItem.ylimOffset)==0)
+    ylimSettings = [1,1].*mean(trialData600A.Data.(yField).Values(idxA:idxB,1).*scaleY);
+    ylimSettings = ylimSettings + configPlotItem.ylimOffset;
+    ylim(ylimSettings);
+end
 
 if(isempty(configPlotItem.boxTimes)==0)
     for k=1:1:size(configPlotItem.boxTimes,1)
@@ -96,7 +107,7 @@ end
 
 box off;
 
-axis tight;
+
 
 
 xlabel([configPlotItem.xLabel, '(',unitX,')']);

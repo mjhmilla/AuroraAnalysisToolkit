@@ -1,6 +1,6 @@
-function [meanFiberModulus,...
-          meanGain,...
-          meanStress]=...
+function [fiberModulusSample,...
+          gainSample,...
+          stressSample]=...
             calcEMC2025FiberModulus600A(...
                                         xTimeDomain,...
                                         yTimeDomain,...
@@ -20,13 +20,14 @@ k = x(2,1);
 gainLinear = A*x;
 %gain is in units of mN/mm = N/m
 freqAvg = mean(frequencyHzSubBand);
-[val,idxAvg] = min(abs(frequencyHzSubBand-freqAvg));
+%[val,idxAvg] = min(abs(frequencyHzSubBand-freqAvg));
 
-gainAvg = [frequencyHzSubBand(idxAvg,1), 1]*x;
-coherenceSqAvg = coherenceSqSubBand(idxAvg,1);
+%gainAvg = [frequencyHzSubBand(1,1), 1]*x;
+%coherenceSqAvg = coherenceSqSubBand(1,1);
 
-meanGain.Value=gainAvg;
-meanGain.Unit='mN/mm';
+idxSample=1;
+gainSample.Value=gainSubBand(idxSample,1);
+gainSample.Unit='mN/mm';
 
 
 flag_plotLinearGainModel=0;
@@ -41,12 +42,12 @@ if(flag_plotLinearGainModel==1)
 
     plot(frequencyHzSubBand,gainLinear,'-k');                
     hold on;
-    plot(frequencyHzSubBand(idxAvg,1),gainAvg,'*k');                
+    plot(frequencyHzSubBand(idxSample,1),gainSample.Value,'*k');                
 
     yyaxis right;
     plot(frequencyHzSubBand,coherenceSqSubBand);
     hold on;
-    plot(frequencyHzSubBand,coherenceSqAvg,'*');
+    plot(frequencyHzSubBand(idxSample,1),coherenceSqAvg(idxSample,1),'*');
     ylabel('Coherence$$^2$$');
     box off;
 
@@ -64,14 +65,14 @@ fiberForcemN    = fiberForceMean;
 fiberForceN     = fiberForcemN/1000;
 
 fiberStress = fiberForceN/fiberAreaM;
-meanStress.Value = fiberStress;
-meanStress.Unit = 'Pa';
-dl = (fiberStress*fiberAreaM)/gainAvg;
+stressSample.Value = fiberStress;
+stressSample.Unit = 'Pa';
+dl = (fiberStress*fiberAreaM)/gainSample.Value;
 fiberE00 = fiberStress/ (dl/fiberLengthM); %Strain to develop this stress
 
 %Using the definition of elastic modulus:
 % https://en.wikipedia.org/wiki/Elastic_modulus
-fiberE01 = gainAvg*(1/fiberAreaM)/(1/fiberLengthM);
+fiberE01 = gainSample.Value*(1/fiberAreaM)/(1/fiberLengthM);
 
 yTimeDomainPos = yTimeDomain(yTimeDomain>0);
 yTimeDomainNeg = yTimeDomain(yTimeDomain<0);
@@ -87,5 +88,5 @@ fiberE02 = dsigmaNPM2/dxN;
 relError01 = abs(fiberE00-fiberE01)/(0.5*(fiberE00+fiberE01));
 relError02 = abs(fiberE01-fiberE02)/(0.5*(fiberE01+fiberE02));
 
-meanFiberModulus.Value = fiberE01;
-meanFiberModulus.Unit  = 'Pa';
+fiberModulusSample.Value = fiberE01;
+fiberModulusSample.Unit  = 'Pa';

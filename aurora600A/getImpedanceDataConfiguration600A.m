@@ -1,6 +1,9 @@
 function config = getImpedanceDataConfiguration600A(folderName, ...
                                                     purturbationType,...
                                                     trialNameKeywords,...
+                                                    trialLengthLimOffset,...
+                                                    trialForceLimOffset,...
+                                                    trialDetailTimeIntervalOffset,...
                                                     trialColumns,...
                                                     lineColors,...
                                                     projectFolders)
@@ -137,6 +140,8 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
     config(i).plots(idxP).title  =...
         ['$$',num2str(config(i).normLength),'\ell_o$$'];
     config(i).plots(idxP).boxTimes = [timeSeries(idxPassiveStochasticWave,:);...
@@ -156,6 +161,8 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = [];
     config(i).plots(idxP).title  = ...
         ['$$',num2str(config(i).normLength),'\ell_o$$'];
     config(i).plots(idxP).boxTimes = [];
@@ -173,8 +180,10 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
     config(i).plots(idxP).title  =...
-        ['Box 1: $$',num2str(config(i).normLength),'\ell_o$$'];
+        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -190,18 +199,20 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
     config(i).plots(idxP).title  = ...
-        ['Box 1: $$',num2str(config(i).normLength),'\ell_o$$'];
+        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
     config(i).plots(idxP).impedance.isActive = 0;
     config(i).plots(idxP).impedance.xField = 'Lin';
     config(i).plots(idxP).impedance.yField = 'Fin';
-    config(i).plots(idxP).impedance.xColor = lineColors.grey;
-    config(i).plots(idxP).impedance.yColor = lineColors.blue;
-    config(i).plots(idxP).impedance.gainColor = lineColors.blue;
-    config(i).plots(idxP).impedance.phaseColor= lineColors.purple;
+    config(i).plots(idxP).impedance.xColor = [0,0,0];%lineColors.grey;
+    config(i).plots(idxP).impedance.yColor = [0,0,0];%lineColors.blue;
+    config(i).plots(idxP).impedance.gainColor = [0,0,0];%lineColors.blue;
+    config(i).plots(idxP).impedance.phaseColor= [0,0,0];%lineColors.purple;
     config(i).plots(idxP).impedance.coherenceSqColor= [0,0,0];
     config(i).plots(idxP).impedance.nameModifier = nameModifier;
 
@@ -216,8 +227,10 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);    
     config(i).plots(idxP).title  =...
-        ['Box 2: $$',num2str(config(i).normLength),'\ell_o$$'];
+        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -231,21 +244,108 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).timeInterval = timeSeries(idxActiveStochasticWave,:);
     config(i).plots(idxP).lineColor = lineColors.blue;    
     config(i).plots(idxP).lineWidth = 0.5;
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).title  = ...
-        ['Box 2: $$',num2str(config(i).normLength),'\ell_o$$'];
+        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
     config(i).plots(idxP).impedance.isActive = 1;
     config(i).plots(idxP).impedance.xField = 'Lin';
     config(i).plots(idxP).impedance.yField = 'Fin';
-    config(i).plots(idxP).impedance.xColor = lineColors.grey;
-    config(i).plots(idxP).impedance.yColor = lineColors.blue;
-    config(i).plots(idxP).impedance.gainColor = lineColors.blue;
-    config(i).plots(idxP).impedance.phaseColor= lineColors.purple;
+    config(i).plots(idxP).impedance.xColor = [0,0,0];%lineColors.grey;
+    config(i).plots(idxP).impedance.yColor = [0,0,0];%lineColors.blue;
+    config(i).plots(idxP).impedance.gainColor = [0,0,0];%lineColors.blue;
+    config(i).plots(idxP).impedance.phaseColor= [0,0,0];%lineColors.purple;
     config(i).plots(idxP).impedance.coherenceSqColor= [0,0,0];
     config(i).plots(idxP).impedance.nameModifier = nameModifier;
     here=1;
+
+    idxP=idxP+1;
+    config(i).plots(idxP).row   = 4;
+    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+    config(i).plots(idxP).xField='Time';
+    config(i).plots(idxP).yField='Lin';
+    config(i).plots(idxP).timeInterval = ...
+        timeSeries(idxPassiveStochasticWave,1)...
+        +trialDetailTimeIntervalOffset(i,:); 
+    config(i).plots(idxP).lineColor = lineColors.grey;    
+    config(i).plots(idxP).lineWidth = 0.5;
+    config(i).plots(idxP).xLabel = 'Time';
+    config(i).plots(idxP).yLabel = 'Length';    
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    config(i).plots(idxP).title  =...
+        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
+    config(i).plots(idxP).boxTimes = [];
+    config(i).plots(idxP).boxColors = [];
+    config(i).plots(idxP).impedance.analyze = 0;
+
+    idxP=idxP+1;
+    config(i).plots(idxP).row   = 4;
+    config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
+    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+    config(i).plots(idxP).xField='Time';
+    config(i).plots(idxP).yField='Fin';
+    config(i).plots(idxP).timeInterval = ...
+        timeSeries(idxPassiveStochasticWave,1)...
+        +trialDetailTimeIntervalOffset(i,:); 
+    config(i).plots(idxP).lineColor = lineColors.blue;    
+    config(i).plots(idxP).lineWidth = 0.5;
+    config(i).plots(idxP).xLabel = 'Time';
+    config(i).plots(idxP).yLabel = 'Force';
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
+    config(i).plots(idxP).title  = ...
+        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
+    config(i).plots(idxP).boxTimes = [];
+    config(i).plots(idxP).boxColors = [];      
+    config(i).plots(idxP).impedance.analyze =0;
+
+    idxP=idxP+1;
+    config(i).plots(idxP).row   = 5;
+    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+    config(i).plots(idxP).xField='Time';
+    config(i).plots(idxP).yField='Lin';
+    config(i).plots(idxP).timeInterval = ...
+        timeSeries(idxActiveStochasticWave,1)...
+        +trialDetailTimeIntervalOffset(i,:); 
+    config(i).plots(idxP).lineColor = lineColors.grey;    
+    config(i).plots(idxP).lineWidth = 0.5;
+    config(i).plots(idxP).xLabel = 'Time';
+    config(i).plots(idxP).yLabel = 'Length';    
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);    
+    config(i).plots(idxP).title  =...
+        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
+    config(i).plots(idxP).boxTimes = [];
+    config(i).plots(idxP).boxColors = [];
+    config(i).plots(idxP).impedance.analyze = 0;
+
+    idxP=idxP+1;
+    config(i).plots(idxP).row   = 5;
+    config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
+    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0;lineColors.blue];
+    config(i).plots(idxP).xField='Time';
+    config(i).plots(idxP).yField='Fin';
+    config(i).plots(idxP).timeInterval = ...
+        timeSeries(idxActiveStochasticWave,1)...
+        +trialDetailTimeIntervalOffset(i,:); 
+    config(i).plots(idxP).lineColor = lineColors.blue;    
+    config(i).plots(idxP).lineWidth = 0.5;
+    config(i).plots(idxP).xlimOffset      = [];
+    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
+    config(i).plots(idxP).xLabel = 'Time';
+    config(i).plots(idxP).yLabel = 'Force';
+    config(i).plots(idxP).title  = ...
+        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
+    config(i).plots(idxP).boxTimes = [];
+    config(i).plots(idxP).boxColors = [];      
+    config(i).plots(idxP).impedance.analyze = 0;
+
 end

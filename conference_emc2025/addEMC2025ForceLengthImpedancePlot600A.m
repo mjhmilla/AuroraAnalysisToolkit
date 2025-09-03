@@ -41,8 +41,11 @@ if(strcmp(typeOfData,'fl-exp'))
     end    
 
     yticks(round(sort(dataY),2));
-    xticks(round(dataX,2));
 
+    xRangeNorm = abs(diff(dataX))/mean(dataX);
+    if(xRangeNorm > 1e-2)
+        xticks(round(sort(dataX),2));
+    end
     ylim([0,1.1]);
     box off;
     hold on;
