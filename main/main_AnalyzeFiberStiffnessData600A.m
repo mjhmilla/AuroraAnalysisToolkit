@@ -15,7 +15,7 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_addFLKAnnotation=0;
 
-folderName = '20250823_fli_B1';%'20250821';
+folderName = '20250823_fli_B2';%'20250821';
  
 dataConfig = getImpedanceExperimentConfiguration600A(...
                 folderName,projectFolders);
