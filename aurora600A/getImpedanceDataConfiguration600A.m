@@ -1,34 +1,27 @@
-function config = getImpedanceDataConfiguration600A(folderName, ...
-                                                    purturbationType,...
-                                                    trialNameKeywords,...
-                                                    titleTrialKeywords,...
-                                                    titleBlockKeywords,...
-                                                    trialLengthLimOffset,...
-                                                    trialForceLimOffset,...
-                                                    trialDetailTimeIntervalOffset,...
-                                                    trialColumns,...
-                                                    lineColors,...
-                                                    projectFolders)
+function config = getImpedanceDataConfiguration600A(dataConfig,...
+                                                    lineColors)
 
 
-nFiles = length(trialNameKeywords);
+
+
+nFiles = length(dataConfig.fileNameKeywords);
 config(nFiles)=struct('fileName','','normLength',0);
 
-dataFiles = dir(folderName);
+dataFiles = dir(dataConfig.path);
 
 
 
-for i=1:1:length(trialNameKeywords)
+for i=1:1:length(dataConfig.fileNameKeywords)
 
     found=0;
     idxFileName = 0;
     for j=1:1:length(dataFiles)
         if(dataFiles(j).isdir == 0)
-            if(contains(dataFiles(j).name,trialNameKeywords{i}))
+            if(contains(dataFiles(j).name,dataConfig.fileNameKeywords{i}))
                 assert(found==0,...
                     ['Error: more than one file has the keyword ', ...
-                     trialNameKeywords{i},...
-                     ' in ', folderName]);                    
+                     dataConfig.fileNameKeywords{i},...
+                     ' in ', dataConfig.path]);                    
                 found=1;
                 idxFileName = j;
             end
@@ -36,7 +29,7 @@ for i=1:1:length(trialNameKeywords)
     end
 
     assert(found==1,['Error: could not find a file that contains ',...
-                     'the keyword ', trialNameKeywords{i}]);
+                     'the keyword ', dataConfig.fileNameKeywords{i}]);
 
     config(i).fileName = fullfile(dataFiles(idxFileName).folder,...
                                   dataFiles(idxFileName).name);
@@ -50,7 +43,7 @@ for i=1:1:length(trialNameKeywords)
     k1=k1-1;
     config(i).normLength = str2double(dataFiles(idxFileName).name(1,k0:k1))/10;
 
-    config(i).col = trialColumns(1,i);
+    config(i).col = dataConfig.trialPlotColumn(1,i);
 
     config(i).segmentLabels = [];
 
@@ -59,7 +52,7 @@ for i=1:1:length(trialNameKeywords)
                             '_labels.csv'];
 
     segmentLabelFullFileName = ...
-        fullfile(folderName,'segmentLabels',segmentLabelFileName);
+        fullfile(dataConfig.path,'segmentLabels',segmentLabelFileName);
     fid = fopen(segmentLabelFullFileName,'r');
 
     if(fid ~= -1)
@@ -101,7 +94,7 @@ for i=1:1:length(trialNameKeywords)
 
 
 
-    switch purturbationType{i}
+    switch dataConfig.perturbationType{i}
         case 'sine-high-frequency'
 
             idxPassiveStochasticSine    = 2;            
@@ -164,7 +157,7 @@ for i=1:1:length(trialNameKeywords)
             idxActiveStochasticWave = idxActiveStochasticRamp;
             nameModifier = 'StochasticRamp';
             
-        otherwise assert(0,'Error: purturbationType must be sine or ramp');
+        otherwise assert(0,'Error: dataConfig.perturbationType must be sine or ramp');
     end
 
     idxP = 1;
@@ -180,10 +173,10 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialLengthLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    if(isempty(dataConfig.lengthLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
     end
-    config(i).plots(idxP).title  =titleTrialKeywords{i};
+    config(i).plots(idxP).title  =dataConfig.titleTrial{i};
     config(i).plots(idxP).boxTimes = [timeSeries(idxPassiveStochasticWave,:);...
                                       timeSeries(idxActiveStochasticWave,:)];
     config(i).plots(idxP).boxColors = [0,0,0;...
@@ -203,7 +196,7 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    config(i).plots(idxP).title  = titleTrialKeywords{i};
+    config(i).plots(idxP).title  = dataConfig.titleTrial{i};
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];   
     config(i).plots(idxP).impedance.analyze = 0;
@@ -221,11 +214,11 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialLengthLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    if(isempty(dataConfig.lengthLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
     end    
     config(i).plots(idxP).title  =...
-        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -243,11 +236,11 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialForceLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    if(isempty(dataConfig.forceLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
     end
     config(i).plots(idxP).title  = ...
-        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
@@ -274,11 +267,11 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialLengthLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    if(isempty(dataConfig.lengthLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
     end    
     config(i).plots(idxP).title  =...
-        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -294,13 +287,13 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialForceLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    if(isempty(dataConfig.forceLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
     end     
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).title  = ...
-        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
@@ -323,18 +316,18 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yField='Lin';
     config(i).plots(idxP).timeInterval = ...
         timeSeries(idxPassiveStochasticWave,1)...
-        +trialDetailTimeIntervalOffset(i,:); 
+        +dataConfig.timeIntervalOffset(i,:); 
     config(i).plots(idxP).lineColor = lineColors.grey;    
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialLengthLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    if(isempty(dataConfig.lengthLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
     end    
     config(i).plots(idxP).title  =...
-        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -347,18 +340,18 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yField='Fin';
     config(i).plots(idxP).timeInterval = ...
         timeSeries(idxPassiveStochasticWave,1)...
-        +trialDetailTimeIntervalOffset(i,:); 
+        +dataConfig.timeIntervalOffset(i,:); 
     config(i).plots(idxP).lineColor = lineColors.blue;    
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialForceLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    if(isempty(dataConfig.forceLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
     end      
     config(i).plots(idxP).title  = ...
-        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze =0;
@@ -371,18 +364,18 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yField='Lin';
     config(i).plots(idxP).timeInterval = ...
         timeSeries(idxActiveStochasticWave,1)...
-        +trialDetailTimeIntervalOffset(i,:); 
+        +dataConfig.timeIntervalOffset(i,:); 
     config(i).plots(idxP).lineColor = lineColors.grey;    
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialLengthLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    if(isempty(dataConfig.lengthLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
     end    
     config(i).plots(idxP).title  =...
-        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -395,18 +388,18 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yField='Fin';
     config(i).plots(idxP).timeInterval = ...
         timeSeries(idxActiveStochasticWave,1)...
-        +trialDetailTimeIntervalOffset(i,:); 
+        +dataConfig.timeIntervalOffset(i,:); 
     config(i).plots(idxP).lineColor = lineColors.blue;    
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(trialForceLimOffset)==0)
-        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    if(isempty(dataConfig.forceLimitsOffset)==0)
+        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
     end      
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).title  = ...
-        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
+        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 0;

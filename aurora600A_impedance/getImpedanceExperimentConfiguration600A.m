@@ -1,0 +1,115 @@
+function dataConfig = getImpedanceExperimentConfiguration600A(...
+                            folderName,projectFolders)
+
+dataConfig.folder = folderName;
+
+
+switch dataConfig.folder
+    case '20250821'
+        dataConfig.path = fullfile(projectFolders.data_600A,dataConfig.folder);
+
+        dataConfig.fileNameKeywords = ...
+            {'04_isometric_06Lo_2025',...
+             '05_isometric_10Lo_2025',...
+             '06_isometric_14Lo_2025'};
+
+        dataConfig.isActive =ones(nTrials,1);
+
+        dataConfig.titleTrial = {'($$0.6 \ell_o$$)',...
+                                '($$1.0 \ell_o$$)',...
+                                '($$1.4 \ell_o$$)'};   
+
+        dataConfig.titleBlock = {'Passive','Active'};
+
+        nTrials = length(dataConfig.fileNameKeywords);
+        dataConfig.numberOfTrials = nTrials;
+
+        dataConfig.lengthLimitsOffset = [-ones(nTrials,1),ones(nTrials,1)].*0.0025;
+        dataConfig.forceLimitsOffset  = [-ones(nTrials,1),ones(nTrials,1)].*0.075;
+        dataConfig.timeIntervalOffset = ones(nTrials,2).*([0.750,0.950].*1000);
+        
+        lossPerTrial     = 0.02;
+        idxTrialFmax     = 2;
+        normalizeData    = 1;
+
+        dataConfig.fmaxScaling = [(1-lossPerTrial)^-1,...
+                            (1-lossPerTrial)^0,...
+                            (1-lossPerTrial)^1];
+        
+        dataConfig.trialPlotColumn     = [1,2,3];
+        dataConfig.trialUsedForFmax    = 2;
+        dataConfig.bandwidthHz         = [ones(nTrials,1),ones(nTrials,1)].*[1.5,10];
+        dataConfig.bandwidthHzPlot     = ...
+            [zeros(nTrials,1), ...
+             (ones(nTrials,1).*dataConfig.bandwidthHz(:,2)+1)];
+        
+        dataConfig.perturbationType = {'sine-low-frequency',...
+                            'sine-low-frequency',...
+                            'sine-low-frequency'};
+
+
+        dataConfig.coherenceSqYLim      = [0,1];
+        dataConfig.gainNormYLim         = [0,43];
+        dataConfig.phaseYLim            = [-20,20];
+        dataConfig.addStressStrainPlot  = 1;
+        
+        dataConfig.normalizeData = 1;
+
+    case '20250823_fli_nitrile'
+        dataConfig.path = fullfile(projectFolders.data_600A,dataConfig.folder);
+
+        dataConfig.fileNameKeywords =...
+            {'00_nitrile_isometric_10Lo_20250823_empty',...
+             '00_nitrile_isometric_10Lo_20250823_h2o',...
+             '01_nitrile_isometric_10Lo_20250823_empty',...
+             '01_nitrile_isometric_10Lo_20250823_h2o'};
+
+        dataConfig.titleTrial = {  'air (0-20Hz)',...
+                                'H20 (0-20Hz)',...
+                                'air (0-10Hz)',...
+                                'H20 (0-10Hz)'};   
+
+        dataConfig.titleBlock = {'Nitrile (1/2)','Nitrile (2/2)'};
+
+        
+        nTrials = length(dataConfig.fileNameKeywords);
+        dataConfig.numberOfTrials = nTrials;
+
+        dataConfig.isActive =zeros(nTrials,1);
+
+        dataConfig.lengthLimitsOffset          = [];
+        dataConfig.forceLimitsOffset           = [];
+        dataConfig.timeIntervalOffset = ones(nTrials,2).*([0.750,0.950].*1000);
+        
+        dataConfig.fmaxScaling = ones(1,nTrials);
+        idxTrialFmax     = [];
+        normalizeData    = 0;
+        
+
+        dataConfig.trialPlotColumn  = [1,2,3,4];
+        dataConfig.trialUsedForFmax = 1;
+        dataConfig.bandwidthHz      = [1.5,20; 1.5,20; 1.5,10; 1.5,10];
+        dataConfig.bandwidthHzPlot  = [zeros(nTrials,1),...
+                                       (dataConfig.bandwidthHz(:,2)+1)];
+        dataConfig.perturbationType = ...
+            {'sine-high-frequency',...
+             'sine-high-frequency',...
+             'sine-low-frequency',...
+             'sine-low-frequency'};        
+        
+
+
+        
+        dataConfig.coherenceSqYLim      = [];
+        dataConfig.gainNormYLim         = [];
+        dataConfig.phaseYLim            = [-75,5];
+        dataConfig.addStressStrainPlot  = 1;
+
+
+        dataConfig.addStressStrainPlot = 0;
+        
+        dataConfig.normalizeData = 1;
+
+    otherwise 
+        assert(0,'Error: invalid dataConfig.folder');
+end
