@@ -1,6 +1,8 @@
 function config = getImpedanceDataConfiguration600A(folderName, ...
                                                     purturbationType,...
                                                     trialNameKeywords,...
+                                                    titleTrialKeywords,...
+                                                    titleBlockKeywords,...
                                                     trialLengthLimOffset,...
                                                     trialForceLimOffset,...
                                                     trialDetailTimeIntervalOffset,...
@@ -94,34 +96,70 @@ for i=1:1:length(trialNameKeywords)
         end
     end
 
-    idxPassiveStochasticRamp    = 2;
-    idxPassiveStochasticSine    = 4;
-    idxActivation               = 6;
-    idxActiveStochasticRamp     = 8;
-    idxActiveStochasticSine     = 10;
 
-    assert(strcmp(controlSeries{idxPassiveStochasticRamp},...
-                    'Length-Ramp-Stochastic'),...
-        'Error: expected segmentLabels have changed');     
-    assert(strcmp(controlSeries{idxPassiveStochasticSine},...
-                    'Length-Sine-Stochastic'),...
-        'Error: expected segmentLabels have changed');    
-    assert(strcmp(controlSeries{idxActivation},...
-                    'Activation'),...
-        'Error: expected segmentLabels have changed');
-    assert(strcmp(controlSeries{idxActiveStochasticRamp},...
-                    'Length-Ramp-Stochastic'),...
-        'Error: expected segmentLabels have changed');
-    assert(strcmp(controlSeries{idxActiveStochasticSine},...
-                    'Length-Sine-Stochastic'),...
-        'Error: expected segmentLabels have changed');
 
-    switch purturbationType
-        case 'sine'
+
+
+
+    switch purturbationType{i}
+        case 'sine-high-frequency'
+
+            idxPassiveStochasticSine    = 2;            
+            idxActivation               = 4;            
+            idxActiveStochasticSine     = 6;
+
+            assert(strcmp(controlSeries{idxActivation},...
+                            'Activation'),...
+                'Error: expected segmentLabels have changed');
+
+            assert(strcmp(controlSeries{idxPassiveStochasticSine},...
+                            'Length-Sine-Stochastic'),...
+                'Error: expected segmentLabels have changed');    
+            assert(strcmp(controlSeries{idxActiveStochasticSine},...
+                            'Length-Sine-Stochastic'),...
+                'Error: expected segmentLabels have changed');            
+
             idxPassiveStochasticWave = idxPassiveStochasticSine;
             idxActiveStochasticWave = idxActiveStochasticSine;
             nameModifier = 'StochasticSine';
-        case 'ramp'
+
+        case 'sine-low-frequency'
+            idxPassiveStochasticSine    = 4;            
+            idxActiveStochasticSine     = 10;
+
+            idxActivation               = 6;        
+            assert(strcmp(controlSeries{idxActivation},...
+                            'Activation'),...
+                'Error: expected segmentLabels have changed');     
+
+            assert(strcmp(controlSeries{idxPassiveStochasticSine},...
+                            'Length-Sine-Stochastic'),...
+                'Error: expected segmentLabels have changed');    
+            assert(strcmp(controlSeries{idxActiveStochasticSine},...
+                            'Length-Sine-Stochastic'),...
+                'Error: expected segmentLabels have changed');            
+
+            idxPassiveStochasticWave = idxPassiveStochasticSine;
+            idxActiveStochasticWave = idxActiveStochasticSine;
+            nameModifier = 'StochasticSine';
+        case 'ramp-low-frequency'
+            idxPassiveStochasticRamp    = 2;
+            idxActiveStochasticRamp     = 8;
+
+            idxActivation               = 6;        
+        
+            assert(strcmp(controlSeries{idxActivation},...
+                            'Activation'),...
+                'Error: expected segmentLabels have changed');
+
+            assert(strcmp(controlSeries{idxPassiveStochasticRamp},...
+                            'Length-Ramp-Stochastic'),...
+                'Error: expected segmentLabels have changed');     
+            assert(strcmp(controlSeries{idxActiveStochasticRamp},...
+                            'Length-Ramp-Stochastic'),...
+                'Error: expected segmentLabels have changed');
+            
+
             idxPassiveStochasticWave = idxPassiveStochasticRamp;
             idxActiveStochasticWave = idxActiveStochasticRamp;
             nameModifier = 'StochasticRamp';
@@ -141,9 +179,11 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
-    config(i).plots(idxP).title  =...
-        ['$$',num2str(config(i).normLength),'\ell_o$$'];
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialLengthLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    end
+    config(i).plots(idxP).title  =titleTrialKeywords{i};
     config(i).plots(idxP).boxTimes = [timeSeries(idxPassiveStochasticWave,:);...
                                       timeSeries(idxActiveStochasticWave,:)];
     config(i).plots(idxP).boxColors = [0,0,0;...
@@ -163,8 +203,7 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).xlimOffset      = [];
     config(i).plots(idxP).ylimOffset      = [];
-    config(i).plots(idxP).title  = ...
-        ['$$',num2str(config(i).normLength),'\ell_o$$'];
+    config(i).plots(idxP).title  = titleTrialKeywords{i};
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];   
     config(i).plots(idxP).impedance.analyze = 0;
@@ -181,9 +220,12 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialLengthLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    end    
     config(i).plots(idxP).title  =...
-        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -200,9 +242,12 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialForceLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    end
     config(i).plots(idxP).title  = ...
-        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
@@ -228,9 +273,12 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);    
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialLengthLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    end    
     config(i).plots(idxP).title  =...
-        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -245,11 +293,14 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineColor = lineColors.blue;    
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialForceLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    end     
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).title  = ...
-        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 1;
@@ -278,9 +329,12 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialLengthLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    end    
     config(i).plots(idxP).title  =...
-        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -299,9 +353,12 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialForceLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    end      
     config(i).plots(idxP).title  = ...
-        ['Passive:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{1},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze =0;
@@ -320,9 +377,12 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Length';    
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);    
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialLengthLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialLengthLimOffset(i,:);
+    end    
     config(i).plots(idxP).title  =...
-        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];
     config(i).plots(idxP).impedance.analyze = 0;
@@ -339,11 +399,14 @@ for i=1:1:length(trialNameKeywords)
     config(i).plots(idxP).lineColor = lineColors.blue;    
     config(i).plots(idxP).lineWidth = 0.5;
     config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);    
+    config(i).plots(idxP).ylimOffset      = [];
+    if(isempty(trialForceLimOffset)==0)
+        config(i).plots(idxP).ylimOffset      = trialForceLimOffset(i,:);
+    end      
     config(i).plots(idxP).xLabel = 'Time';
     config(i).plots(idxP).yLabel = 'Force';
     config(i).plots(idxP).title  = ...
-        ['Active:  $$',num2str(config(i).normLength),'\ell_o$$'];
+        [titleBlockKeywords{2},' ',titleTrialKeywords{i}];
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];      
     config(i).plots(idxP).impedance.analyze = 0;

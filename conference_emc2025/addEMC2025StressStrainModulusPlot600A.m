@@ -48,14 +48,21 @@ if(strcmp(typeOfData,'ss-exp') && isempty(dataX)==0)
         hold on;
     end    
 
-    yticks(round(sort(dataYkPa),2));
-    xRangeNorm = abs(diff(dataX))/mean(dataX);
-    if(xRangeNorm > 1e-2)
-        xticks(round(sort(dataX),2));
-    end    
+    if(sum(isnan(dataYkPa))==0)
+        yRangeNorm = abs(diff(dataYkPa))/mean(dataYkPa);
+        if(yRangeNorm > 1e-2)
+            yticks((sort(dataYkPa)));
+        end 
+        ylim([0,1.1*max(dataYkPa)]);        
+    end
 
+    if(sum(isnan(dataX))==0)
+        xRangeNorm = abs(diff(dataX))/mean(dataX);
+        if(xRangeNorm > 1e-2)
+            xticks((sort(dataX)));
+        end    
+    end
 
-    ylim([0,1.1*max(dataYkPa)]);
     box off;
     hold on;
 
@@ -86,7 +93,7 @@ if(strcmp(typeOfData,'em-exp'))
         hold on;
     end
 
-    yticks(round(sort(dataYMPa),2));
+    yticks((sort(dataYMPa)));
     ylabel('Elastic Modulus (MPa)');
 
     ylim([0,1.1*max(dataYMPa)]);
@@ -192,8 +199,13 @@ if(strcmp(typeOfData,'ss-exp') && isempty(refRatMuscleDataSeries)==0)
 
     legend('Location','south');
     legend box off;
-    
-    xlabel('Strain ($$\ell/\ell_o - 1$$)');
-    ylabel('Stress (kPA)');
-    title('Stress-Strain-Elastic-Modulus Relation');
+    if(fiberProperties.normalize==1)
+        xlabel('Strain ($$\ell/\ell_o - 1$$)');
+        ylabel('Stress (kPA)');
+        title('Stress-Strain-Elastic-Modulus Relation');
+    else
+        xlabel('Strain ($$\ell/\ell_o - 1$$)');
+        ylabel('Stress (kPA)');
+        title('Ignore: data is not normalized');
+    end
 end

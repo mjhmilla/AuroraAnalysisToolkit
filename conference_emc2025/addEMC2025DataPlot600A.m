@@ -14,11 +14,12 @@ yField = configPlotItem.yField;
 
 scaleY = 1;
 unitY = trialData600A.Data.(yField).Unit;
-if(strcmp('Lin',yField))
+if(strcmp('Lin',yField) && fiberProperties.normalize==1)
     scaleY = (1/fiberProperties.lceOptMM);
     unitY = '$$\ell_o$$';
 end
-if(strcmp('Fin',yField))
+
+if(strcmp('Fin',yField) && fiberProperties.normalize==1)
     scaleY = (1/fiberProperties.fmax);
     unitY = '$$f_o$$';
 end        

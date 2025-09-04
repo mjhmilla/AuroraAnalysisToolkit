@@ -15,29 +15,45 @@ addpath(fullfile(rootDir,'conference_emc2025'));
 
 dataFolder600A = '20250823_fli_nitrile';%'20250821';
 
+ 
+
 switch dataFolder600A
     case '20250821'
         dataFolderFullPath600A = fullfile(projectFolders.data_600A,dataFolder600A);
         trialNameKeywords = {'04_isometric_06Lo_2025',...
                              '05_isometric_10Lo_2025',...
                              '06_isometric_14Lo_2025'};
-        trialLengthLimOffset = [-1,1;-1,1;-1,1].*0.0025;
-        trialForceLimOffset = [-1,1;-1,1;-1,1].*0.075;
-        trialDetailTimeIntervalOffset = [1,1;1,1;1,1].*([0.750,0.950].*1000);
+
+        titleTrialKeywords = {   '($$0.6 \ell_o$$)',...
+                                '($$1.0 \ell_o$$)',...
+                                '($$1.4 \ell_o$$)'};        
+        titleBlockKeywords = {'Passive','Active'};
+
+        nTrials = length(trialNameKeywords);
+
+
+        trialLengthLimOffset = [-ones(nTrials,1),ones(nTrials,1)].*0.0025;
+        trialForceLimOffset  = [-ones(nTrials,1),ones(nTrials,1)].*0.075;
+        trialDetailTimeIntervalOffset = ones(nTrials,2).*([0.750,0.950].*1000);
         
         lossPerTrial     = 0.02;
         idxTrialFmax     = 2;
+        normalizeData    = 1;
+
         trialFmaxScaling = [(1-lossPerTrial)^-1,...
                             (1-lossPerTrial)^0,...
                             (1-lossPerTrial)^1];
         
-        bandwidthHzSq    = [1.5,10.]; %Power is 0.29
-        bandwidthHzSine  = [1.5,10.]; %Power is also 0.29
-        bandwidthHzPlot  = [0,11];
         trialColumns     = [1,2,3];
         trialFmax        = 2;
-        trialBandwidth   = bandwidthHzSine;
-        purturbationType = 'sine'; %'sine' or 'ramp'
+        trialBandwidth   = [ones(nTrials,1),ones(nTrials,1)].*[1.5,10];
+        bandwidthHzPlot  = [zeros(nTrials,1), ...
+                            (ones(nTrials,1).*trialBandwidth(:,2)+1)];
+        
+        purturbationType = {'sine-low-frequency',...
+                            'sine-low-frequency',...
+                            'sine-low-frequency'};
+
         useForSummarySlide = [0,1,0];
 
         impedancePlots.gainNorm.ylim        = [0,43];
@@ -49,31 +65,46 @@ switch dataFolder600A
         impedancePlots.coherenceSq.ylim = [0,1];
 
         addStressStrainPlot = 1;
+
     case '20250823_fli_nitrile'
         dataFolderFullPath600A = fullfile(projectFolders.data_600A,dataFolder600A);
-        %'00_nitrile_isometric_10Lo_20250823_empty',...
-        %'00_nitrile_isometric_10Lo_20250823_h2o',...
-        trialNameKeywords = {'01_nitrile_isometric_10Lo_20250823_empty',...
+
+        trialNameKeywords = {'00_nitrile_isometric_10Lo_20250823_empty',...
+                             '00_nitrile_isometric_10Lo_20250823_h2o',...
+                             '01_nitrile_isometric_10Lo_20250823_empty',...
                              '01_nitrile_isometric_10Lo_20250823_h2o'};
-        trialLengthLimOffset = [-1,1;-1,1].*0.0025;
-        trialForceLimOffset = [-310,310;-25,25];
-        trialDetailTimeIntervalOffset = [1,1;1,1].*([0.750,0.950].*1000);
+
+        titleTrialKeywords = {  'air (0-20Hz)',...
+                                'H20 (0-20Hz)',...
+                                'air (0-10Hz)',...
+                                'H20 (0-10Hz)'};        
+        titleBlockKeywords = {'Nitrile (1/2)','Nitrile (2/2)'};
+
         
-        trialFmaxScaling = ones(1,length(trialNameKeywords));
-        idxTrialFmax     = 2;
+        nTrials = length(trialNameKeywords);
+
+        trialLengthLimOffset          = [];
+        trialForceLimOffset           = [];
+        trialDetailTimeIntervalOffset = ones(nTrials,2).*([0.750,0.950].*1000);
         
-        bandwidthHzSq    = [1.5,10.]; %Power is 0.29
-        bandwidthHzSine  = [1.5,10.]; %Power is also 0.29
-        bandwidthHzPlot  = [0,11];
-        trialColumns     = [1,2];
+        trialFmaxScaling = ones(1,nTrials);
+        idxTrialFmax     = [];
+        normalizeData    = 0;
+        
+
+        trialColumns     = [1,2,3,4];
         trialFmax        = 1;
-        trialBandwidth   = bandwidthHzSine;
-        purturbationType = 'sine'; %'sine' or 'ramp'
+        trialBandwidth   = [1.5,20; 1.5,20; 1.5,10; 1.5,10];
+        bandwidthHzPlot  = [zeros(nTrials,1), (trialBandwidth(:,2)+1)];
+        purturbationType = {'sine-high-frequency',...
+                            'sine-high-frequency',...
+                            'sine-low-frequency',...
+                            'sine-low-frequency'};        
         useForSummarySlide = [0,0];  
 
-        impedancePlots.gainNorm.ylim        = [0,1.6e5];
-        impedancePlots.phaseNorm.ylim       = [-45,45];
-        impedancePlots.coherenceSqNorm.ylim = [0,1];
+        impedancePlots.gainNorm.ylim        = [];
+        impedancePlots.phaseNorm.ylim       = [-75,5];
+        impedancePlots.coherenceSqNorm.ylim = [];
         
 
         addStressStrainPlot = 0;
@@ -121,10 +152,12 @@ flag_readDataOnly = 0;
 %%
 % Plot configuration
 %%
-numberOfHorizontalPlotColumnsGeneric    = 3;
+
+
+numberOfHorizontalPlotColumnsGeneric    = nTrials;
 numberOfVerticalPlotRowsGeneric         = 5;
-plotWidth                               = [5,5,5,5,5];
-plotHeight                              = [5;5;5;5;5];
+plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
+plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*5;
 plotHorizMarginCm                       = 5;
 plotVertMarginCm                        = 3;
 baseFontSize                            = 12;
@@ -143,6 +176,8 @@ baseFontSize                            = 12;
 config = getImpedanceDataConfiguration600A( dataFolderFullPath600A, ...
                                             purturbationType,...                                            
                                             trialNameKeywords,...
+                                            titleTrialKeywords,...
+                                            titleBlockKeywords,...
                                             trialLengthLimOffset,...
                                             trialForceLimOffset,...
                                             trialDetailTimeIntervalOffset,...
@@ -160,33 +195,54 @@ here=1;
 
 flag_readHeader=1;
 fmaxData = readAuroraData600A(config(trialFmax).fileName,flag_readHeader);
-assert(strcmp(config(trialFmax).segmentLabels(6).name,...
-                'Activation'),...
-       'Error: order of the segmentLabels file has changed ');
-assert(strcmp(config(trialFmax).segmentLabels(7).name,...
-                'Length-Ramp-Preconditioning'),...
-       'Error: order of the segmentLabels file has changed ');
-timeFmaxInt = config(trialFmax).segmentLabels(7).timeInterval(1,:);
 
-idxFmaxInt = getIndexInterval600A(fmaxData.Data.Time.Values,timeFmaxInt);
-fmax = fmaxData.Data.Fin.Values(idxFmaxInt(1,1),1);
+fmax = 1;
+fiberProperties.fmax                = 1;
+fiberProperties.lceOptMM            = 1;
+fiberProperties.volumeAtLceOptMM    = 1;
+fiberProperties.areaAtLceOptMM      = 1;
+fiberProperties.radiusAtLceOptMM    = sqrt(fiberProperties.areaAtLceOptMM/pi);
+fiberProperties.stressAtLceOpt      = 1;
+fiberProperties.normalize           = normalizeData;
 
-fiberProperties.fmax = fmax;
-
-fiberProperties.lceOptMM= ...
-    fmaxData.Setup_Parameters.Initial_Length.Value;
-
-%Sven measures the equivalent diameter at lopt
-fiberProperties.volumeAtLceOptMM = ...
-    pi*(fmaxData.Setup_Parameters.Diameter.Value * 0.5)^2 ...
-    *fiberProperties.lceOptMM;
-
-fiberProperties.areaAtLceOptMM= fiberProperties.volumeAtLceOptMM/fiberProperties.lceOptMM;
-
-fiberProperties.radiusAtLceOptMM= sqrt(fiberProperties.areaAtLceOptMM/pi);
-
-fiberProperties.stressAtLceOpt = fmax*1e-3 / (fiberProperties.areaAtLceOptMM.*1e-6);
-
+if(normalizeData==1)
+    idxFmax = 0;
+    flagActivation=0;
+    for k=1:1:length(config(trialFmax).segmentLabels)
+        if(strcmp( config(trialFmax).segmentLabels(k).name, 'Activation' ))
+            flagActivation=1;
+        end
+        if(contains( config(trialFmax).segmentLabels(k).name, ...
+                     'Preconditioning' ) && flagActivation == 1 )
+            idxFmax = k;
+        end    
+    end
+    assert(idxFmax > 0 && flagActivation > 0, ...
+        ['Error: protocol does not contain an activation',...
+        ' and preconditioning command']);
+    
+    
+    timeFmaxInt = config(trialFmax).segmentLabels(idxFmax).timeInterval(1,:);
+    
+    idxFmaxInt = getIndexInterval600A(fmaxData.Data.Time.Values,timeFmaxInt);
+    fmax = fmaxData.Data.Fin.Values(idxFmaxInt(1,1),1);
+    
+    fiberProperties.fmax = fmax;
+    
+    fiberProperties.lceOptMM= ...
+        fmaxData.Setup_Parameters.Initial_Length.Value;
+    
+    %Sven measures the equivalent diameter at lopt
+    fiberProperties.volumeAtLceOptMM = ...
+        pi*(fmaxData.Setup_Parameters.Diameter.Value * 0.5)^2 ...
+        *fiberProperties.lceOptMM;
+    
+    fiberProperties.areaAtLceOptMM= fiberProperties.volumeAtLceOptMM/fiberProperties.lceOptMM;
+    
+    fiberProperties.radiusAtLceOptMM= sqrt(fiberProperties.areaAtLceOptMM/pi);
+    
+    fiberProperties.stressAtLceOpt = fmax*1e-3 / (fiberProperties.areaAtLceOptMM.*1e-6);
+end
 
 %%
 % Generate the plots
@@ -217,7 +273,8 @@ figForceLengthStiffness = ...
             [],...
             ratMuscleData(indexStephensonWilliams1982),...
             expDataSetFittingData(indexStephensonWilliams1982),...
-            'ref-exp');
+            'ref-exp',...
+            fiberProperties);
 
 
 figForceLengthStiffness = ...
@@ -305,11 +362,16 @@ for i=1:1:length(config)
 
             assert(strcmp('Lin',xFieldImp),'Error: xFieldImp should be Lin');
             scaleXImp = (1/fiberProperties.lceOptMM);
-            unitXImp = '$$\ell_o$$';
-
+            unitXImp = trialData600A.Data.(xFieldImp).Unit;            
+            if(normalizeData==1)
+                unitXImp = '$$\ell_o$$';
+            end
             assert(strcmp('Fin',yFieldImp),'Error: yFieldImp should be Fin');            
             scaleYImp = (1/fiberProperties.fmax);
-            unitYImp = '$$f_o$$';
+            unitYImp = trialData600A.Data.(yFieldImp).Unit;            
+            if(normalizeData==1)
+                unitYImp = '$$f_o$$';
+            end
 
             scaleTime = 1;
             unitTime = trialData600A.Data.(timeFieldImp).Unit;
@@ -395,21 +457,21 @@ for i=1:1:length(config)
                 evaluateGainPhaseCoherenceSq(...
                                         xNormTimeDomain,...
                                         yNormTimeDomain,...
-                                        trialBandwidth(1,2),...
+                                        trialBandwidth(i,2),...
                                         sampleFrequency);
             
             [gain,phase,coherenceSq] = ...
                 evaluateGainPhaseCoherenceSq(...
                                         xTimeDomain,...
                                         yTimeDomain,...
-                                        trialBandwidth(1,2),...
+                                        trialBandwidth(i,2),...
                                         sampleFrequency);
 
-            dfreq = trialBandwidth(1,1);
+            dfreq = trialBandwidth(i,1);
 
-            idxFreq     = find(frequencyHz < (trialBandwidth(1,2)+dfreq));
-            idxFreqBand = find(frequencyHz < trialBandwidth(1,2) ...
-                             & frequencyHz > trialBandwidth(1,1));
+            idxFreq     = find(frequencyHz < (trialBandwidth(i,2)+dfreq));
+            idxFreqBand = find(frequencyHz < trialBandwidth(i,2) ...
+                             & frequencyHz > trialBandwidth(i,1));
 
             %%
             % Evaluate the active modulus of elasticity
@@ -508,7 +570,7 @@ for i=1:1:length(config)
                 = evaluateGainPhaseCoherenceSq(...
                                         xNormTimeDomain,...
                                         yNormTimeDomainShift,...
-                                        trialBandwidth(1,2),...
+                                        trialBandwidth(i,2),...
                                         sampleFrequency);
             
         
@@ -526,15 +588,16 @@ for i=1:1:length(config)
             %yyaxis left;
             %ax = gca;
             %ax.YColor = gainColor;
-            
-            plot([1,1].*trialBandwidth(1,1),...
-                 impedancePlots.gainNorm.ylim(),...
+
+            plot([1,1].*trialBandwidth(i,1),...
+                 max(gainNorm(idxFreq,:)),...
                  '--k');
             hold on; 
-            plot([1,1].*trialBandwidth(1,2),...
-                 impedancePlots.gainNorm.ylim(),...
+            plot([1,1].*trialBandwidth(i,2),...
+                 max(gainNorm(idxFreq,:)),...
                  '--k');
             hold on; 
+
 
             plot(frequencyHz(idxFreq,:),...
                  gainNorm(idxFreq,:),...
@@ -551,12 +614,14 @@ for i=1:1:length(config)
             
             box off;
             axis tight;
-            xlim(bandwidthHzPlot);
+            xlim(bandwidthHzPlot(i,:));
 
-            ylim(impedancePlots.gainNorm.ylim);
+            if(isempty(impedancePlots.gainNorm.ylim)==0)
+                ylim(impedancePlots.gainNorm.ylim);
+            end
             xlabel('Frequency (Hz)');
-            ylabel('Gain ($$f_o/\ell_o$$)');
-
+            ylabel(['Gain (',unitYImp,'/',unitXImp,')']);            
+            
             title([config(i).plots(j).title]);
             
             figure(figPhase);
@@ -566,7 +631,8 @@ for i=1:1:length(config)
 
             %yyaxis right;
             %ax.YColor = phaseColor;
-            plot(bandwidthHzPlot,zeros(size(bandwidthHzPlot)),'-',....
+            plot(bandwidthHzPlot(i,:),...
+                zeros(size(bandwidthHzPlot(i,:))),'-',....
                  'Color',[1,1,1].*0.75,'HandleVisibility','off');
             hold on;
 
@@ -581,12 +647,12 @@ for i=1:1:length(config)
                      '.-','Color',phaseColor,...
                      'LineWidth',0.5);
             end
-            plot([1,1].*trialBandwidth(1,1),...
-                 impedancePlots.phaseNorm.ylim(),...
+            plot([1,1].*trialBandwidth(i,1),...
+                 max(phaseNormShift(idxFreq,:).*(180/pi)),...
                  '--k');
             hold on; 
-            plot([1,1].*trialBandwidth(1,2),...
-                 impedancePlots.phaseNorm.ylim(),...
+            plot([1,1].*trialBandwidth(i,2),...
+                 max(phaseNormShift(idxFreq,:).*(180/pi)),...
                  '--k');
             hold on; 
             
@@ -594,8 +660,11 @@ for i=1:1:length(config)
             hold on;
             box off;
             axis tight;
-            xlim(bandwidthHzPlot);            
-            ylim(impedancePlots.phaseNorm.ylim);            
+            xlim(bandwidthHzPlot(i,:));   
+            if(isempty(impedancePlots.phaseNorm.ylim)==0)
+                ylim(impedancePlots.phaseNorm.ylim);        
+            end
+            xlabel('Frequency (Hz)');            
             ylabel('Phase ($$^o$$)');
 
             title([config(i).plots(j).title]);
@@ -606,12 +675,12 @@ for i=1:1:length(config)
                         reshape(subPlotPanelGeneric(config(i).plots(j).row, ...
                                                     config(i).col,:),1,4));   
 
-            plot([1,1].*trialBandwidth(1,1),...
-                 impedancePlots.coherenceSqNorm.ylim(),...
+            plot([1,1].*trialBandwidth(i,1),...
+                 [0,1],...
                  '--k');
             hold on; 
-            plot([1,1].*trialBandwidth(1,2),...
-                 impedancePlots.coherenceSqNorm.ylim(),...
+            plot([1,1].*trialBandwidth(i,2),...
+                 [0,1],...
                  '--k');
             hold on; 
 
@@ -623,8 +692,9 @@ for i=1:1:length(config)
             hold on;
             box off;
             axis tight;    
-            xlim(bandwidthHzPlot);            
-            ylim(impedancePlots.coherenceSqNorm.ylim);
+            xlim(bandwidthHzPlot(i,:));  
+
+            ylim([0,1]);
             xlabel('Frequency (Hz)');
             ylabel('Coherence$$^2$$');    
             title([config(i).plots(j).title]);
@@ -644,7 +714,7 @@ for i=1:1:length(config)
 
 end
 
-%%
+%%ds
 % Finish the force-length-impedance plot
 %%
 
@@ -652,12 +722,26 @@ end
 dataL=materialProperties.active.l;
 dataF=(materialProperties.active.f-materialProperties.passive.f);
 
-dataStrain = (dataL./dataL(idxTrialFmax)) - 1;
-dataSigma = (materialProperties.active.sigma...
-             -materialProperties.passive.sigma);
+dataStrain  = ones(size(dataL)).*nan;
+dataSigma   = ones(size(dataF)).*nan;
+
+dataLMax = 1;
+dataFMax = 1;
+dataKMax = 1;
+
+if(isempty(idxTrialFmax)==0)
+    dataStrain = (dataL./dataL(idxTrialFmax)) - 1;
+    dataSigma = (materialProperties.active.sigma...
+                 -materialProperties.passive.sigma);
+    dataLMax = dataL(idxTrialFmax);
+    dataFMax = dataF(idxTrialFmax);  
+    dataKMax = dataK(idxTrialFmax);
+end
 
 dataYAnnotationFL ={''};
 dataYAnnotationSS ={''};
+
+
 for i=1:1:length(dataL)
     if(i==1)
         dataYAnnotationFL = ...
@@ -680,8 +764,9 @@ for i=1:1:length(dataL)
     end
 end
 
-dataLNorm = dataL ./ dataL(idxTrialFmax);
-dataFNorm = dataF ./ dataF(idxTrialFmax);
+
+dataLNorm = dataL ./ dataLMax;
+dataFNorm = dataF ./ dataFMax;
 
 
 figForceLengthStiffness = ...
@@ -717,12 +802,13 @@ figForceLengthStiffness = ...
             'ss-exp');
 
 
+
 dataL=materialProperties.active.l;
 dataK=(materialProperties.active.k-materialProperties.passive.k);
 dataE=(materialProperties.active.E-materialProperties.passive.E);
 
-dataLNorm = dataL ./ dataL(idxTrialFmax);
-dataKNorm = dataK ./ dataK(idxTrialFmax);
+dataLNorm = dataL ./ dataLMax;
+dataKNorm = dataK ./ dataKMax;
 
 dataYAnnotationFL ={''};
 dataYAnnotationSS ={''};

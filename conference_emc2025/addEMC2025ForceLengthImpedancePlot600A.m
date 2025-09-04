@@ -10,7 +10,8 @@ function figH = addEMC2025ForceLengthImpedancePlot600A(...
                             dataLegendEntry,...
                             refRatMuscleDataSeries,...
                             refRatMuscleNormalizationData,...
-                            typeOfData)
+                            typeOfData,...
+                            fiberProperties)
 
 figure(figH);
 subPlotH = subplot('Position', ...
@@ -40,11 +41,18 @@ if(strcmp(typeOfData,'fl-exp'))
         hold on;
     end    
 
-    yticks(round(sort(dataY),2));
+    if(sum(isnan(dataY))==0)
+        yRangeNorm = abs(diff(dataY))/mean(dataY);
+        if(yRangeNorm > 1e-2)
+            yticks((sort(dataY)));
+        end
+    end
 
-    xRangeNorm = abs(diff(dataX))/mean(dataX);
-    if(xRangeNorm > 1e-2)
-        xticks(round(sort(dataX),2));
+    if(sum(isnan(dataX))==0)
+        xRangeNorm = abs(diff(dataX))/mean(dataX);
+        if(xRangeNorm > 1e-2)
+            xticks((sort(dataX)));
+        end
     end
     ylim([0,1.1]);
     box off;
@@ -75,7 +83,9 @@ if(strcmp(typeOfData,'im-exp'))
         hold on;
     end
 
-    yticks(round(sort(dataY),2));
+    if(sum(isnan(dataY))==0)
+        yticks((sort(dataY)));
+    end
     ylabel('Norm. Stiffness ($$k/k_o$$)');
 
     ylim([0,1.1]);
@@ -138,7 +148,12 @@ if(strcmp(typeOfData,'ref-exp'))
     legend('Location','northwest');
     legend box off;
     
-    xlabel('Norm. Length ($$\ell/\ell_o)$$');
-    ylabel('Norm. Force ($$f/f_0$$)');
+    if(fiberProperties.normalize==1)
+        xlabel('Norm. Length ($$\ell/\ell_o)$$');
+        ylabel('Norm. Force ($$f/f_0$$)');
+    else
+        xlabel('Length (mm)');
+        ylabel('Force (mN)');
+    end
     title('Force-Length-Stiffness Relation');
 end
