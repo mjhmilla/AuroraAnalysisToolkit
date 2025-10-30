@@ -5,6 +5,52 @@ dataConfig.folder = folderName;
 
 
 switch dataConfig.folder
+    case '20251030'
+        dataConfig.path = fullfile(projectFolders.data_600A,dataConfig.folder);
+
+        dataConfig.fileNameKeywords = ...
+            {'02_nitrile_020mN_100Lo_20251029_active',...
+             '02_nitrile_020mN_100Lo_20251029_passive'};
+
+        nTrials = length(dataConfig.fileNameKeywords);
+        dataConfig.numberOfTrials = nTrials;
+
+        dataConfig.isActive =[0;1];
+
+        dataConfig.titleTrial = {'($$1 \ell_o$$)',...
+                                 '($$1 \ell_o$$)'};   
+
+        dataConfig.titleBlock = {'Passive','Active'};
+
+        dataConfig.lengthLimitsOffset = [-ones(nTrials,1),ones(nTrials,1)].*0.025;
+        dataConfig.forceLimitsOffset  = [-3,3;...
+                                         -(2e-3),(2e-3)];
+        dataConfig.timeIntervalOffset =  ones(nTrials,2).*([0.750,0.950].*1000);
+        
+        lossPerTrial     = 0.0;
+        idxTrialFmax     = 1;
+        normalizeData    = 1;
+
+        dataConfig.fmaxScaling = [1;1];
+        
+        dataConfig.trialPlotColumn     = [1,2];
+        dataConfig.trialUsedForFmax    = 1;
+        dataConfig.bandwidthHz         = [ones(nTrials,1),ones(nTrials,1)].*[1.5,90];
+        dataConfig.bandwidthHzPlot     = ...
+            [zeros(nTrials,1), ...
+             (ones(nTrials,1).*dataConfig.bandwidthHz(:,2)+1)];
+        
+        dataConfig.perturbationType = {'Larb-Stochastic',...
+                                       'Larb-Stochastic'};
+
+
+        dataConfig.coherenceSqYLim      = [0,1].*ones(nTrials,2);
+        dataConfig.gainNormYLim         = [0,110].*ones(nTrials,2);
+        dataConfig.phaseYLim            = [-45,45].*ones(nTrials,2);
+        dataConfig.addStressStrainPlot  = 1;
+        
+        dataConfig.normalizeData = 0;
+
     case '20250904'
         dataConfig.path = fullfile(projectFolders.data_600A,dataConfig.folder);
 

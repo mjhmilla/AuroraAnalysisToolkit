@@ -15,7 +15,7 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_addFLKAnnotation=0;
 
-folderName = '20250904';
+folderName = '20251030';
 
 dataConfig = getImpedanceExperimentConfiguration600A(...
                 folderName,projectFolders);
@@ -95,8 +95,7 @@ baseFontSize                            = 12;
                       baseFontSize); 
 
 
-config = getImpedanceDataConfiguration600A( dataConfig,...
-                                                                                              lineColors);
+config = getImpedanceDataConfiguration600A( dataConfig,lineColors);
 
 
 %%
@@ -239,7 +238,7 @@ for i=1:1:length(config)
     %%
     % Store basic properties of the fiber that are used throughout
     %%
-    fiberProperties.fmax    = fmax*dataConfig.fmaxScaling(1,i);
+    fiberProperties.fmax    = fmax*dataConfig.fmaxScaling(i);
 
     fiberProperties.lceMM   =[];
     fiberProperties.areaMM  =[];

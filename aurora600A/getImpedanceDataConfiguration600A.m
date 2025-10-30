@@ -156,34 +156,61 @@ for i=1:1:length(dataConfig.fileNameKeywords)
             idxPassiveStochasticWave = idxPassiveStochasticRamp;
             idxActiveStochasticWave = idxActiveStochasticRamp;
             nameModifier = 'StochasticRamp';
-            
+        
+        case 'Larb-Stochastic'
+
+            idxPassiveStochasticWave = nan;
+            idxActiveStochasticWave = nan;
+            nameModifier = 'StochasticArbitraryWaveform';    
+
+            isActive=0;
+            for idxLabel=1:1:length(controlSeries)
+                if(strcmp(controlSeries{idxLabel},'Activation'))
+                    isActive=1;
+                end
+            end
+            for idxLabel=1:1:length(controlSeries)
+                if(strcmp(controlSeries{idxLabel},'Larb-Stochastic'))
+                    if(isActive==1)
+                        idxActiveStochasticWave=idxLabel;
+                    else
+                        idxPassiveStochasticWave=idxLabel;
+                    end
+                end
+            end
+
         otherwise assert(0,'Error: dataConfig.perturbationType must be sine or ramp');
     end
 
-    idxP = 1;
-    config(i).plots(idxP).row   = 1;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Lin';
-    config(i).plots(idxP).timeInterval = []; %all
-    config(i).plots(idxP).lineColor = lineColors.grey;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Length';    
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.lengthLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
-    end
-    config(i).plots(idxP).title  =dataConfig.titleTrial{i};
-    config(i).plots(idxP).boxTimes = [timeSeries(idxPassiveStochasticWave,:);...
-                                      timeSeries(idxActiveStochasticWave,:)];
-    config(i).plots(idxP).boxColors = [0,0,0;...
-                                       0,0,0];
-    config(i).plots(idxP).impedance.analyze = 0;
 
-    idxP=idxP+1;
+    idxP = 1;
+    if(  isnan(idxPassiveStochasticWave) == 0 ...
+       && isnan(idxActiveStochasticWave) == 0) 
+
+        config(i).plots(idxP).row   = 1;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Lin';
+        config(i).plots(idxP).timeInterval = []; %all
+        config(i).plots(idxP).lineColor = lineColors.grey;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Length';    
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.lengthLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
+        end
+        config(i).plots(idxP).title  =dataConfig.titleTrial{i};
+        config(i).plots(idxP).boxTimes = [timeSeries(idxPassiveStochasticWave,:);...
+                                          timeSeries(idxActiveStochasticWave,:)];
+        config(i).plots(idxP).boxColors = [0,0,0;...
+                                           0,0,0];
+        config(i).plots(idxP).impedance.analyze = 0;
+        idxP=idxP+1;
+    end
+
     config(i).plots(idxP).row   = 1;
     config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
     config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
@@ -200,208 +227,222 @@ for i=1:1:length(dataConfig.fileNameKeywords)
     config(i).plots(idxP).boxTimes = [];
     config(i).plots(idxP).boxColors = [];   
     config(i).plots(idxP).impedance.analyze = 0;
-
     idxP=idxP+1;
-    config(i).plots(idxP).row   = 2;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Lin';
-    config(i).plots(idxP).timeInterval = timeSeries(idxPassiveStochasticWave,:); 
-    config(i).plots(idxP).lineColor = lineColors.grey;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Length';    
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.lengthLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
-    end    
-    config(i).plots(idxP).title  =...
-        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];
-    config(i).plots(idxP).impedance.analyze = 0;
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 2;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Fin';
-    config(i).plots(idxP).timeInterval = timeSeries(idxPassiveStochasticWave,:);
-    config(i).plots(idxP).lineColor = lineColors.blue;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Force';
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.forceLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
+    if(  isnan(idxPassiveStochasticWave) == 0) 
+        config(i).plots(idxP).row   = 2;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Lin';
+        config(i).plots(idxP).timeInterval = timeSeries(idxPassiveStochasticWave,:); 
+        config(i).plots(idxP).lineColor = lineColors.grey;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Length';    
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.lengthLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
+        end    
+        config(i).plots(idxP).title  =...
+            [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];
+        config(i).plots(idxP).impedance.analyze = 0;
+        idxP=idxP+1;
     end
-    config(i).plots(idxP).title  = ...
-        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];      
-    config(i).plots(idxP).impedance.analyze = 1;
-    config(i).plots(idxP).impedance.isActive = 0;
-    config(i).plots(idxP).impedance.xField = 'Lin';
-    config(i).plots(idxP).impedance.yField = 'Fin';
-    config(i).plots(idxP).impedance.xColor = [0,0,0];%lineColors.grey;
-    config(i).plots(idxP).impedance.yColor = [0,0,0];%lineColors.blue;
-    config(i).plots(idxP).impedance.gainColor = [0,0,0];%lineColors.blue;
-    config(i).plots(idxP).impedance.phaseColor= [0,0,0];%lineColors.purple;
-    config(i).plots(idxP).impedance.coherenceSqColor= [0,0,0];
-    config(i).plots(idxP).impedance.nameModifier = nameModifier;
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 3;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Lin';
-    config(i).plots(idxP).timeInterval = timeSeries(idxActiveStochasticWave,:); 
-    config(i).plots(idxP).lineColor = lineColors.grey;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Length';    
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.lengthLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
-    end    
-    config(i).plots(idxP).title  =...
-        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];
-    config(i).plots(idxP).impedance.analyze = 0;
+    if(  isnan(idxPassiveStochasticWave) == 0) 
+        config(i).plots(idxP).row   = 2;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Fin';
+        config(i).plots(idxP).timeInterval = timeSeries(idxPassiveStochasticWave,:);
+        config(i).plots(idxP).lineColor = lineColors.blue;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Force';
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.forceLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
+        end
+        config(i).plots(idxP).title  = ...
+            [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];      
+        config(i).plots(idxP).impedance.analyze = 1;
+        config(i).plots(idxP).impedance.isActive = 0;
+        config(i).plots(idxP).impedance.xField = 'Lin';
+        config(i).plots(idxP).impedance.yField = 'Fin';
+        config(i).plots(idxP).impedance.xColor = [0,0,0];%lineColors.grey;
+        config(i).plots(idxP).impedance.yColor = [0,0,0];%lineColors.blue;
+        config(i).plots(idxP).impedance.gainColor = [0,0,0];%lineColors.blue;
+        config(i).plots(idxP).impedance.phaseColor= [0,0,0];%lineColors.purple;
+        config(i).plots(idxP).impedance.coherenceSqColor= [0,0,0];
+        config(i).plots(idxP).impedance.nameModifier = nameModifier;
+        idxP=idxP+1;
+    end
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 3;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0;lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Fin';
-    config(i).plots(idxP).timeInterval = timeSeries(idxActiveStochasticWave,:);
-    config(i).plots(idxP).lineColor = lineColors.blue;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.forceLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
-    end     
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Force';
-    config(i).plots(idxP).title  = ...
-        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];      
-    config(i).plots(idxP).impedance.analyze = 1;
-    config(i).plots(idxP).impedance.isActive = 1;
-    config(i).plots(idxP).impedance.xField = 'Lin';
-    config(i).plots(idxP).impedance.yField = 'Fin';
-    config(i).plots(idxP).impedance.xColor = [0,0,0];%lineColors.grey;
-    config(i).plots(idxP).impedance.yColor = [0,0,0];%lineColors.blue;
-    config(i).plots(idxP).impedance.gainColor = [0,0,0];%lineColors.blue;
-    config(i).plots(idxP).impedance.phaseColor= [0,0,0];%lineColors.purple;
-    config(i).plots(idxP).impedance.coherenceSqColor= [0,0,0];
-    config(i).plots(idxP).impedance.nameModifier = nameModifier;
-    here=1;
+    if(  isnan(idxActiveStochasticWave) == 0) 
+        config(i).plots(idxP).row   = 3;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Lin';
+        config(i).plots(idxP).timeInterval = timeSeries(idxActiveStochasticWave,:); 
+        config(i).plots(idxP).lineColor = lineColors.grey;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Length';    
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.lengthLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
+        end    
+        config(i).plots(idxP).title  =...
+            [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];
+        config(i).plots(idxP).impedance.analyze = 0;
+        idxP=idxP+1;
+    end
+    if(  isnan(idxActiveStochasticWave) == 0)     
+        config(i).plots(idxP).row   = 3;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0;lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Fin';
+        config(i).plots(idxP).timeInterval = timeSeries(idxActiveStochasticWave,:);
+        config(i).plots(idxP).lineColor = lineColors.blue;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.forceLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
+        end     
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Force';
+        config(i).plots(idxP).title  = ...
+            [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];      
+        config(i).plots(idxP).impedance.analyze = 1;
+        config(i).plots(idxP).impedance.isActive = 1;
+        config(i).plots(idxP).impedance.xField = 'Lin';
+        config(i).plots(idxP).impedance.yField = 'Fin';
+        config(i).plots(idxP).impedance.xColor = [0,0,0];%lineColors.grey;
+        config(i).plots(idxP).impedance.yColor = [0,0,0];%lineColors.blue;
+        config(i).plots(idxP).impedance.gainColor = [0,0,0];%lineColors.blue;
+        config(i).plots(idxP).impedance.phaseColor= [0,0,0];%lineColors.purple;
+        config(i).plots(idxP).impedance.coherenceSqColor= [0,0,0];
+        config(i).plots(idxP).impedance.nameModifier = nameModifier;   
+        idxP=idxP+1;
+    end
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 4;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Lin';
-    config(i).plots(idxP).timeInterval = ...
-        timeSeries(idxPassiveStochasticWave,1)...
-        +dataConfig.timeIntervalOffset(i,:); 
-    config(i).plots(idxP).lineColor = lineColors.grey;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Length';    
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.lengthLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
-    end    
-    config(i).plots(idxP).title  =...
-        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];
-    config(i).plots(idxP).impedance.analyze = 0;
+    if(  isnan(idxPassiveStochasticWave) == 0)     
+        config(i).plots(idxP).row   = 4;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Lin';
+        config(i).plots(idxP).timeInterval = ...
+            timeSeries(idxPassiveStochasticWave,1)...
+            +dataConfig.timeIntervalOffset(i,:); 
+        config(i).plots(idxP).lineColor = lineColors.grey;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Length';    
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.lengthLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
+        end    
+        config(i).plots(idxP).title  =...
+            [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];
+        config(i).plots(idxP).impedance.analyze = 0;
+        idxP=idxP+1;
+    end
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 4;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Fin';
-    config(i).plots(idxP).timeInterval = ...
-        timeSeries(idxPassiveStochasticWave,1)...
-        +dataConfig.timeIntervalOffset(i,:); 
-    config(i).plots(idxP).lineColor = lineColors.blue;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Force';
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.forceLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
-    end      
-    config(i).plots(idxP).title  = ...
-        [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];      
-    config(i).plots(idxP).impedance.analyze =0;
+    if(  isnan(idxPassiveStochasticWave) == 0)     
+        config(i).plots(idxP).row   = 4;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Fin';
+        config(i).plots(idxP).timeInterval = ...
+            timeSeries(idxPassiveStochasticWave,1)...
+            +dataConfig.timeIntervalOffset(i,:); 
+        config(i).plots(idxP).lineColor = lineColors.blue;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Force';
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.forceLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
+        end      
+        config(i).plots(idxP).title  = ...
+            [dataConfig.titleBlock{1},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];      
+        config(i).plots(idxP).impedance.analyze =0;
+        idxP=idxP+1;
+    end
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 5;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis left';
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Lin';
-    config(i).plots(idxP).timeInterval = ...
-        timeSeries(idxActiveStochasticWave,1)...
-        +dataConfig.timeIntervalOffset(i,:); 
-    config(i).plots(idxP).lineColor = lineColors.grey;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Length';    
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.lengthLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
-    end    
-    config(i).plots(idxP).title  =...
-        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];
-    config(i).plots(idxP).impedance.analyze = 0;
+    if(  isnan(idxActiveStochasticWave) == 0)     
+        config(i).plots(idxP).row   = 5;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis left';
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0; lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Lin';
+        config(i).plots(idxP).timeInterval = ...
+            timeSeries(idxActiveStochasticWave,1)...
+            +dataConfig.timeIntervalOffset(i,:); 
+        config(i).plots(idxP).lineColor = lineColors.grey;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Length';    
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.lengthLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.lengthLimitsOffset(i,:);
+        end    
+        config(i).plots(idxP).title  =...
+            [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];
+        config(i).plots(idxP).impedance.analyze = 0;
+        idxP=idxP+1;
+    end
 
-    idxP=idxP+1;
-    config(i).plots(idxP).row   = 5;
-    config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
-    config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0;lineColors.blue];
-    config(i).plots(idxP).xField='Time';
-    config(i).plots(idxP).yField='Fin';
-    config(i).plots(idxP).timeInterval = ...
-        timeSeries(idxActiveStochasticWave,1)...
-        +dataConfig.timeIntervalOffset(i,:); 
-    config(i).plots(idxP).lineColor = lineColors.blue;    
-    config(i).plots(idxP).lineWidth = 0.5;
-    config(i).plots(idxP).xlimOffset      = [];
-    config(i).plots(idxP).ylimOffset      = [];
-    if(isempty(dataConfig.forceLimitsOffset)==0)
-        config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
-    end      
-    config(i).plots(idxP).xLabel = 'Time';
-    config(i).plots(idxP).yLabel = 'Force';
-    config(i).plots(idxP).title  = ...
-        [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
-    config(i).plots(idxP).boxTimes = [];
-    config(i).plots(idxP).boxColors = [];      
-    config(i).plots(idxP).impedance.analyze = 0;
+    if(  isnan(idxActiveStochasticWave) == 0) 
+        config(i).plots(idxP).row   = 5;
+        config(i).plots(idxP).yyLeftRight = 'yyaxis right';    
+        config(i).plots(idxP).yyLeftRightAxisColor = [0,0,0;lineColors.blue];
+        config(i).plots(idxP).xField='Time';
+        config(i).plots(idxP).yField='Fin';
+        config(i).plots(idxP).timeInterval = ...
+            timeSeries(idxActiveStochasticWave,1)...
+            +dataConfig.timeIntervalOffset(i,:); 
+        config(i).plots(idxP).lineColor = lineColors.blue;    
+        config(i).plots(idxP).lineWidth = 0.5;
+        config(i).plots(idxP).xlimOffset      = [];
+        config(i).plots(idxP).ylimOffset      = [];
+        if(isempty(dataConfig.forceLimitsOffset)==0)
+            config(i).plots(idxP).ylimOffset      = dataConfig.forceLimitsOffset(i,:);
+        end      
+        config(i).plots(idxP).xLabel = 'Time';
+        config(i).plots(idxP).yLabel = 'Force';
+        config(i).plots(idxP).title  = ...
+            [dataConfig.titleBlock{2},' ',dataConfig.titleTrial{i}];
+        config(i).plots(idxP).boxTimes = [];
+        config(i).plots(idxP).boxColors = [];      
+        config(i).plots(idxP).impedance.analyze = 0;
+    end
 
 end
