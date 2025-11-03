@@ -14,28 +14,38 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_readHeader=1;
 
-folderName = '20251031';
-keywordSegmentToPlot = 'Larb-Stochastic';
+folderName             = '20251031';
+keyword.label          = 'Larb-Stochastic';
+keyword.controlFunction= 'Length-Arb';
 
 larbProperties(4) = struct('number',0,'bandwidth',[0,0],'amplitude',[0]);
 
-i=1;
-larbProperties(i).keyword = i;
-larbProperties(i).bandwidth = [0,15];
-larbProperties(i).amplitude = 0.01;
-i=i+1;
-larbProperties(i).keyword = i;
-larbProperties(i).bandwidth = [0,90];
-larbProperties(i).amplitude = 0.01;
-i=i+1;
-larbProperties(i).keyword = i;
-larbProperties(i).bandwidth = [0,15];
-larbProperties(i).amplitude = 0.001;
-i=i+1;
-larbProperties(i).keyword = i;
-larbProperties(i).bandwidth = [0,90];
-larbProperties(i).amplitude = 0.001;
+switch folderName
+    case '20251030'
+        i=1;
+        larbProperties(i).id = 2;
+        larbProperties(i).bandwidth = [0,90];
+        larbProperties(i).amplitude = 0.01;
+        
+    case '20251031'
+        i=1;
+        larbProperties(i).id = i;
+        larbProperties(i).bandwidth = [0,15];
+        larbProperties(i).amplitude = 0.01;
+        i=i+1;
+        larbProperties(i).id = i;
+        larbProperties(i).bandwidth = [0,90];
+        larbProperties(i).amplitude = 0.01;
+        i=i+1;
+        larbProperties(i).id = i;
+        larbProperties(i).bandwidth = [0,15];
+        larbProperties(i).amplitude = 0.001;
+        i=i+1;
+        larbProperties(i).id = i;
+        larbProperties(i).bandwidth = [0,90];
+        larbProperties(i).amplitude = 0.001;
 
+end
 
 dataConfig = getImpedanceExperimentConfiguration600A(...
                 folderName,projectFolders);
@@ -103,13 +113,13 @@ for i=1:1:length(dataLabels)
     %%
     idxPlot=0;
     for j=1:1:length(dataLabels(i).segmentLabels)
-        if(strcmp(dataLabels(i).segmentLabels(j).name,keywordSegmentToPlot))
+        if(strcmp(dataLabels(i).segmentLabels(j).name,keyword.label))
             assert(idxPlot==0,['Error: multiple segments have the name',...
-                                keywordSegmentToPlot]);
+                                keyword.label]);
             idxPlot=j;
         end
     end
-    assert(idxPlot~=0,['Error: could not find segment with ',keywordSegmentToPlot]);
+    assert(idxPlot~=0,['Error: could not find segment with ',keyword.label]);
 
     %%
     %Extract the indicies to plot
@@ -123,22 +133,25 @@ for i=1:1:length(dataLabels)
     %Find the wave number
     %%
     idxWave = 0;
-    for j=2:1:length(auroraData.Test_Protocol.Control_Function.Value)
+    for j=1:1:length(auroraData.Test_Protocol.Control_Function.Value)
         commandName = auroraData.Test_Protocol.Control_Function.Value{j};
-        t0 = auroraData.Test_Protocol.Time.Value(j-1);
-        t1 = auroraData.Test_Protocol.Time.Value(j);
 
-        if(t0 == timeStart && t1 <= timeEnd)
+        if(contains(commandName,keyword.controlFunction))
             optionsStr = auroraData.Test_Protocol.Options.Value{j};
             idxTmp = strfind(optionsStr,' ');
             idxWave = str2double(optionsStr(1:min(idxTmp)));
+            for k=1:1:length(larbProperties)
+                if(idxWave == larbProperties(k).id)
+                    bandwidth = larbProperties(k).bandwidth;
+                    amplitude = larbProperties(k).amplitude;
+                end
+            end
         end
         
     end
     assert(idxWave~=0,'Error: could not find the correct wave number');
-
-    bandwidth = larbProperties(idxWave).bandwidth;
-    amplitude = larbProperties(idxWave).amplitude;
+    assert(isempty(bandwidth)==0,'Error: could not find the correct larb properties');
+    assert(isempty(amplitude)==0,'Error: could not find the correct larb properties');
 
     %%
     % Plot time-length-force    
@@ -163,8 +176,10 @@ for i=1:1:length(dataLabels)
     box off;    
     ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
     
-    titleStr = replace(dataConfig.fileNameKeywords{i},'_','\_');
-    title(titleStr);
+    titleStrA = dataConfig.titleTrial{i};
+    titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);
+
+    title([titleStrA,':', titleStrB]);
 
     here=1;
 
@@ -235,7 +250,7 @@ end
 
 figH=configPlotExporter(figH, ...
                     pageWidthGeneric, pageHeightGeneric);
-fileName =    ['fig_FrequencyResponse'];
+fileName =    ['fig_FrequencyResponse_',folderName];
 print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
 saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));
 
