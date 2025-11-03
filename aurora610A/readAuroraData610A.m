@@ -145,34 +145,50 @@ ddfData.data.columnNames = parseDelimitedStringToCellArray(line,char(9));
 
 [line, ltout]= fgets(fid);    
 
-ddfData.data.values = zeros(1000,length(ddfData.data.columnNames));
 
-i=1;
-while line ~= -1
-    cellArray = parseDelimitedStringToCellArray(line,char(9));
+fmt = '%f';
+for i=2:1:length(ddfData.data.columnNames)
+    fmt = [fmt,'\t%f'];
+end
+nCols = length(ddfData.data.columnNames);
 
-    if(length(cellArray)~=length(ddfData.data.columnNames))
-        here=1;
-    end
-    assert(length(cellArray)==length(ddfData.data.columnNames),...
-          ['Error: mismatch between data column size and',...
-           ' the number of column names']);
-    for j=1:1:length(ddfData.data.columnNames)
-        ddfData.data.values(i,j) = str2double(cellArray{j});
-    end
+tmp = textscan(fid,fmt);
 
-    i=i+1;
-    
-    if(i==size(ddfData.data.values,1))
-        ddfData.data.values = [ddfData.data.values; ...
-                                zeros(size(ddfData.data.values))];
-    end
+nRows = length(tmp{1});
 
-    [line, ltout]= fgets(fid);        
+for i=1:1:nCols
+    ddfData.data.(ddfData.data.columnNames{i}).Values = zeros(length(tmp{i}),1);
+    ddfData.data.(ddfData.data.columnNames{i}).Values = tmp{i};
 end
 
-i=i-1;
-ddfData.data.values = ddfData.data.values(1:i,:);
+clear('tmp');
+
+% i=1;
+% while line ~= -1
+%     cellArray = parseDelimitedStringToCellArray(line,char(9));
+% 
+%     if(length(cellArray)~=length(ddfData.data.columnNames))
+%         here=1;
+%     end
+%     assert(length(cellArray)==length(ddfData.data.columnNames),...
+%           ['Error: mismatch between data column size and',...
+%            ' the number of column names']);
+%     for j=1:1:length(ddfData.data.columnNames)
+%         ddfData.data.values(i,j) = str2double(cellArray{j});
+%     end
+% 
+%     i=i+1;
+%     
+%     if(i==size(ddfData.data.values,1))
+%         ddfData.data.values = [ddfData.data.values; ...
+%                                 zeros(size(ddfData.data.values))];
+%     end
+% 
+%     [line, ltout]= fgets(fid);        
+% end
+% 
+% i=i-1;
+% ddfData.data.values = ddfData.data.values(1:i,:);
 
 
 here=1;
