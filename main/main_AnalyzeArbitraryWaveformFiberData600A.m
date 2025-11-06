@@ -14,20 +14,32 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_readHeader=1;
 
-folderName             = '20251031';
+folderName             = '20251104';
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
 
 larbProperties(4) = struct('number',0,'bandwidth',[0,0],'amplitude',[0]);
 
+waveSet                = 0;
 switch folderName
     case '20251030'
+        waveSet=1;
+    case '20251031'
+        waveSet=2;
+    case '20251104'
+        waveSet=2;
+    otherwise
+        assert(0,'Error: Unexpected date');
+end
+
+switch waveSet
+    case 1
         i=1;
         larbProperties(i).id = 2;
         larbProperties(i).bandwidth = [0,90];
         larbProperties(i).amplitude = 0.01;
         
-    case '20251031'
+    case 2
         i=1;
         larbProperties(i).id = i;
         larbProperties(i).bandwidth = [0,15];

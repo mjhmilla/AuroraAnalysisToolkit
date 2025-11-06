@@ -15,7 +15,7 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_addFLKAnnotation=0;
 
-folderName = '20250821';
+folderName = '20251104';
 
 dataConfig = getImpedanceExperimentConfiguration600A(...
                 folderName,projectFolders);
@@ -564,8 +564,12 @@ for i=1:1:length(config)
             box off;
             axis tight;
             xlim(dataConfig.bandwidthHzPlot(i,:));   
-            if(isempty(dataConfig.phaseYLim(i,:))==0)
-                ylim(dataConfig.phaseYLim(i,:));        
+            if(isempty(dataConfig.phaseYLim)==0)
+                if( i <= size(dataConfig.phaseYLim,1))
+                    ylim(dataConfig.phaseYLim(i,:));      
+                else
+                    ylim(dataConfig.phaseYLim);   
+                end
             end
             xlabel('Frequency (Hz)');            
             ylabel('Phase ($$^o$$)');
