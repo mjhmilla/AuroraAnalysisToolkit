@@ -14,7 +14,7 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_readHeader=1;
 
-folderName             = '20251104';
+folderName             = '20251107_middle_spring';
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
 
@@ -28,6 +28,10 @@ switch folderName
         waveSet=2;
     case '20251104'
         waveSet=2;
+    case '20251107_short_spring'
+        waveSet=2;
+    case '20251107_middle_spring'
+        waveSet=2;        
     otherwise
         assert(0,'Error: Unexpected date');
 end
