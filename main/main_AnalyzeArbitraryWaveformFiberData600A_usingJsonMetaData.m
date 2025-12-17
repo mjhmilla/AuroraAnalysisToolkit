@@ -18,60 +18,13 @@ folderName             = '20251107_middle_spring';
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
 
-larbProperties(4) = struct('number',0,'bandwidth',[0,0],'amplitude',[0]);
+dataFolder      = fullfile(projectFolders.data_600A,folderName);
+experimentStr   = fileread(fullfile(dataFolder,[folderName,'.json']));
+experimentJson  = jsondecode(experimentStr);
 
-waveSet                = 0;
-switch folderName
-    case '20251030'
-        waveSet=1;
-    case '20251031'
-        waveSet=2;
-    case '20251104'
-        waveSet=2;
-    case '20251107_short_spring'
-        waveSet=2;
-    case '20251107_middle_spring'
-        waveSet=2;        
-    otherwise
-        assert(0,'Error: Unexpected date');
-end
-
-switch waveSet
-    case 1
-        i=1;
-        larbProperties(i).id = 2;
-        larbProperties(i).bandwidth = [0,90];
-        larbProperties(i).amplitude = 0.01;
-        
-    case 2
-        i=1;
-        larbProperties(i).id = i;
-        larbProperties(i).bandwidth = [0,15];
-        larbProperties(i).amplitude = 0.01;
-        i=i+1;
-        larbProperties(i).id = i;
-        larbProperties(i).bandwidth = [0,90];
-        larbProperties(i).amplitude = 0.01;
-        i=i+1;
-        larbProperties(i).id = i;
-        larbProperties(i).bandwidth = [0,15];
-        larbProperties(i).amplitude = 0.001;
-        i=i+1;
-        larbProperties(i).id = i;
-        larbProperties(i).bandwidth = [0,90];
-        larbProperties(i).amplitude = 0.001;
-
-end
+indexSegmentLarb = 1;
 
 
-
-dataConfig = getImpedanceExperimentConfiguration600A(...
-                folderName,projectFolders);
-
-dataLabels = readAuroraDataLabelFile600A(dataConfig);
-
-
-flag_10kHzData = contains(dataConfig.fileNameKeywords{1},'10kHz');
 
 %%
 % Plot settings
@@ -100,7 +53,7 @@ flag_readDataOnly = 0;
 %%
 
 
-numberOfHorizontalPlotColumnsGeneric    = dataConfig.numberOfTrials;
+numberOfHorizontalPlotColumnsGeneric    = length(experimentJson.trials);
 numberOfVerticalPlotRowsGeneric         = 4;
 plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*6;
 plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*6;
@@ -124,15 +77,54 @@ baseFontSize                            = 12;
 
 figH = figure;
 
-for i=1:1:length(dataLabels)
-    auroraData = readAuroraData600A(dataLabels(i).fileName,flag_readHeader);
+for i=1:1:length(experimentJson.trials)
+    %%
+    % Read in the meta data
+    %%    
+    trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
+    trialJson = jsondecode(trialStr);
+    
+    %%
+    % Add missing fields in the trial json file from the experiments
+    % section
+    %%
+    experimentFields = fields(experimentJson.experiment);
+    trialExperimentFields = fields(trialJson.experiment);
+    for j=1:1:length(experimentFields)
+        if(~isfield(trialJson.experiment,experimentFields{j}))
+            trialJson.experiment.(experimentFields{j}) = ...
+                experimentJson.experiment.(experimentFields{j});
+        end
+    end
+
+
+    %%
+    % Fetch the experimental data files
+    %%
+    fileType = {'data','protocol'};
+    filePaths = [{''};{''}];
+    for j=1:1:length(fileType)
+        if(length(trialJson.(fileType{j}).file)>0)
+            filePaths{j} = trialJson.(fileType{j}).file{1};
+            if(length(trialJson.(fileType{j}).file)>1)
+                for k=2:1:length(trialJson.(fileType{j}).file)
+                    filePaths{j} = [filePaths{j},filesep,trialJson.(fileType{j}).file{k}];
+                end
+            end
+        end
+    end
+
+    dataPath = fullfile(dataFolder,filePaths{1});
+    protocolPath= fullfile(dataFolder,filePaths{2});
+    
+    auroraData = readAuroraData600A(dataPath,flag_readHeader);
     
     %%
     % Get the interval to plot
     %%
     idxPlot=0;
-    for j=1:1:length(dataLabels(i).segmentLabels)
-        if(strcmp(dataLabels(i).segmentLabels(j).name,keyword.label))
+    for j=1:1:length(trialJson.segments)
+        if(strcmp(trialJson.segments(j).type,keyword.label))
             assert(idxPlot==0,['Error: multiple segments have the name',...
                                 keyword.label]);
             idxPlot=j;
@@ -143,32 +135,23 @@ for i=1:1:length(dataLabels)
     %%
     %Extract the indicies to plot
     %%
-    timeStart = dataLabels(i).segmentLabels(idxPlot).timeInterval(1,1);
-    timeEnd   = dataLabels(i).segmentLabels(idxPlot).timeInterval(1,2);
+    timeStart = trialJson.segments(idxPlot).duration(1);
+    timeEnd   = trialJson.segments(idxPlot).duration(2);
     dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
                     & auroraData.Data.Time.Values <= timeEnd); 
 
     %%
     %Find the wave number
     %%
-    idxWave = 0;
-    for j=1:1:length(auroraData.Test_Protocol.Control_Function.Value)
-        commandName = auroraData.Test_Protocol.Control_Function.Value{j};
+    %idxWave = trialJson.waveform.id;
+    segmentType=trialJson.segments(indexSegmentLarb).type;
+    assert(strcmp('Larb-Stochastic',segmentType),...
+        ['Error: expected Larb-Stochastic at segment ',num2str(indexSegmentLarb)]);
 
-        if(contains(commandName,keyword.controlFunction))
-            optionsStr = auroraData.Test_Protocol.Options.Value{j};
-            idxTmp = strfind(optionsStr,' ');
-            idxWave = str2double(optionsStr(1:min(idxTmp)));
-            for k=1:1:length(larbProperties)
-                if(idxWave == larbProperties(k).id)
-                    bandwidth = larbProperties(k).bandwidth;
-                    amplitude = larbProperties(k).amplitude;
-                end
-            end
-        end
-        
-    end
-    assert(idxWave~=0,'Error: could not find the correct wave number');
+    bandwidth = trialJson.segments(indexSegmentLarb).bandwidth';
+    amplitude = trialJson.segments(indexSegmentLarb).amplitude;
+    
+    %assert(idxWave~=0,'Error: could not find the correct wave number');
     assert(isempty(bandwidth)==0,'Error: could not find the correct larb properties');
     assert(isempty(amplitude)==0,'Error: could not find the correct larb properties');
 
@@ -195,7 +178,7 @@ for i=1:1:length(dataLabels)
     box off;    
     ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
     
-    titleStrA = dataConfig.titleTrial{i};
+    titleStrA = trialJson.experiment.title;
     titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);
 
     title([titleStrA,':', titleStrB]);
@@ -229,6 +212,13 @@ for i=1:1:length(dataLabels)
     idxFreq     = find(Hs.frequencyHz <= (bandwidth(1,2)+dfreq));
     idxFreqBand = find(Hs.frequencyHz <= bandwidth(1,2) ...
                      & Hs.frequencyHz >= bandwidth(1,1));
+
+    %%
+    % Fit a first order low pass model to the response
+    %%
+
+    
+
     %%
     % Plot the coherence squared  
     %%    
@@ -261,7 +251,7 @@ for i=1:1:length(dataLabels)
 
 end
 
-outputPlotDir = fullfile(projectFolders.output_plots,dataConfig.folder);
+outputPlotDir = fullfile(projectFolders.output_plots,dataFolder);
 if(~exist(outputPlotDir,'dir'))
     mkdir(outputPlotDir);
 end
