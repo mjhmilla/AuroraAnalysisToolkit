@@ -268,12 +268,56 @@ for i=1:1:length(experimentJson.trials)
 
 
     model = calcSpringModelFrequencyResponseOfAurora1400A(params);
-%     model.frequency = omega;
-%     model.frequencyHz = Hs.frequencyHz;
-%     model.Hs = calcSpringModelFrequencyResponseOfAurora1400A(params);
-%     model.gain = sqrt(imag(model.Y).^2+real(model.Y).^2);
-%     model.phase=atan2(imag(model.Y),real(model.Y));
 
+    %%
+    % Fit the spring model
+    %%
+
+    optSettings.type=1;
+    optSettings.bandwidth = params.bandwidth.*[0.1,0.9];
+    optSettings.scaling=[];
+    %
+    % Fit k & d of the spring to the gain response
+    %
+    for iterOpt=1:1:2
+        x0 = [1,1];
+        optSettings.scaling = [params.k,params.beta];
+        lb = [x0].*0;
+        ub = [x0].*10;
+        paramNames = {'k','beta'};
+        optSettings.type = 1; %1. gain error, 2. phase error
+        errFcn = @(argX)calcErrorOfSpringModelAurora1400A(...
+                            argX, paramNames,...
+                            optSettings, params, Hs);
+        errVec = errFcn(x0);
+        [xSol, resnorm, residual,exitflag] = lsqnonlin(errFcn,x0,lb,ub);
+        fprintf('Exit flag: %i\n\n',exitflag);
+        for j=1:1:length(xSol)
+            params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
+        end
+    end
+
+    %
+    % Fit the delay to the phase response
+    %    
+    for iterOpt=1:1:2
+        x0 = [1];
+        optSettings.scaling = params.delay;
+        lb = [x0].*0;
+        ub = [x0].*10;
+        paramNames = {'delay'};
+        optSettings.type = 2; %1. gain error, 2. phase error
+        errFcn = @(argX)calcErrorOfSpringModelAurora1400A(...
+                            argX, paramNames,...
+                            optSettings, params, Hs);
+        errVec = errFcn(x0);
+        [xSol, resnorm, residual,exitflag] = lsqnonlin(errFcn,x0,lb,ub);
+        fprintf('Exit flag: %i\n\n',exitflag);
+        for j=1:1:length(xSol)
+            params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
+        end
+    end
+    model = calcSpringModelFrequencyResponseOfAurora1400A(params);
 
     %%
     % Plot the coherence squared  
@@ -284,6 +328,20 @@ for i=1:1:length(experimentJson.trials)
     hold on;
     plot(model.frequencyHz(model.idxBandwidth),...
          model.gain(model.idxBandwidth),'--k');
+    hold on;
+    for j=1:1:2
+        plot([optSettings.bandwidth(j);optSettings.bandwidth(j)],...
+             [min(Hs.gain(idxFreq)),max(Hs.gain(idxFreq))],...
+             '-c');
+        hold on;
+    end
+    text(model.frequencyHz(model.idxBandwidth(end)),...
+         model.gain(model.idxBandwidth(1)),...
+         sprintf('%1.2e k\n%1.2e beta\n%1.2e delay',...
+                 params.k,params.beta,params.delay),...
+                 'HorizontalAlignment','right',...
+                 'VerticalAlignment','top',...
+                 'FontSize',6);
     hold on;
     box off;    
     xlabel('Frequency (Hz)');
@@ -297,6 +355,7 @@ for i=1:1:length(experimentJson.trials)
     plot(model.frequencyHz(model.idxBandwidth),...
          model.phase(model.idxBandwidth).*(180/pi),'--k');
     hold on;    
+    
     box off;    
     xlabel('Frequency (Hz)');
     ylabel('Phase ($$^o$$)');
@@ -313,7 +372,7 @@ for i=1:1:length(experimentJson.trials)
 
 end
 
-outputPlotDir = fullfile(projectFolders.output_plots,dataFolder);
+outputPlotDir = fullfile(projectFolders.output_plots,folderName);
 if(~exist(outputPlotDir,'dir'))
     mkdir(outputPlotDir);
 end
