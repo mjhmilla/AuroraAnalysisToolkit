@@ -42,6 +42,7 @@ assert( max(abs(coherenceSqCheck-coherenceSq)) < 1e-6);
 
 
 frequencyResponse.frequencyHz  = freqHz;
+frequencyResponse.frequency    = freqRadians;
 frequencyResponse.gain         = gain;
 frequencyResponse.phase        = phase;
 frequencyResponse.coherenceSq  = coherenceSq;

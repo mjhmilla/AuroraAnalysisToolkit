@@ -148,8 +148,8 @@ for i=1:1:length(experimentJson.trials)
     assert(strcmp('Larb-Stochastic',segmentType),...
         ['Error: expected Larb-Stochastic at segment ',num2str(indexSegmentLarb)]);
 
-    bandwidth = trialJson.segments(indexSegmentLarb).bandwidth';
-    amplitude = trialJson.segments(indexSegmentLarb).amplitude;
+    bandwidth = trialJson.segments(indexSegmentLarb).meta_data.bandwidth';
+    amplitude = trialJson.segments(indexSegmentLarb).meta_data.amplitude;
     
     %assert(idxWave~=0,'Error: could not find the correct wave number');
     assert(isempty(bandwidth)==0,'Error: could not find the correct larb properties');
@@ -217,7 +217,63 @@ for i=1:1:length(experimentJson.trials)
     % Fit a first order low pass model to the response
     %%
 
+    omega3dB_Hz = 250;    
+
+    omega               = Hs.frequency;
+    params.k            = 1.4;
+    params.beta         = (0.5/(2*pi*100));
+    params.m            = 0;
+    params.tau          = 1/(omega3dB_Hz*2*pi);   
+    params.delay        = 1; %in milliseconds
     
+    params.bandwidth    = bandwidth(1,2);
+    params.sampleFrequency= sampleFrequency;
+    params.time         = auroraData.Data.Time.Values(dataIndex);
+    params.x            = ifft(fft(x),'symmetric');
+
+    samples     = length(x);
+    timeVec     = [0:(1/(samples-1)):1]' .* (samples/sampleFrequency);
+    freqHz      = [1:1:samples]' .*(sampleFrequency/samples);
+    freq        = freqHz.*(2*pi);
+
+    params.xdot         = ifft(fft(x).*(complex(0,1).*freq) ,'symmetric');
+    params.frequency    = freq;
+    params.frequencyHz  = freqHz;
+
+    flag_checkXdot=0;
+    if(flag_checkXdot==1)
+        xdotNum = calcCentralDifferenceDataSeries(timeVec,x);
+
+        figXdotCheck = figure;
+        subplot(2,1,1);
+        plot(timeVec,params.xdot,'-b');
+        hold on;
+        plot(timeVec,xdotNum,'-r');
+        hold on;
+        xlabel('Time (s)');
+        ylabel('mm/s');
+        title('xdot');
+
+        subplot(2,1,2);
+        plot(timeVec,params.xdot-xdotNum,'-k');
+        hold on;
+        xlabel('Time (s)');
+        ylabel('mm/s');
+        title('xdot error');
+        
+        here=1;
+    end
+
+    xdotNum = calcCentralDifferenceDataSeries(timeVec,x);
+
+
+    model = calcSpringModelFrequencyResponseOfAurora1400A(params);
+%     model.frequency = omega;
+%     model.frequencyHz = Hs.frequencyHz;
+%     model.Hs = calcSpringModelFrequencyResponseOfAurora1400A(params);
+%     model.gain = sqrt(imag(model.Y).^2+real(model.Y).^2);
+%     model.phase=atan2(imag(model.Y),real(model.Y));
+
 
     %%
     % Plot the coherence squared  
@@ -225,6 +281,9 @@ for i=1:1:length(experimentJson.trials)
     idxRow = 2;
     subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
     plot(Hs.frequencyHz(idxFreq),Hs.gain(idxFreq));
+    hold on;
+    plot(model.frequencyHz(model.idxBandwidth),...
+         model.gain(model.idxBandwidth),'--k');
     hold on;
     box off;    
     xlabel('Frequency (Hz)');
@@ -235,6 +294,9 @@ for i=1:1:length(experimentJson.trials)
     subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
     plot(Hs.frequencyHz(idxFreq),Hs.phase(idxFreq).*(180/pi));
     hold on;
+    plot(model.frequencyHz(model.idxBandwidth),...
+         model.phase(model.idxBandwidth).*(180/pi),'--k');
+    hold on;    
     box off;    
     xlabel('Frequency (Hz)');
     ylabel('Phase ($$^o$$)');
