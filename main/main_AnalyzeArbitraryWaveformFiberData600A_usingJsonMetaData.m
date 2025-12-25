@@ -274,49 +274,87 @@ for i=1:1:length(experimentJson.trials)
     %%
 
     optSettings.type=1;
-    optSettings.bandwidth = params.bandwidth.*[0.1,0.9];
+    optSettings.bandwidth = params.bandwidth.*[0.05,0.95];
     optSettings.scaling=[];
-    %
-    % Fit k & d of the spring to the gain response
-    %
-    for iterOpt=1:1:2
+    optSettings.objScaling=1;
+    optSettings.lambda = 0.9;
+    lambdaSchedule = [0.9,0.1,0.01,0];
+    for indexLambda = 1:1:length(lambdaSchedule)
+        optSettings.lambda = lambdaSchedule(indexLambda);
+        %
+        % Fit k & d of the spring to the gain response
+        %
+        lsqnonlinOptions =...
+            optimoptions('lsqnonlin','MaxFunctionEvaluations',1000,...
+                         'Algorithm','trust-region-reflective',...
+                         'Display','none');
+        if(indexLambda == length(lambdaSchedule))
+            lsqnonlinOptions =...
+                optimoptions('lsqnonlin','MaxFunctionEvaluations',1000,...
+                             'Algorithm','trust-region-reflective',...
+                             'Display','final');
+        end
+
         x0 = [1,1];
         optSettings.scaling = [params.k,params.beta];
         lb = [x0].*0;
         ub = [x0].*10;
         paramNames = {'k','beta'};
+        for j=1:1:length(paramNames)
+            model.([paramNames{j},'_bounds'])=[];
+        end
         optSettings.type = 1; %1. gain error, 2. phase error
         errFcn = @(argX)calcErrorOfSpringModelAurora1400A(...
                             argX, paramNames,...
                             optSettings, params, Hs);
         errVec = errFcn(x0);
-        [xSol, resnorm, residual,exitflag] = lsqnonlin(errFcn,x0,lb,ub);
-        fprintf('Exit flag: %i\n\n',exitflag);
+        optSettings.objScaling = 1/sqrt(sum(errVec.^2));
+        [xSol, resnorm, residual,exitflag,output] = ...
+            lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
+    
+        disp('lsqnonlin output');
+        for j=1:1:length(paramNames)
+            disp(paramNames{j});
+        end
+        disp(output);
+    
         for j=1:1:length(xSol)
             params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
         end
-    end
-
-    %
-    % Fit the delay to the phase response
-    %    
-    for iterOpt=1:1:2
+    
+    
+        %
+        % Fit the delay to the phase response
+        %    
+    
         x0 = [1];
         optSettings.scaling = params.delay;
         lb = [x0].*0;
         ub = [x0].*10;
         paramNames = {'delay'};
+        for j=1:1:length(paramNames)
+            model.([paramNames{j},'_bounds'])=[];
+        end    
         optSettings.type = 2; %1. gain error, 2. phase error
         errFcn = @(argX)calcErrorOfSpringModelAurora1400A(...
                             argX, paramNames,...
                             optSettings, params, Hs);
         errVec = errFcn(x0);
-        [xSol, resnorm, residual,exitflag] = lsqnonlin(errFcn,x0,lb,ub);
-        fprintf('Exit flag: %i\n\n',exitflag);
+        optSettings.objScaling = 1/sqrt(sum(errVec.^2));    
+        [xSol, resnorm, residual,exitflag,output] = ...
+            lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
+        
+        disp('lsqnonlin output');
+        for j=1:1:length(paramNames)
+            disp(paramNames{j});
+        end
+        disp(output);
+    
         for j=1:1:length(xSol)
             params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
         end
     end
+
     model = calcSpringModelFrequencyResponseOfAurora1400A(params);
 
     %%
@@ -335,12 +373,16 @@ for i=1:1:length(experimentJson.trials)
              '-c');
         hold on;
     end
-    text(model.frequencyHz(model.idxBandwidth(end)),...
-         model.gain(model.idxBandwidth(1)),...
-         sprintf('%1.2e k\n%1.2e beta\n%1.2e delay',...
-                 params.k,params.beta,params.delay),...
+    text(max(Hs.frequencyHz(idxFreq)),...
+         min(Hs.gain(idxFreq)),...
+         sprintf(['%1.2e k\n',...
+                  '%1.2e beta\n',...
+                  '%1.2e delay'],...
+                 params.k,...
+                 params.beta,...
+                 params.delay),...
                  'HorizontalAlignment','right',...
-                 'VerticalAlignment','top',...
+                 'VerticalAlignment','bottom',...
                  'FontSize',6);
     hold on;
     box off;    

@@ -19,6 +19,7 @@ errorVector = zeros(npts,1);
 frequencyLB = modelParams.bandwidth*0.1;
 frequencyUB = modelParams.bandwidth*0.9;
 
+lambda = settings.lambda;
 
 switch settings.type
     case 1
@@ -32,7 +33,9 @@ switch settings.type
             gainExp = interp1(expResponse.frequencyHz,...
                               expResponse.gain,...
                               freqHz);
-            errorVector(i,1) = gainExp-gainMdl;
+            errorVector(i,1) = ...
+                ((gainExp-gainMdl).*(1-lambda) ...
+                                   + 0.*lambda)*settings.objScaling;
         end
     case 2
         for i=1:1:npts
@@ -44,7 +47,9 @@ switch settings.type
             phaseExp = interp1(expResponse.frequencyHz,...
                               expResponse.phase,...
                               freqHz);
-            errorVector(i,1) = phaseExp-phaseMdl;
+            errorVector(i,1) = ...
+                ((phaseExp-phaseMdl).*(1-lambda) ...
+                                    + 0.*lambda)*settings.objScaling;
         end        
     otherwise
         assert(0,'Error: unrecognized errorType');
