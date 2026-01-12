@@ -1,12 +1,29 @@
-function errorVector = calcErrorOfSpringModelAurora1400A(...
+function errorVector = calcErrorOfImpedanceModel600A(...
                         argNum, argModelParamNames,...
-                        settings, modelParams, expResponse)
+                        settings, modelParams, expData)
 
 for i=1:1:length(argModelParamNames)
     modelParams.(argModelParamNames{i})=argNum(i)*settings.scaling(i);
 end
 
-modelResponse = calcSpringModelFrequencyResponseOfAurora1400A(modelParams);
+modelResponse = calcImpedanceModelFrequencyResponse600A(modelParams);
+
+%
+% Evaluate the experimental frequency response with a compensation
+% for the delay
+%
+
+timeDelayedVec  = expData.time + modelParams.delay;
+yDelayed        = interp1(  expData.time, ...
+                            expData.y,...
+                            timeDelayedVec,...
+                            'linear','extrap');
+
+expResponse = evaluateGainPhaseCoherenceSq(  ...
+                    expData.x,...
+                    yDelayed,...
+                    expData.bandwidth,...
+                    expData.sampleFrequency);    
 
 %
 %Evaluate the error
@@ -50,7 +67,8 @@ switch settings.type
             errorVector(i,1) = ...
                 ((phaseExp-phaseMdl).*(1-lambda) ...
                                     + 0.*lambda)*settings.objScaling;
-        end        
+        end
+        
     otherwise
         assert(0,'Error: unrecognized errorType');
 end

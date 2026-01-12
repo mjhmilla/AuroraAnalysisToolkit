@@ -12,11 +12,19 @@ addpath(projectFolders.postprocessing);
 addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
 
-flag_readHeader=1;
+flag_readHeader         = 1;
+flag_checkSha256Sum     = 1; %Might not work on Windows
 
-folderName             = '20251107_middle_spring';
+folderName             = '20251107_middle_spring';%'20260108_impedance_larb_spring';
+%'20251225_impedance_larb_nitrile';
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
+
+modelSettings.type = 0; 
+% 0. spring-damper in parallel
+% 1. spring-damper in series
+modelSettings.numberOfParameters=1;
+modelSettings.zeroPhaseResponseSlope=0;
 
 dataFolder      = fullfile(projectFolders.data_600A,folderName);
 experimentStr   = fileread(fullfile(dataFolder,[folderName,'.json']));
@@ -81,6 +89,7 @@ for i=1:1:length(experimentJson.trials)
     %%
     % Read in the meta data
     %%    
+    disp(experimentJson.trials{i});
     trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
     trialJson = jsondecode(trialStr);
     
@@ -116,9 +125,28 @@ for i=1:1:length(experimentJson.trials)
 
     dataPath = fullfile(dataFolder,filePaths{1});
     protocolPath= fullfile(dataFolder,filePaths{2});
-    
+        
     auroraData = readAuroraData600A(dataPath,flag_readHeader);
     
+    %Check the sha256sum
+    if(flag_checkSha256Sum==1)
+        [status,cmdout] =  system(['sha256sum ',dataPath]);
+        idx = strfind(cmdout,' ');        
+        idx=idx-1;
+        sha256Sum = cmdout;
+        sha256Sum = sha256Sum(1,1:idx);
+
+        if(strcmp(sha256Sum,trialJson.data.sha256)==0)
+            here=1;
+        end
+        assert(strcmp(sha256Sum,trialJson.data.sha256)==1,...
+          sprintf(['Error: sha256 hash of the experimental data does ',...
+                   'not match the value in the json file.\n ',...
+                   '\n data %s\n sha256: %s\n\n json: %s\n sha256: %s\n'],...
+                    dataPath, sha256Sum, trialStr, trialJson.data.sha256));
+    end
+
+
     %%
     % Get the interval to plot
     %%
@@ -208,6 +236,12 @@ for i=1:1:length(experimentJson.trials)
                                         bandwidth(1,2),...
                                         sampleFrequency);    
 
+    expData.x = x;
+    expData.y = y;
+    expData.time=timeVec;
+    expData.bandwidth = bandwidth(1,2);
+    expData.sampleFrequency = sampleFrequency;
+
     dfreq = 1;
     idxFreq     = find(Hs.frequencyHz <= (bandwidth(1,2)+dfreq));
     idxFreqBand = find(Hs.frequencyHz <= bandwidth(1,2) ...
@@ -224,12 +258,13 @@ for i=1:1:length(experimentJson.trials)
     params.beta         = (0.5/(2*pi*100));
     params.m            = 0;
     params.tau          = 1/(omega3dB_Hz*2*pi);   
-    params.delay        = 1; %in milliseconds
-    
+    params.delay        = 0.005; %in seconds
+
     params.bandwidth    = bandwidth(1,2);
     params.sampleFrequency= sampleFrequency;
     params.time         = auroraData.Data.Time.Values(dataIndex);
     params.x            = ifft(fft(x),'symmetric');
+    params.type         = modelSettings.type;
 
     samples     = length(x);
     timeVec     = [0:(1/(samples-1)):1]' .* (samples/sampleFrequency);
@@ -267,62 +302,39 @@ for i=1:1:length(experimentJson.trials)
     xdotNum = calcCentralDifferenceDataSeries(timeVec,x);
 
 
-    model = calcSpringModelFrequencyResponseOfAurora1400A(params);
+    model = calcImpedanceModelFrequencyResponse600A(params);
 
     %%
     % Fit the spring model
     %%
 
     optSettings.type=1;
+    % 1. min rmse gain error
+    % 2. min rmse phase error
+    % 3. min rmse of the slope of the phase error
     optSettings.bandwidth = params.bandwidth.*[0.05,0.95];
     optSettings.scaling=[];
     optSettings.objScaling=1;
     optSettings.lambda = 0.9;
+
+    optSettings.phasePolishingInterations = 10;
+
     lambdaSchedule = [0.9,0.1,0.01,0];
+
     for indexLambda = 1:1:length(lambdaSchedule)
         optSettings.lambda = lambdaSchedule(indexLambda);
-        %
-        % Fit k & d of the spring to the gain response
-        %
+
         lsqnonlinOptions =...
-            optimoptions('lsqnonlin','MaxFunctionEvaluations',1000,...
+            optimoptions('lsqnonlin','MaxFunctionEvaluations',2000,...
                          'Algorithm','trust-region-reflective',...
                          'Display','none');
         if(indexLambda == length(lambdaSchedule))
             lsqnonlinOptions =...
-                optimoptions('lsqnonlin','MaxFunctionEvaluations',1000,...
+                optimoptions('lsqnonlin','MaxFunctionEvaluations',2000,...
                              'Algorithm','trust-region-reflective',...
-                             'Display','final');
+                             'Display','none');
         end
 
-        x0 = [1,1];
-        optSettings.scaling = [params.k,params.beta];
-        lb = [x0].*0;
-        ub = [x0].*10;
-        paramNames = {'k','beta'};
-        for j=1:1:length(paramNames)
-            model.([paramNames{j},'_bounds'])=[];
-        end
-        optSettings.type = 1; %1. gain error, 2. phase error
-        errFcn = @(argX)calcErrorOfSpringModelAurora1400A(...
-                            argX, paramNames,...
-                            optSettings, params, Hs);
-        errVec = errFcn(x0);
-        optSettings.objScaling = 1/sqrt(sum(errVec.^2));
-        [xSol, resnorm, residual,exitflag,output] = ...
-            lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
-    
-        disp('lsqnonlin output');
-        for j=1:1:length(paramNames)
-            disp(paramNames{j});
-        end
-        disp(output);
-    
-        for j=1:1:length(xSol)
-            params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
-        end
-    
-    
         %
         % Fit the delay to the phase response
         %    
@@ -335,46 +347,127 @@ for i=1:1:length(experimentJson.trials)
         for j=1:1:length(paramNames)
             model.([paramNames{j},'_bounds'])=[];
         end    
-        optSettings.type = 2; %1. gain error, 2. phase error
-        errFcn = @(argX)calcErrorOfSpringModelAurora1400A(...
+        
+        optSettings.type = 2;
+
+        errFcn = @(argX)calcErrorOfImpedanceModel600A(...
                             argX, paramNames,...
-                            optSettings, params, Hs);
+                            optSettings, params, expData);
         errVec = errFcn(x0);
         optSettings.objScaling = 1/sqrt(sum(errVec.^2));    
         [xSol, resnorm, residual,exitflag,output] = ...
             lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
         
-        disp('lsqnonlin output');
-        for j=1:1:length(paramNames)
-            disp(paramNames{j});
-        end
-        disp(output);
     
         for j=1:1:length(xSol)
             params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
         end
+        
+        %
+        % Polish the 
+        %
+        if(modelSettings.zeroPhaseResponseSlope==1)
+            
+            delayBest = calcDelayToZeroPhaseResponseSlope(...
+                                    params,...
+                                    expData,...
+                                    optSettings.bandwidth,...
+                                    optSettings.phasePolishingInterations);            
+
+            params.delay = delayBest;
+        end
+
+
+        %
+        % Fit k & d of the spring to the gain response
+        %
+        switch modelSettings.numberOfParameters
+            case 1
+                x0 = [1]; 
+                params.k            = 1.4;
+                params.beta         = 0;
+                optSettings.scaling = [params.k];
+                paramNames = {'k'};
+
+            case 2
+                x0 = [1,1]; 
+                params.k            = 1.4;
+                params.beta         = (0.5/(2*pi*100));                
+                optSettings.scaling = [params.k,params.beta];
+                paramNames = {'k','beta'};                
+            otherwise assert(0,'Error modelSettings.numberOfParameters incorrectly set');
+        end
+        
+        lb = [x0].*0;
+        ub = [x0].*10;
+
+        for j=1:1:length(paramNames)
+            model.([paramNames{j},'_bounds'])=[];
+        end
+        optSettings.type = 1; %1. gain error, 2. phase error
+        errFcn = @(argX)calcErrorOfImpedanceModel600A(...
+                            argX, paramNames,...
+                            optSettings, params, expData);
+        errVec = errFcn(x0);
+        optSettings.objScaling = 1/sqrt(sum(errVec.^2));
+        [xSol, resnorm, residual,exitflag,output] = ...
+            lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
+    
+%         disp('lsqnonlin output');
+%         for j=1:1:length(paramNames)
+%             disp(paramNames{j});
+%         end
+%         disp(output);
+    
+        for j=1:1:length(xSol)
+            params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
+        end
+    
+    
     end
 
-    model = calcSpringModelFrequencyResponseOfAurora1400A(params);
+    %
+    % Evaluate the fitted model response
+    %
+    model = calcImpedanceModelFrequencyResponse600A(params);
+
+    %
+    % Evaluate the delay-corrected experimental data
+    %
+    timeDelayedVec  = expData.time + params.delay;
+    yDelayed        = interp1(  expData.time, ...
+                                expData.y,...
+                                timeDelayedVec,...
+                                'linear','extrap');
+    
+    HsFit = evaluateGainPhaseCoherenceSq(  ...
+                        expData.x,...
+                        yDelayed,...
+                        expData.bandwidth,...
+                        expData.sampleFrequency);    
+    
+
 
     %%
     % Plot the coherence squared  
     %%    
     idxRow = 2;
-    subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
-    plot(Hs.frequencyHz(idxFreq),Hs.gain(idxFreq));
+    subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));    
+    plot(Hs.frequencyHz(idxFreq),Hs.gain(idxFreq),'-','Color',[1,1,1].*0.75);
+    hold on;
+    plot(HsFit.frequencyHz(idxFreq),HsFit.gain(idxFreq),'-','Color',[1,1,1].*0.5);
     hold on;
     plot(model.frequencyHz(model.idxBandwidth),...
          model.gain(model.idxBandwidth),'--k');
     hold on;
     for j=1:1:2
         plot([optSettings.bandwidth(j);optSettings.bandwidth(j)],...
-             [min(Hs.gain(idxFreq)),max(Hs.gain(idxFreq))],...
+             [min(HsFit.gain(idxFreq)),max(HsFit.gain(idxFreq))],...
              '-c');
         hold on;
     end
-    text(max(Hs.frequencyHz(idxFreq)),...
-         min(Hs.gain(idxFreq)),...
+    text(max(HsFit.frequencyHz(idxFreq)),...
+         min(HsFit.gain(idxFreq)),...
          sprintf(['%1.2e k\n',...
                   '%1.2e beta\n',...
                   '%1.2e delay'],...
@@ -383,7 +476,7 @@ for i=1:1:length(experimentJson.trials)
                  params.delay),...
                  'HorizontalAlignment','right',...
                  'VerticalAlignment','bottom',...
-                 'FontSize',6);
+                 'FontSize',8);
     hold on;
     box off;    
     xlabel('Frequency (Hz)');
@@ -392,7 +485,9 @@ for i=1:1:length(experimentJson.trials)
 
     idxRow = 3;
     subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
-    plot(Hs.frequencyHz(idxFreq),Hs.phase(idxFreq).*(180/pi));
+    plot(Hs.frequencyHz(idxFreq),Hs.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.75);
+    hold on;
+    plot(HsFit.frequencyHz(idxFreq),HsFit.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.25);
     hold on;
     plot(model.frequencyHz(model.idxBandwidth),...
          model.phase(model.idxBandwidth).*(180/pi),'--k');
@@ -404,7 +499,9 @@ for i=1:1:length(experimentJson.trials)
 
     idxRow = 4;
     subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
-    plot(Hs.frequencyHz(idxFreq),Hs.coherenceSq(idxFreq));
+    plot(Hs.frequencyHz(idxFreq),Hs.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.75);
+    hold on;
+    plot(HsFit.frequencyHz(idxFreq),HsFit.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.25);
     hold on;
     box off;    
     xlabel('Frequency (Hz)');
