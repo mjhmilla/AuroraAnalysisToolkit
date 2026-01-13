@@ -1,6 +1,7 @@
 function delayBest = calcDelayToZeroPhaseResponseSlope(...
                         modelParams,...
                         expData,...
+                        delayDeltaMax,...
                         fittingBandwidth,...
                         numberOfIterations)
 
@@ -28,7 +29,7 @@ for i=1:1:numberOfIterations
         jMax = 1;
     end
     if(i==2)
-        deltaMag = modelParams.delay*0.5;        
+        deltaMag = delayDeltaMax;        
     end
 
     for j=1:1:jMax

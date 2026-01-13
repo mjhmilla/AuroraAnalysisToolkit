@@ -9,20 +9,6 @@ switch params.type
         y = params.k.*params.x + params.beta.*params.xdot;
     case 1
         assert(0,'Error: model type not yet implemented');
-%         freq = params.frequency;
-%         Xfd  = fft(x);
-%         X1fd = beta.*(Xfd .* (complex(0,1).*freq) )./(k+beta);
-%         Ffd  = k.*X1fd;
-%         ftest    = ifft(Ffd,'symmetric');
-%         x1    = ifft(X1fd,'symmetric');
-%         x1dot = ifft(X1fd .* (complex(0,1).*freq),'symmetric'); 
-%         x2dot = xdot-x1dot;
-%         f1 = x1.*k;
-%         f2 = x2dot.*beta;
-%         f12rerr = 0.5.*(f1-f2)./(f1+f2);
-%         f1rerr = 0.5.*(f1-ftest)./(f1+ftest);
-%         y = f1;
-%         here=1;
         
     otherwise
         assert(0,['Error: params.type must be 0 (parallel ',...
