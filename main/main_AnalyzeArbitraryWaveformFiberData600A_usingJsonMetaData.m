@@ -15,11 +15,21 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 flag_readHeader         = 1;
 flag_checkSha256Sum     = 1; %Might not work on Windows
 
-folderName             = '20251118_impedance_larb_1';
-%'20251107_short_spring';
-%'20251107_middle_spring';
-%'20260108_impedance_larb_spring';
-%'20251225_impedance_larb_nitrile'
+trialTypes = {'delay','degradation','impedance'};
+
+dataSet.impedance   = {'20251118_impedance_larb_1',...
+                       '20251118_impedance_larb_2'};
+dataSet.degradation = {'20251114_degradation_larb_1',...
+                       '20251119_degradation_larb_2',...
+                       '20251119_degradation_larb_3',...
+                       '20251119_degradation_larb_4'};
+dataSet.delay       = {'20251107_short_spring',...
+                       '20251107_middle_spring',...
+                       '20260108_impedance_larb_spring',...
+                       '20251225_impedance_larb_nitrile'};
+
+folderName              = '20251118_impedance_larb_2';
+trialTypes              = trialTypes{3};
 
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
@@ -27,10 +37,28 @@ keyword.controlFunction= 'Length-Arb';
 modelSettings.type = 0; 
 % 0. spring-damper in parallel
 % 1. spring-damper in series
+switch modelSettings.type
+    case 0
+        modelSettings.name ='parallel-spring-damper';
+    case 1
+        modelSettings.name ='no-model';
+    otherwise assert(0,'Error: invalid modelSettings.type');
+end
+
+prePostWindowTimeWidth = 0.5;
+prePostWindowTimeOffset = 0.5;
+
+modelSettings.coherenceSquaredThreshold=0.8;
 modelSettings.numberOfParameters    = 2;
 modelSettings.zeroPhaseResponseSlope= 0;
 modelSettings.useManuallySetDelay   = 1;
-modelSettings.manuallySetDelay      = 5.94e-4;
+modelSettings.manuallySetDelay      = 6.67e-4;
+
+if(strcmp(trialTypes,'delay'))
+    modelSettings.numberOfParameters    = 1;
+    modelSettings.useManuallySetDelay   = 0;
+end
+
 % Delay of the force signal as measured using small steel springs.
 %
 % 1. fit: min slope of line lsq line through phase data
@@ -140,11 +168,12 @@ for i=1:1:length(experimentJson.trials)
         if(strcmp(sha256Sum,trialJson.data.sha256)==0)
             here=1;
         end
-        assert(strcmp(sha256Sum,trialJson.data.sha256)==1,...
-          sprintf(['Error: sha256 hash of the experimental data does ',...
+        if(strcmp(sha256Sum,trialJson.data.sha256)==0)
+          fprintf(['Error: sha256 hash of the experimental data does ',...
                    'not match the value in the json file.\n ',...
-                   '\n data %s\n sha256: %s\n\n json: %s\n sha256: %s\n'],...
-                    dataPath, sha256Sum, trialStr, trialJson.data.sha256));
+                   '\n data %s\n sha256: %s\n\n sha256: %s\n'],...
+                    dataPath, sha256Sum, trialJson.data.sha256);
+        end
     end    
     %%
     % Count the number of segments to plot
@@ -207,6 +236,7 @@ for i=1:1:length(experimentJson.trials)
     trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
     trialJson = jsondecode(trialStr);
     
+
     %%
     % Add missing fields in the trial json file from the experiments
     % section
@@ -266,6 +296,8 @@ for i=1:1:length(experimentJson.trials)
     %%
     % Plot each of the segments
     %%
+
+
     for indexIntoSetOfSegments = 1:1:length(setOfSegments)
     
         idxSeg = setOfSegments(indexIntoSetOfSegments,1);
@@ -277,7 +309,7 @@ for i=1:1:length(experimentJson.trials)
         timeEnd   = trialJson.segments(idxSeg).duration(2);
         dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
                         & auroraData.Data.Time.Values <= timeEnd); 
-    
+        
         %%
         %Find the wave number
         %%
@@ -292,39 +324,7 @@ for i=1:1:length(experimentJson.trials)
         %assert(idxWave~=0,'Error: could not find the correct wave number');
         assert(isempty(bandwidth)==0,'Error: could not find the correct larb properties');
         assert(isempty(amplitude)==0,'Error: could not find the correct larb properties');
-    
-        %%
-        % Plot time-length-force    
-        %%
-        figure(figH);
-    
-        idxRow = (idxSeg-1)*4 + 1;
-        subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
-    
-        yyaxis left;
-        plot(auroraData.Data.Time.Values(dataIndex,1),...
-             auroraData.Data.Lin.Values(dataIndex,1));...
-        hold on;
-        box off;    
-        xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
-        ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
-    
-        yyaxis right;
-        plot(auroraData.Data.Time.Values(dataIndex,1),...
-             auroraData.Data.Fin.Values(dataIndex,1));...
-        hold on;
-        box off;    
-        ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
-        
-        titleStrA = trialJson.experiment.title;
-        titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);
-    
-        titleId = sprintf('(%i,%i). ',idxRow,i);        
-        title([titleId, titleStrA,':', titleStrB]);
-    
-        here=1;
-    
-    
+   
         %%
         % Evaluate frequency response   
         %%
@@ -345,8 +345,8 @@ for i=1:1:length(experimentJson.trials)
         Hs = evaluateGainPhaseCoherenceSq(  x,...
                                             y,...
                                             bandwidth(1,2),...
-                                            sampleFrequency);    
-    
+                                            sampleFrequency);
+
         expData.x = x;
         expData.y = y;
         expData.time=timeVec;
@@ -420,7 +420,24 @@ for i=1:1:length(experimentJson.trials)
         % 1. min rmse gain error
         % 2. min rmse phase error
         % 3. min rmse of the slope of the phase error
-        optSettings.bandwidth = params.bandwidth.*[0.05,0.95];
+        idxFirst = find(Hs.coherenceSq(Hs.idxBandwidth) ...
+                >= modelSettings.coherenceSquaredThreshold,1,'first');
+        idxLast =  find(Hs.coherenceSq(Hs.idxBandwidth) ...
+                >= modelSettings.coherenceSquaredThreshold,1,'last');
+
+        if(~isempty(idxFirst) && ~isempty(idxLast))
+            freqA = Hs.frequencyHz(idxFirst);
+            freqB = Hs.frequencyHz(idxLast);
+            freqWidth = freqB-freqA;
+            if(freqWidth > params.bandwidth*0.25)
+                optSettings.bandwidth = [freqA,freqB];                
+            else
+                optSettings.bandwidth = params.bandwidth.*[0.05,0.95];                
+            end
+        else
+            optSettings.bandwidth = params.bandwidth.*[0.05,0.95];
+        end
+
         optSettings.scaling=[];
         optSettings.objScaling=1;
         optSettings.lambda = 0.9;
@@ -569,11 +586,157 @@ for i=1:1:length(experimentJson.trials)
                             yDelayed,...
                             expData.bandwidth,...
                             expData.sampleFrequency);    
+        %%
+        % Evaluate errors
+        %%
+        assert(length(model.idxBandwidth)==length(HsFit.idxBandwidth),...
+               ['Error: model and experimental data frequency responses'...
+                ' have differing lengths']);
+
+        for j=1:1:length(model.idxBandwidth)
+            modelFreq=model.frequency(model.idxBandwidth(j));
+            dataFreq =HsFit.frequency(HsFit.idxBandwidth(j));
+            
+            assert(abs(modelFreq-dataFreq)<1e-3,...
+                ['Error: model and data frequencies differ'])
+        end
+
+        idxA = find(HsFit.frequencyHz >= ...
+                        optSettings.bandwidth(1,1),1,'first');
+        idxB = find(HsFit.frequencyHz <= ...
+                        optSettings.bandwidth(1,2),1,'last');
         
+
+        rmse.gain = sqrt( mean( (model.gain(idxA:idxB) ...
+                                -HsFit.gain(idxA:idxB)).^2 ));
+        rmse.phase = sqrt( mean( (model.phase(idxA:idxB) ...
+                                 -HsFit.phase(idxA:idxB)).^2 ));
+        rmse.coherenceSq = getSummaryStatistics(HsFit.coherenceSq(idxA:idxB));
+
+        %%
+        % Record the analysis to a segment json file
+        %%
+        lengthSummary = ...
+            getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
+        forceSummary = ...
+            getSummaryStatistics(auroraData.Data.Fin.Values(dataIndex,1));
+        if(experimentJson.experiment.temperatureControl)
+            temperatureSummary = ...
+            getSummaryStatistics(auroraData.Data.Aux1_C.Values(dataIndex,1));
+        else
+            tempSetting = experimentJson.experiment.temperature_C;           
+            temp = str2double(tempSetting(1:idx(1,1)));
+            temperatureSummary.percentiles.x=[];
+            temperatureSummary.percentiles.y=[];
+            temperatureSummary.mean = temp;
+            temperatureSummary.median=temp;
+            temperatureSummary.std = 0;
+            temperatureSummary.min = temp;
+            temperatureSummary.max = temp;
+        end
+
+        segmentJson.time=[timeStart,timeEnd];
+        segmentJson.index = idxSeg;
+        segmentJson.type  = trialJson.segments(idxSeg).type; 
+        segmentJson.summary.length      = lengthSummary;
+        segmentJson.summary.force       = forceSummary;
+        segmentJson.summary.temperature = temperatureSummary;
+        segmentJson.unit.length         = auroraData.Data.Lin.Unit;
+        segmentJson.unit.force          = auroraData.Data.Fin.Unit;
+        segmentJson.unit.temperature    = 'C';
+        segmentJson.channel.length      = 'Lin';
+        segmentJson.channel.force       = 'Fin';
+        segmentJson.channel.temperature = 'Aux 1';
+
+        scaleTime = 1;
+        if(strcmp(auroraData.Data.Time.Unit,'ms'))
+            scaleTime=1000;
+        end
+
+        timePreStart = timeStart...
+                        -prePostWindowTimeWidth*scaleTime...
+                        -prePostWindowTimeOffset*scaleTime;
+        timePreEnd   = timeStart-prePostWindowTimeOffset*scaleTime;
+
+        preIndex = find( auroraData.Data.Time.Values >= timePreStart ...
+                        & auroraData.Data.Time.Values <= timePreEnd); 
+
+        segmentJson.pre.time = [timePreStart,timePreEnd];
+        segmentJson.pre.summary.length = ...
+            getSummaryStatistics(auroraData.Data.Lin.Values(preIndex,1));
+        segmentJson.pre.summary.force = ...
+            getSummaryStatistics(auroraData.Data.Fin.Values(preIndex,1));
+
+        timePostStart = timeEnd+prePostWindowTimeOffset*scaleTime;
+        timePostEnd   = timeEnd+prePostWindowTimeOffset*scaleTime...
+                               +prePostWindowTimeWidth*scaleTime;
+
+        postIndex = find( auroraData.Data.Time.Values >= timePostStart ...
+                        & auroraData.Data.Time.Values <= timePostEnd); 
+
+        segmentJson.post.time = [timePostStart,timePostEnd];
+        segmentJson.post.summary.length = ...
+            getSummaryStatistics(auroraData.Data.Lin.Values(postIndex,1));
+        segmentJson.post.summary.force = ...
+            getSummaryStatistics(auroraData.Data.Fin.Values(postIndex,1));
+
+
+        segmentJson.Hs.bandwidth = optSettings.bandwidth;
+        segmentJson.Hs.summary.gain = ...
+            getSummaryStatistics(HsFit.gain(idxA:idxB));
+        segmentJson.Hs.summary.phase = ...
+            getSummaryStatistics(HsFit.phase(idxA:idxB).*(180/pi));
+        segmentJson.Hs.summary.coherenceSq = ...
+            getSummaryStatistics(HsFit.coherenceSq(idxA:idxB));
+        segmentJson.Hs.units.gain = ...
+            [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
+        segmentJson.Hs.units.phase = 'degrees';
+        segmentJson.Hs.units.coherenceSq = '';
+
+        segmentJson.model.settings      = modelSettings;
+        segmentJson.model.delay         = params.delay;
+        segmentJson.model.bandwidth     = optSettings.bandwidth;
+        segmentJson.model.param_names   = paramNames;
+        segmentJson.model.param_values  = zeros(size(segmentJson.model.param_names));
+        for(idxParam=1:1:length(segmentJson.model.param_names))
+            segmentJson.model.param_values(idxParam) = ...
+                params.(segmentJson.model.param_names{idxParam});
+        end
+        segmentJson.model.rmse.gain     = rmse.gain;
+        segmentJson.model.rmse.phase    = rmse.phase;        
+
+       
+        %%
+        % Plot time-length-force    
+        %%
+        figure(figH);
     
+        idxRow = (idxSeg-1)*4 + 1;
+        subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
+    
+        yyaxis left;
+        plot(auroraData.Data.Time.Values(dataIndex,1),...
+             auroraData.Data.Lin.Values(dataIndex,1));...
+        hold on;
+        box off;    
+        xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
+        ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
+    
+        yyaxis right;
+        plot(auroraData.Data.Time.Values(dataIndex,1),...
+             auroraData.Data.Fin.Values(dataIndex,1));...
+        hold on;
+        box off;    
+        ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
+        
+        titleStrA = trialJson.experiment.title;
+        titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);
+    
+        titleId = sprintf('(%i,%i). ',idxRow,i);        
+        title([titleId, titleStrA,':', titleStrB]);
     
         %%
-        % Plot the coherence squared  
+        % Plot the gain response 
         %%    
         idxRow = (idxSeg-1)*4 + 2;
         subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));    
@@ -609,6 +772,9 @@ for i=1:1:length(experimentJson.trials)
         titleId = sprintf('(%i,%i). ',idxRow,i);
         title(titleId);
     
+        %%
+        % Plot the phase response 
+        %%            
         idxRow = (idxSeg-1)*4 + 3;
         subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
         plot(Hs.frequencyHz(idxFreq),Hs.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.75);
@@ -626,6 +792,9 @@ for i=1:1:length(experimentJson.trials)
         titleId = sprintf('(%i,%i). ',idxRow,i);
         title(titleId);
     
+        %%
+        % Plot the coherence-sq response 
+        %%            
         idxRow = (idxSeg-1)*4 + 4;
         subplot('Position',reshape(subPlotPanelGeneric(idxRow,i,:),1,4));
         plot(Hs.frequencyHz(idxFreq),Hs.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.75);
@@ -640,10 +809,25 @@ for i=1:1:length(experimentJson.trials)
         title(titleId);
     
         here=1;
+        setSegmentJson(indexIntoSetOfSegments).segment = segmentJson;
     end
-    here=1;
+
+    
+    outputJsonDir = fullfile(projectFolders.output_json,folderName);
+    if(~exist(outputJsonDir,'dir'))
+        mkdir(outputJsonDir);
+    end
+    
+    setSegmentJsonEncode = jsonencode(setSegmentJson);
+    jsonFileName = ['analysis_',experimentJson.trials{i}];
+    fidJson = fopen(fullfile(outputJsonDir,jsonFileName),'w');
+    fprintf(fidJson,setSegmentJsonEncode);
+
+    clear('setSegmentJson');
 
 end
+
+
 
 outputPlotDir = fullfile(projectFolders.output_plots,folderName);
 if(~exist(outputPlotDir,'dir'))

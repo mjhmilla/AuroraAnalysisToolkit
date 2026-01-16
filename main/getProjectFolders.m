@@ -54,6 +54,7 @@ projectFolders.aurora610A = fullfile(rootProjectDirectoryFullPath,'aurora610A');
 
 projectFolders.output         = fullfile(rootProjectDirectoryFullPath,'output'        );  
 projectFolders.output_plots   = fullfile(rootProjectDirectoryFullPath,'output','plots');  
+projectFolders.output_json   = fullfile(rootProjectDirectoryFullPath,'output','json');  
 projectFolders.output_structs = fullfile(rootProjectDirectoryFullPath,'output','structs');  
 
 projectFolders.experiments    = fullfile(rootProjectDirectoryFullPath,'experiments'   );  

@@ -30,6 +30,7 @@ modelResponse.frequency     = Hs.frequency;
 modelResponse.frequencyHz   = Hs.frequencyHz;
 modelResponse.gain          = Hs.gain;
 modelResponse.phase         = Hs.phase;
+modelResponse.coherenceSq   = Hs.coherenceSq;
 idxMax = find(Hs.frequencyHz <= params.bandwidth,1,"last");
 modelResponse.idxBandwidth  = [1:1:idxMax]';
 

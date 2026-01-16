@@ -31,16 +31,17 @@ function frequencyResponse = evaluateGainPhaseCoherenceSq(...
 coherenceSq     = ( abs(cpsd_Gyx).*abs(cpsd_Gyx) ) ./ (cpsd_Gxx.*cpsd_Gyy) ;
 freqHz          = cpsd_Fyx;
 freqRadians     = freqHz.*(2*pi);
-idxBW         = find(freqHz <= max(bandwidth+1));
+idxMax         = find(freqHz <= max(bandwidth),1,'last');
 
 gain  = abs(cpsd_Gyx./cpsd_Gxx);
 phase = angle(cpsd_Gyx./cpsd_Gxx);
 
 %Check this evaluation with Matlab's own internal function
-[coherenceSqCheck,freqCpsdCheck] = mscohere(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency);
+[coherenceSqCheck,freqCpsdCheck] = ...
+    mscohere(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency);
 assert( max(abs(coherenceSqCheck-coherenceSq)) < 1e-6);
 
-
+frequencyResponse.idxBandwidth = [1:1:idxMax];
 frequencyResponse.frequencyHz  = freqHz;
 frequencyResponse.frequency    = freqRadians;
 frequencyResponse.gain         = gain;
