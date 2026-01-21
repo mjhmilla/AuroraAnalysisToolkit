@@ -23,27 +23,37 @@ function frequencyResponse = evaluateGainPhaseCoherenceSq(...
 %result is the average of the each block in the frequency domain.
 %The resulting signal has a lower frequency resolution but is not
 %so sensitive to noise
-[cpsd_Gxy,cpsd_Fxy] = cpsd(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency,'onesided');
-[cpsd_Gxx,cpsd_Fxx] = cpsd(xTimeDomain,xTimeDomain,[],[],[],sampleFrequency,'onesided');
-[cpsd_Gyy,cpsd_Fyy] = cpsd(yTimeDomain,yTimeDomain,[],[],[],sampleFrequency,'onesided');
-[cpsd_Gyx,cpsd_Fyx] = cpsd(yTimeDomain,xTimeDomain,[],[],[],sampleFrequency,'onesided');
-
-coherenceSq     = ( abs(cpsd_Gyx).*abs(cpsd_Gyx) ) ./ (cpsd_Gxx.*cpsd_Gyy) ;
-freqHz          = cpsd_Fyx;
-freqRadians     = freqHz.*(2*pi);
-idxMax         = find(freqHz <= max(bandwidth),1,'last');
-
-gain  = abs(cpsd_Gyx./cpsd_Gxx);
-phase = angle(cpsd_Gyx./cpsd_Gxx);
-
-%Check this evaluation with Matlab's own internal function
-[coherenceSqCheck,freqCpsdCheck] = ...
-    mscohere(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency);
-assert( max(abs(coherenceSqCheck-coherenceSq)) < 1e-6);
-
-frequencyResponse.idxBandwidth = [1:1:idxMax];
-frequencyResponse.frequencyHz  = freqHz;
-frequencyResponse.frequency    = freqRadians;
-frequencyResponse.gain         = gain;
-frequencyResponse.phase        = phase;
-frequencyResponse.coherenceSq  = coherenceSq;
+if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
+        && length(yTimeDomain) == length(xTimeDomain) )
+    [cpsd_Gxy,cpsd_Fxy] = cpsd(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency,'onesided');
+    [cpsd_Gxx,cpsd_Fxx] = cpsd(xTimeDomain,xTimeDomain,[],[],[],sampleFrequency,'onesided');
+    [cpsd_Gyy,cpsd_Fyy] = cpsd(yTimeDomain,yTimeDomain,[],[],[],sampleFrequency,'onesided');
+    [cpsd_Gyx,cpsd_Fyx] = cpsd(yTimeDomain,xTimeDomain,[],[],[],sampleFrequency,'onesided');
+    
+    coherenceSq     = ( abs(cpsd_Gyx).*abs(cpsd_Gyx) ) ./ (cpsd_Gxx.*cpsd_Gyy) ;
+    freqHz          = cpsd_Fyx;
+    freqRadians     = freqHz.*(2*pi);
+    idxMax         = find(freqHz <= max(bandwidth),1,'last');
+    
+    gain  = abs(cpsd_Gyx./cpsd_Gxx);
+    phase = angle(cpsd_Gyx./cpsd_Gxx);
+    
+    %Check this evaluation with Matlab's own internal function
+    [coherenceSqCheck,freqCpsdCheck] = ...
+        mscohere(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency);
+    assert( max(abs(coherenceSqCheck-coherenceSq)) < 1e-6);
+    
+    frequencyResponse.idxBandwidth = [1:1:idxMax];
+    frequencyResponse.frequencyHz  = freqHz;
+    frequencyResponse.frequency    = freqRadians;
+    frequencyResponse.gain         = gain;
+    frequencyResponse.phase        = phase;
+    frequencyResponse.coherenceSq  = coherenceSq;
+else
+    frequencyResponse.idxBandwidth = [];
+    frequencyResponse.frequencyHz  = [];
+    frequencyResponse.frequency    = [];
+    frequencyResponse.gain         = [];
+    frequencyResponse.phase        = [];
+    frequencyResponse.coherenceSq  = [];
+end
