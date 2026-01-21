@@ -48,13 +48,13 @@ prePostWindowTimeOffset = 0.5;
 
 modelSettings.coherenceSquaredThreshold=0.8;
 modelSettings.numberOfParameters    = 2;
-modelSettings.zeroPhaseResponseSlope= 0;
 modelSettings.useManuallySetDelay   = 1;
 modelSettings.manuallySetDelay      = 6.67e-4;
 
 if(strcmp(trialTypes,'delay'))
-    modelSettings.numberOfParameters    = 1;
     modelSettings.useManuallySetDelay   = 0;
+    modelSettings.zeroPhaseResponseSlope= 1;
+    modelSettings.numberOfParameters    = 1;
 end
 
 % Delay of the force signal as measured using small steel springs.
@@ -791,8 +791,7 @@ if(settings.processData==1)
                 temperatureSummary = ...
                 getSummaryStatistics(auroraData.Data.Aux1_C.Values(dataIndex,1));
             else
-                tempSetting = experimentJson.experiment.temperature_C;           
-                temp = str2double(tempSetting(1:idx(1,1)));
+                temp = experimentJson.experiment.temperature_C;           
                 temperatureSummary.percentiles.x=[];
                 temperatureSummary.percentiles.y=[];
                 temperatureSummary.mean = temp;
@@ -1033,6 +1032,7 @@ if(settings.processData==1)
     fileName =    ['fig_FrequencyResponse_',folderName,fileNameMod];
     print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
     saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));
+    close(figH);
 end
 success=1;
 

@@ -4,7 +4,7 @@ clear all;
 
 
 settings.checkDataIntegrity = 1;
-settings.processData        = 0;
+settings.processData        = 1;
 
 trialsToProcess = ...
   {'20260116_impedance_larb_spring',...
@@ -25,4 +25,5 @@ for i=1:1:length(trialsToProcess)
     fprintf('\n\n%s\n\n',trialsToProcess{i});
     analyzeArbitraryWaveformFiberData600A_json(...
             trialsToProcess{i},settings);
+    pause(0.1);
 end
