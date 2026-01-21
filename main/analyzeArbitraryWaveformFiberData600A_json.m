@@ -150,13 +150,26 @@ if(settings.checkDataIntegrity==1)
         trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
         trialJson = jsondecode(trialStr);
     
-        if(length(trialJson.data.file)>1)
-            filePath = 'data';
-            for k=2:1:length(trialJson.data.file)
-                filePath = [filePath,filesep,trialJson.data.file{k}];
+
+        %%
+        % Fetch the experimental data files
+        %%
+        fileType = {'data','protocol'};
+        filePaths = [{''};{''}];
+        for j=1:1:length(fileType)
+            if(length(trialJson.(fileType{j}).file)>0)
+                filePaths{j} = trialJson.(fileType{j}).file{1};
+                if(length(trialJson.(fileType{j}).file)>1)
+                    for k=2:1:length(trialJson.(fileType{j}).file)
+                        filePaths{j} = [filePaths{j},filesep,trialJson.(fileType{j}).file{k}];
+                    end
+                end
             end
         end
-        dataPath = fullfile(dataFolder,filePath);        
+    
+        dataPath = fullfile(dataFolder,filePaths{1});
+        protocolPath= fullfile(dataFolder,filePaths{2});          
+      
         auroraData = readAuroraData600A(dataPath,flag_readHeader); 
     
     
@@ -176,7 +189,7 @@ if(settings.checkDataIntegrity==1)
         %one
         if(i > 1)
             if(dateTimeInYears < previousDateTime)
-                commentStr = [commentSTR,' Out-of-order'];
+                commentStr = [commentStr,' Out-of-order'];
             end
         end
     
@@ -198,10 +211,20 @@ if(settings.checkDataIntegrity==1)
             if(strcmp(sha256Sum,trialJson.data.sha256)==0)
               commentStr = [commentStr,' SHA256-mismatch'];
             end
-        end    
-        %
+        end
+        %%
+        % Check if the protocol file exists
+        %%
+        if( ~exist(protocolPath,'file'))
+%             fprintf('%s\n','  Warning: protocol file not found: ');
+%             fprintf('%s\n',['    ', protocolPath]);
+%             fprintf(fidLogFile,'%s\n','  Warning: protocol file not found: ');
+%             fprintf(fidLogFile,'%s\n',['    ', protocolPath]);   
+            commentStr = [commentStr,' Protocol-file-not-found'];
+        end
+        %%
         % Check to see if this trial has a Larb-Stochastic segment
-        %
+        %%
         isLarbStochastic = 0;    
         if(~isempty(trialJson.segments) ... 
                 && strcmp(trialJson.segments(1).type,'Larb-Stochastic')==1)
@@ -252,35 +275,6 @@ if(settings.checkDataIntegrity==1)
     
     
         %%
-        % Fetch the experimental data files
-        %%
-        fileType = {'data','protocol'};
-        filePaths = [{''};{''}];
-        for j=1:1:length(fileType)
-            if(length(trialJson.(fileType{j}).file)>0)
-                filePaths{j} = trialJson.(fileType{j}).file{1};
-                if(length(trialJson.(fileType{j}).file)>1)
-                    for k=2:1:length(trialJson.(fileType{j}).file)
-                        filePaths{j} = [filePaths{j},filesep,trialJson.(fileType{j}).file{k}];
-                    end
-                end
-            end
-        end
-    
-        dataPath = fullfile(dataFolder,filePaths{1});
-        protocolPath= fullfile(dataFolder,filePaths{2});   
-        
-        %%
-        % Check if the protocol file exists
-        %%
-        if( ~exist(protocolPath,'file'))
-            fprintf('%s\n','  Warning: protocol file not found: ');
-            fprintf('%s\n',['    ', protocolPath]);
-            fprintf(fidLogFile,'%s\n','  Warning: protocol file not found: ');
-            fprintf(fidLogFile,'%s\n',['    ', protocolPath]);        
-        end
-    
-        %%
         % Count the number of segments to plot and check if wave files exist
         %%
         setOfSegments=[];
@@ -327,6 +321,9 @@ if(settings.checkDataIntegrity==1)
             totalNumberOfSegmentsToPlot = length(setOfSegments);
         end    
     end
+
+    fprintf('\t%i segments found\n',totalNumberOfSegmentsToPlot);
+    fprintf(fidLogFile,'\t%i segments found\n',totalNumberOfSegmentsToPlot);
 
 end
 
