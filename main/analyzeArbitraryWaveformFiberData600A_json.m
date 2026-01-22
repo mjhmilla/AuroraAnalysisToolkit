@@ -1,4 +1,5 @@
-function success = analyzeArbitraryWaveformFiberData600A_json(folderName, settings)
+function success = analyzeArbitraryWaveformFiberData600A_json(...
+                        folderName, trialType, settings)
 
 success=0;
 
@@ -14,20 +15,19 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 flag_readHeader         = 1;
 flag_checkSha256Sum     = 1; %Might not work on Windows
 
-trialTypes = {'delay','degradation','impedance'};
 
-%folderName          = '20251203_impedance_larb_7';
-
-if(contains(folderName,'spring'))
-    trialTypes='delay';
-elseif(contains(folderName,'impedance'))
-    trialTypes = 'impedance';
-elseif(contains(folderName,'degradation'))
-    trialTypes = 'degradation';
-else
-    assert(0,['Error: folder name does not contain one of the following'...
-              ' keywords: spring, impedance, or degradation']);
+setOfTrialTypes = {'delay','degradation','impedance'};
+foundTrialType=0;
+for i=1:1:length(setOfTrialTypes)
+    if(strcmp(setOfTrialTypes{i},trialType))
+        foundTrialType=1;
+    end
 end
+assert(foundTrialType,...
+    ['Error: folder name does not contain one of the following'...
+          ' keywords: spring, impedance, or degradation']);
+
+
 
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
@@ -46,12 +46,12 @@ end
 prePostWindowTimeWidth = 0.5;
 prePostWindowTimeOffset = 0.5;
 
-modelSettings.coherenceSquaredThreshold=0.8;
+modelSettings.coherenceSquaredThreshold=settings.coherenceSquaredThreshold;
 modelSettings.numberOfParameters    = 2;
 modelSettings.useManuallySetDelay   = 1;
-modelSettings.manuallySetDelay      = 6.67e-4;
+modelSettings.manuallySetDelay      = settings.delay;
 
-if(strcmp(trialTypes,'delay'))
+if(strcmp(trialType,'delay'))
     modelSettings.useManuallySetDelay   = 0;
     modelSettings.zeroPhaseResponseSlope= 1;
     modelSettings.numberOfParameters    = 1;
@@ -333,7 +333,9 @@ if(settings.processData==1)
     % Plot configuration
     %%
     
-    
+    %
+    % Plot the segment data
+    %    
     numberOfHorizontalPlotColumnsGeneric    = length(setOfTrials);
     numberOfVerticalPlotRowsGeneric         = 4*totalNumberOfSegmentsToPlot;
     % 1. Time domain
@@ -347,7 +349,7 @@ if(settings.processData==1)
     plotVertMarginCm                        = 2;
     baseFontSize                            = 12;
     
-    [subPlotPanelGeneric, pageWidthGeneric,pageHeightGeneric]= ...
+    [subPlotPanelSegment, pageWidthSegment,pageHeightSegment]= ...
       plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
                           numberOfVerticalPlotRowsGeneric,...
                           plotWidth,...
@@ -356,8 +358,32 @@ if(settings.processData==1)
                           plotVertMarginCm,...
                           baseFontSize); 
     
-    figH = figure;
+    figSegments = figure;
+
+    %
+    % Plot the time series domain data
+    %
+    numberOfHorizontalPlotColumnsGeneric    = 1;
+    numberOfVerticalPlotRowsGeneric         = length(setOfTrials);
+
     
+    plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*25;
+    plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*10;
+    plotHorizMarginCm                       = 3;
+    plotVertMarginCm                        = 2;
+    baseFontSize                            = 12;
+    
+    [subPlotPanelTimeSeries, pageWidthTimeSeries,pageHeightTimeSeries]= ...
+      plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
+                          numberOfVerticalPlotRowsGeneric,...
+                          plotWidth,...
+                          plotHeight,...
+                          plotHorizMarginCm,...
+                          plotVertMarginCm,...
+                          baseFontSize); 
+
+    figTimeSeries = figure;
+
     fprintf('%s\n','Processing: gain, phase, coherence-sq + model fit');
     fprintf(fidLogFile,'%s\n','Processing: gain, phase, coherence-sq + model fit');
     
@@ -409,10 +435,40 @@ if(settings.processData==1)
             
         auroraData = readAuroraData600A(dataPath,flag_readHeader);
         
-    
-    
         %%
-        % Get the interval to plot
+        % Identify the active interval, if it exists
+        %%
+        activeIntervals = [];
+        for j=1:1:length(auroraData.Test_Protocol.Time.Value)
+            isBathFunction = ...
+                strcmp(auroraData.Test_Protocol.Control_Function.Value{j},'Bath');
+            isActivation = ...
+                contains(auroraData.Test_Protocol.Options.Value{j},...
+                sprintf('%i ',settings.activationBathNumber));
+            isDeactivation = ...
+                contains(auroraData.Test_Protocol.Options.Value{j},...
+                sprintf('%i ',settings.deactivationBathNumber));
+            isPreactivation = ...
+                contains(auroraData.Test_Protocol.Options.Value{j},...
+                sprintf('%i ',settings.preactivationBathNumber));
+            if(isBathFunction==1 && isActivation==1)
+                if(isempty(activeIntervals))
+                    activeIntervals = ...
+                        [auroraData.Test_Protocol.Time.Value(j,1),nan];
+                else
+                    activeIntervals = ...
+                        [activeIntervals;...
+                         auroraData.Test_Protocol.Time.Value(j,1),nan];
+                end
+            end
+
+            if(isBathFunction && isDeactivation==1)
+                activeIntervals(end,2) = auroraData.Test_Protocol.Time.Value(j,1);
+            end
+        end
+
+        %%
+        % Get the perturbation segment intervals
         %%
         setOfSegments=[];
         numSegmentsToPlot = 0;
@@ -433,7 +489,147 @@ if(settings.processData==1)
                     ['Error: could not find segment with ',keyword.label]);
         end    
         assert(~isempty(setOfSegments),...
-                ['Error: could not find segment with ',keyword.label]);
+                ['Error: could not find segment with ',keyword.label]);        
+        %%
+        % 
+        % 1. Extract the active times that are
+        %    between segments. For the first segment, ignore all data that
+        %    occurs before the the max (this happens early)
+        % 2. Fit lines to these segments. 
+        % 3. Save 
+        %  a. Data: initial value, final value
+        %  b. Line: initial value, final value, slope
+        % 4. Evaluate defect between segments: difference between
+        %    the new starting value and the expected value from the slope
+        %%
+        
+        intraSegmentData(length(setOfSegments)) = ...
+            struct('duration',[],'model',[],'xyMax',[]);
+        
+        if(~isempty(activeIntervals))
+
+            assert(size(activeIntervals,1)<=1 && size(activeIntervals,1)<=2,...
+                   'Error: the following code assumes one active interval');
+    
+            for j=1:1:length(setOfSegments)
+                
+                t0 = 0;
+                t1 = 0;
+                if(j==1)
+                    assert(strcmp(auroraData.Data.Time.Unit,'ms'),...
+                           ['Error: Assumed time unit is ms, not ',...
+                            auroraData.Data.Time.Unit]);
+                    t0 = activeIntervals(1,1)+settings.timeBathChangeMs;
+                    idSeg=setOfSegments(j,1);
+                    t1 = trialJson.segments(idSeg).duration(1,1);
+                else
+                    idSeg=setOfSegments(j-1,1);
+                    t0 = trialJson.segments(idSeg).duration(2,1);
+                    idSeg=setOfSegments(j,1);                
+                    t1 = trialJson.segments(idSeg).duration(1,1);
+                end
+    
+                intraSegmentData(j).duration=[t0,t1];
+                intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
+                                        & auroraData.Data.Time.Values <= t1);
+                if(j==1)
+                    [fmax,ifmax]=max(auroraData.Data.Fin.Values(intraSegmentIndex,1));
+                    intraSegmentIndex = intraSegmentIndex(ifmax:end,1);
+                end
+    
+                timeV = auroraData.Data.Time.Values(intraSegmentIndex,1) ...
+                       -auroraData.Data.Time.Values(intraSegmentIndex(1,1),1);
+
+                Amdl = [timeV ones(size(timeV))];
+                xmdl = (Amdl'*Amdl)\(Amdl'*auroraData.Data.Fin.Values(intraSegmentIndex,1));
+                ymdl = Amdl*xmdl;
+                r2mdl = sqrt(mean((ymdl-auroraData.Data.Fin.Values(intraSegmentIndex,1)).^2));
+    
+                lin.mean = mean(auroraData.Data.Lin.Values(intraSegmentIndex,1));           
+                lin.std = std(auroraData.Data.Lin.Values(intraSegmentIndex,1));
+
+                intraSegmentData(j).model.x = ...
+                    [auroraData.Data.Time.Values(intraSegmentIndex(1,1),1);...
+                     auroraData.Data.Time.Values(intraSegmentIndex(end,1),1)
+                     auroraData.Data.Time.Values(end,1)];
+    
+                timeEnd= auroraData.Data.Time.Values(end,1) ...
+                        -auroraData.Data.Time.Values(intraSegmentIndex(1,1),1);
+
+                ymdlEnd = [timeEnd,1]*xmdl;
+                intraSegmentData(j).model.y = [ymdl(1,1);ymdl(end,1);ymdlEnd];
+                intraSegmentData(j).model.dydx = xmdl(1,1);
+                intraSegmentData(j).model.r2 = r2mdl;
+
+                [ymax,idxMax] = max(auroraData.Data.Fin.Values(intraSegmentIndex,1));
+                xmax = auroraData.Data.Time.Values(intraSegmentIndex(idxMax,1),1);
+                intraSegmentData(j).xyMax = [xmax,ymax];
+                here=1;
+                
+            end
+        end
+
+        %%
+        % Plot the time series data
+        %%
+        figure(figTimeSeries);
+
+        subplot('Position',...
+            reshape(subPlotPanelTimeSeries(indexSetOfTrials,1,:),1,4));
+
+        yyaxis left;
+        plot(auroraData.Data.Time.Values,auroraData.Data.Lin.Values);
+        hold on;
+        xlabel(['Time (',auroraData.Data.Time.Unit,')']);
+        ylabel(['Length (',auroraData.Data.Lin.Unit,')']);
+
+        yyaxis right;
+        plot(auroraData.Data.Time.Values,auroraData.Data.Fin.Values);
+        hold on;
+
+
+        if(~isempty(activeIntervals))
+            for j=1:1:length(intraSegmentData)
+                n = (j-1)/(length(intraSegmentData)-1);
+                mdlColor = [0,0,0].*(1-n)+[1,0,1].*n;
+
+                plot(intraSegmentData(j).model.x,...
+                     intraSegmentData(j).model.y,...
+                     '-.','Color',mdlColor);
+                hold on;
+                plot(intraSegmentData(j).xyMax(1,1),...
+                     intraSegmentData(j).xyMax(1,2),...
+                     '.','Color',mdlColor);
+                text(intraSegmentData(j).xyMax(1,1),...
+                     intraSegmentData(j).xyMax(1,2),...
+                     sprintf('%1.3e = yMax', ...
+                       intraSegmentData(j).xyMax(1,2)),...
+                       'HorizontalAlignment','right',...
+                       'VerticalAlignment','top',...
+                       'FontSize',8,...
+                       'Rotation',45);
+                hold on;
+                text(intraSegmentData(j).model.x(1,1),...
+                     intraSegmentData(j).model.y(1,1),...
+                     sprintf('%1.3e = y\n%1.3e = dydx', ...
+                       intraSegmentData(j).model.y(1,1),...
+                       intraSegmentData(j).model.dydx(1,1)),...
+                       'HorizontalAlignment','right',...
+                       'VerticalAlignment','bottom',...
+                       'FontSize',8,...
+                       'Rotation',45);
+                hold on;
+            end
+        end
+
+        ylabel(['Force (',auroraData.Data.Fin.Unit,')']);
+        titleStr = strrep(experimentJson.trials{i},'_','\_');                
+        title(titleStr);
+        axis tight;
+        box off;
+
+
+
     
         %%
         % Plot each of the segments
@@ -870,15 +1066,15 @@ if(settings.processData==1)
             end
             segmentJson.model.rmse.gain     = rmse.gain;
             segmentJson.model.rmse.phase    = rmse.phase;        
-    
-           
+                    
+
             %%
             % Plot time-length-force    
             %%
-            figure(figH);
+            figure(figSegments);
         
             idxRow = (idxSeg-1)*4 + 1;
-            subplot('Position',reshape(subPlotPanelGeneric(idxRow,indexSetOfTrials,:),1,4));
+            subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
         
             yyaxis left;
             plot(auroraData.Data.Time.Values(preIndex,1),...
@@ -918,7 +1114,7 @@ if(settings.processData==1)
             %%    
             if(xyDataIsValid==1)
                 idxRow = (idxSeg-1)*4 + 2;
-                subplot('Position',reshape(subPlotPanelGeneric(idxRow,indexSetOfTrials,:),1,4));    
+                subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));    
                 plot(Hs.frequencyHz(idxFreq),Hs.gain(idxFreq),'-','Color',[1,1,1].*0.75);
                 hold on;
                 plot(HsFit.frequencyHz(idxFreq),HsFit.gain(idxFreq),'-','Color',[1,1,1].*0.5);
@@ -957,7 +1153,7 @@ if(settings.processData==1)
             %%            
             if(xyDataIsValid==1)        
                 idxRow = (idxSeg-1)*4 + 3;
-                subplot('Position',reshape(subPlotPanelGeneric(idxRow,indexSetOfTrials,:),1,4));
+                subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
                 plot(Hs.frequencyHz(idxFreq),Hs.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.75);
                 hold on;
                 plot(HsFit.frequencyHz(idxFreq),HsFit.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.25);
@@ -979,7 +1175,7 @@ if(settings.processData==1)
             %%            
             if(xyDataIsValid==1)
                 idxRow = (idxSeg-1)*4 + 4;
-                subplot('Position',reshape(subPlotPanelGeneric(idxRow,indexSetOfTrials,:),1,4));
+                subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
                 plot(Hs.frequencyHz(idxFreq),Hs.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.75);
                 hold on;
                 plot(HsFit.frequencyHz(idxFreq),HsFit.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.25);
@@ -1027,12 +1223,20 @@ if(settings.processData==1)
         end
     end
     
-    figH=configPlotExporter(figH, ...
-                        pageWidthGeneric, pageHeightGeneric);
+    figSegments=configPlotExporter(figSegments, ...
+                        pageWidthSegment, pageHeightSegment);
     fileName =    ['fig_FrequencyResponse_',folderName,fileNameMod];
     print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
-    saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));
-    close(figH);
+    saveas(figSegments,fullfile(outputPlotDir,[fileName,'.fig']));
+    close(figSegments);
+
+
+    figTimeSeries=configPlotExporter(figTimeSeries, ...
+                        pageWidthTimeSeries, pageHeightTimeSeries);
+    fileName =    ['fig_TimeSeries_',folderName,fileNameMod];
+    print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
+    saveas(figTimeSeries,fullfile(outputPlotDir,[fileName,'.fig']));
+    close(figTimeSeries);    
 end
 success=1;
 
