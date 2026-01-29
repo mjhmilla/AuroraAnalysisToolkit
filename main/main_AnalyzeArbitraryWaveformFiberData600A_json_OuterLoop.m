@@ -2,6 +2,14 @@ clc;
 close all;
 clear all;
 
+rootDir         = getRootProjectDirectory();
+projectFolders  = getProjectFolders(rootDir);
+
+addpath(projectFolders.aurora600A);
+addpath(projectFolders.common);
+addpath(projectFolders.postprocessing);
+addpath(projectFolders.experiments);
+addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 settings.checkDataIntegrity = 1;
 settings.processData        = 1;
@@ -10,12 +18,17 @@ settings.coherenceSquaredThreshold = 0.8;
 settings.activationBathNumber   = 3;
 settings.deactivationBathNumber = 1;
 settings.preactivationBathNumber = 2;
-settings.timeBathChangeMs = 1175;
-trialsToProcess = ...
-    {'20251114_degradation_larb_1'};
+settings.timeBathChangeMs = 1500;
+settings.isometricNoiseFilterCutoffFrequencyHz = 30;
+settings.forceNoiseThreshold = 0.025;
 
+experimentsToProcess = ...
+    {'20251114_degradation_larb_1',...
+     '20251119_degradation_larb_2',...
+     '20251121_degradation_larb_3',...
+     '20251121_degradation_larb_4'};
 
-% trialsToProcess = ...
+% experimentsToProcess = ...
 %   {'20260116_impedance_larb_spring',...
 %    '20260108_impedance_larb_spring',...
 %    '20251118_impedance_larb_1',...
@@ -31,21 +44,22 @@ trialsToProcess = ...
 %    '20251121_degradation_larb_4',...
 %    '20260109_impedance_temperature_pilot'};
 
+
 trialTypeKeywords = {'spring','degradation','impedance'};
 trialTypeName     = {'delay','degradation','impedance'};
 
-for i=1:1:length(trialsToProcess)
-    fprintf('\n\n%s\n\n',trialsToProcess{i});
+for i=1:1:length(experimentsToProcess)
+    fprintf('\n\n%s\n\n',experimentsToProcess{i});
     trialType='';
     j=1;
     while isempty(trialType) && j <= length(trialTypeKeywords)
-        if(contains(trialsToProcess{i},trialTypeKeywords{j}))
+        if(contains(experimentsToProcess{i},trialTypeKeywords{j}))
             trialType = trialTypeName{j};
         end
         j=j+1;
     end
 
     analyzeArbitraryWaveformFiberData600A_json(...
-            trialsToProcess{i},trialType,settings);
+            experimentsToProcess{i},trialType,settings,projectFolders);
     pause(0.1);
 end

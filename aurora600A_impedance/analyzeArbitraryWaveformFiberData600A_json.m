@@ -1,16 +1,9 @@
 function success = analyzeArbitraryWaveformFiberData600A_json(...
-                        folderName, trialType, settings)
+                        folderName, trialType, settings,projectFolders)
 
 success=0;
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
 
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_readHeader         = 1;
 flag_checkSha256Sum     = 1; %Might not work on Windows
@@ -329,10 +322,9 @@ end
 
 if(settings.processData==1)
 
-    %%
-    % Plot configuration
-    %%
-    
+    countDegredationTrials=1;
+
+
     %
     % Plot the segment data
     %    
@@ -359,6 +351,29 @@ if(settings.processData==1)
                           baseFontSize); 
     
     figSegments = figure;
+    
+    %
+    % Intra-segments
+    %
+    numberOfHorizontalPlotColumnsGeneric    = 1;
+    numberOfVerticalPlotRowsGeneric         = 2;
+    
+    plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*20;
+    plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*10;
+    plotHorizMarginCm                       = 3;
+    plotVertMarginCm                        = 2;
+    baseFontSize                            = 12;
+    
+    [subPlotPanelIntraSegment, pageWidthIntraSegment,pageHeightIntraSegment]= ...
+      plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
+                          numberOfVerticalPlotRowsGeneric,...
+                          plotWidth,...
+                          plotHeight,...
+                          plotHorizMarginCm,...
+                          plotVertMarginCm,...
+                          baseFontSize); 
+    
+    figIntraSegments = figure;
 
     %
     % Plot the time series domain data
@@ -503,15 +518,21 @@ if(settings.processData==1)
         %    the new starting value and the expected value from the slope
         %%
         
+
         intraSegmentData(length(setOfSegments)) = ...
-            struct('duration',[],'model',[],'xyMax',[]);
+            struct('duration',[],'model',[],'xyMax',[],'filtered',[],'fref',0);
+        for j=1:1:length(setOfSegments)
+            intraSegmentData(j).filtered.time = [];
+            intraSegmentData(j).filtered.length = [];
+            intraSegmentData(j).filtered.force = [];
+        end
         
         if(~isempty(activeIntervals))
 
             assert(size(activeIntervals,1)<=1 && size(activeIntervals,1)<=2,...
                    'Error: the following code assumes one active interval');
-    
-            for j=1:1:length(setOfSegments)
+            fref=nan;
+            for j=1:1:(length(setOfSegments))
                 
                 t0 = 0;
                 t1 = 0;
@@ -519,9 +540,92 @@ if(settings.processData==1)
                     assert(strcmp(auroraData.Data.Time.Unit,'ms'),...
                            ['Error: Assumed time unit is ms, not ',...
                             auroraData.Data.Time.Unit]);
-                    t0 = activeIntervals(1,1)+settings.timeBathChangeMs;
                     idSeg=setOfSegments(j,1);
+                    t0 = activeIntervals(1,1);                    
                     t1 = trialJson.segments(idSeg).duration(1,1);
+                
+                    % We want to find the first measured force that does
+                    % not contain any vibration. This will be our
+                    % refernence force for this trial
+                    %
+                    intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
+                                           & auroraData.Data.Time.Values <= t1);
+
+                    nyquistFrequency = ...
+                        auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
+                    cutoffFrequency = settings.isometricNoiseFilterCutoffFrequencyHz;
+
+                    [b,a]=butter(2,cutoffFrequency/nyquistFrequency);
+                    f = filtfilt(b,a, auroraData.Data.Fin.Values(intraSegmentIndex,1));                    
+                    
+                    fnoise = abs(auroraData.Data.Fin.Values(intraSegmentIndex,1)-f);
+                    ffnoise = filtfilt(b,a,fnoise);
+
+                    idxRef=length(ffnoise);
+                    while( ffnoise(idxRef) < settings.forceNoiseThreshold && idxRef > 1 )
+                        idxRef=idxRef-1;
+                    end
+
+                    t0 = auroraData.Data.Time.Values(intraSegmentIndex(idxRef));
+                    f0 = f(idxRef);
+
+                    fref = f(idxRef);
+
+                    flag_debugFF=0;
+                    if(flag_debugFF==1)
+                        figDebugFF=figure;
+                        plot(auroraData.Data.Time.Values(intraSegmentIndex,1),...
+                             auroraData.Data.Fin.Values(intraSegmentIndex,1),...
+                             '-','Color',[1,1,1].*0.75,'DisplayName','Raw Data');
+                        hold on;
+                        plot(auroraData.Data.Time.Values(intraSegmentIndex,1),...
+                             f,'-k','DisplayName',sprintf('Filtered Data (%i)',...
+                             settings.isometricNoiseFilterCutoffFrequencyHz));
+                        hold on;
+                        plot(auroraData.Data.Time.Values(intraSegmentIndex,1),...
+                             ffnoise,'-','Color',[0,1,1],'DisplayName','Noise Magnitude');
+                        hold on;
+                        plot(t0,f0,'o','Color',[0,0,0],'MarkerFaceColor',[0,0,0],...
+                            'DisplayName','Reference Force');
+                        hold on;
+                        legend('Location','NorthWest');
+                        hold on;
+                        box off;
+
+                        xlabel(['Time (',auroraData.Data.Time.Unit,')']);
+                        ylabel(['Force (',auroraData.Data.Fin.Unit,')']);
+                        here=1;
+                    end
+
+%                 elseif (j==(length(setOfSegments)+1))
+%                     
+%                     k=1;
+%                     found=0;
+%                     preActivationBathStr = sprintf('%i ',settings.preactivationBathNumber);
+%                     activationBathStr = sprintf('%i ',settings.activationBathNumber);
+% 
+%                     t0=nan;
+%                     t1=nan;
+%                     while(k < length(auroraData.Test_Protocol.Time.Value) && found==0)
+%                         if(strcmp(auroraData.Test_Protocol.Control_Function.Value{k},'Bath'))
+%                             if(contains(auroraData.Test_Protocol.Options.Value{k},...
+%                                preActivationBathStr))
+%                                 t0 = auroraData.Test_Protocol.Time.Value(k) ...
+%                                      + settings.timeBathChangeMs;
+%                             end
+%                             if(contains(auroraData.Test_Protocol.Options.Value{k},...
+%                                activationBathStr))
+%                                 t1 = auroraData.Test_Protocol.Time.Value(k);                                
+%                                 found=1;
+%                             end
+%                         end
+%                         k=k+1;
+%                     end
+%                     assert(~isnan(t0),['Error: could not find the',...
+%                         ' command to switch to the pre-activation bath']);
+%                     assert(~isnan(t1),['Error: could not find the',...
+%                         'command to switch to the activation bath']);
+%                         
                 else
                     idSeg=setOfSegments(j-1,1);
                     t0 = trialJson.segments(idSeg).duration(2,1);
@@ -532,10 +636,10 @@ if(settings.processData==1)
                 intraSegmentData(j).duration=[t0,t1];
                 intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
                                         & auroraData.Data.Time.Values <= t1);
-                if(j==1)
-                    [fmax,ifmax]=max(auroraData.Data.Fin.Values(intraSegmentIndex,1));
-                    intraSegmentIndex = intraSegmentIndex(ifmax:end,1);
-                end
+%                 if(j==1)
+%                     [fmax,ifmax]=max(auroraData.Data.Fin.Values(intraSegmentIndex,1));
+%                     intraSegmentIndex = intraSegmentIndex(ifmax:end,1);
+%                 end
     
                 timeV = auroraData.Data.Time.Values(intraSegmentIndex,1) ...
                        -auroraData.Data.Time.Values(intraSegmentIndex(1,1),1);
@@ -564,6 +668,24 @@ if(settings.processData==1)
                 [ymax,idxMax] = max(auroraData.Data.Fin.Values(intraSegmentIndex,1));
                 xmax = auroraData.Data.Time.Values(intraSegmentIndex(idxMax,1),1);
                 intraSegmentData(j).xyMax = [xmax,ymax];
+                
+                intraSegmentData(j).filtered.time   = zeros(size(intraSegmentIndex,1),1);
+                intraSegmentData(j).filtered.length = zeros(size(intraSegmentIndex,1),1);
+                intraSegmentData(j).filtered.force  = zeros(size(intraSegmentIndex,1),1);
+
+                intraSegmentData(j).filtered.time = ...
+                    auroraData.Data.Time.Values(intraSegmentIndex,1);
+
+                nyquistFrequency = ...
+                    auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
+                cutoffFrequency = settings.isometricNoiseFilterCutoffFrequencyHz;
+
+                [b,a]=butter(2,cutoffFrequency/nyquistFrequency);
+                intraSegmentData(j).filtered.force =...
+                    filtfilt(b,a, auroraData.Data.Fin.Values(intraSegmentIndex,1));
+                intraSegmentData(j).filtered.length =...
+                    filtfilt(b,a, auroraData.Data.Lin.Values(intraSegmentIndex,1));
+                intraSegmentData(j).fref=fref;
                 here=1;
                 
             end
@@ -590,18 +712,31 @@ if(settings.processData==1)
 
         if(~isempty(activeIntervals))
             for j=1:1:length(intraSegmentData)
-                n = (j-1)/(length(intraSegmentData)-1);
+                n = 0;
+                if(length(intraSegmentData)>1)
+                    n = (j-1)/(length(intraSegmentData)-1);
+                end
+                
                 mdlColor = [0,0,0].*(1-n)+[1,0,1].*n;
 
-                plot(intraSegmentData(j).model.x,...
-                     intraSegmentData(j).model.y,...
-                     '-.','Color',mdlColor);
+                if(j==length(intraSegmentData))
+                    mdlColor = [0,1,0];
+                end
+
+%                 plot(intraSegmentData(j).model.x,...
+%                      intraSegmentData(j).model.y,...
+%                      '-.','Color',mdlColor);
+%                 hold on;
+%                 plot(intraSegmentData(j).xyMax(1,1),...
+%                      intraSegmentData(j).xyMax(1,2),...
+%                      '.','Color',mdlColor);
+%                 hold on;
+                plot(intraSegmentData(j).filtered.time,...
+                     intraSegmentData(j).filtered.force,...
+                     '-','Color',mdlColor);
                 hold on;
-                plot(intraSegmentData(j).xyMax(1,1),...
-                     intraSegmentData(j).xyMax(1,2),...
-                     '.','Color',mdlColor);
-                text(intraSegmentData(j).xyMax(1,1),...
-                     intraSegmentData(j).xyMax(1,2),...
+                text(intraSegmentData(j).filtered.time(1),...
+                     intraSegmentData(j).filtered.force(1),...
                      sprintf('%1.3e = yMax', ...
                        intraSegmentData(j).xyMax(1,2)),...
                        'HorizontalAlignment','right',...
@@ -628,6 +763,62 @@ if(settings.processData==1)
         axis tight;
         box off;
 
+        %%
+        % Plot the intra segments, if this is a degredation trial
+        %%
+        if(strcmp(trialType,'degradation'))
+            figure(figIntraSegments);
+            subplot('Position',...
+                reshape(subPlotPanelIntraSegment(1,1,:),1,4));
+            colorA = [0,0,0];
+            colorB = [0,0,1];
+
+            n=0;
+            if(length(setOfTrials)>1)
+                n = (indexSetOfTrials-1)/(length(setOfTrials)-1);
+            end
+            lineColor = colorA.*(n-1) + colorB.*n;    
+       
+            for j=1:1:length(intraSegmentData)                
+                plot(intraSegmentData(j).filtered.time,...
+                     intraSegmentData(j).filtered.force,...
+                     '-','Color',lineColor);
+                hold on;  
+                if(j==1)
+                    plot(intraSegmentData(j).filtered.time(end),...
+                         intraSegmentData(j).filtered.force(end),...
+                         '.','Color',lineColor);
+                    hold on;                      
+                end
+            end
+            text(intraSegmentData(end).filtered.time(end),...
+                 intraSegmentData(end).filtered.force(end),...
+                 sprintf('%i',indexSetOfTrials),...
+                 'HorizontalAlignment','left',...
+                 'FontSize',6);
+            hold on            
+            box off;
+            xlabel(['Time (',auroraData.Data.Time.Unit,')']);
+            ylabel(['Force (',auroraData.Data.Fin.Unit,')']); 
+            %titleStr = strrep(folderName,'_','\_'); 
+            title('Isometric intra-segment force');
+
+            subplot('Position',...
+                reshape(subPlotPanelIntraSegment(2,1,:),1,4));
+            plot(indexSetOfTrials,intraSegmentData(1).filtered.force(end),...
+                 'o','Color',lineColor,'MarkerFaceColor',lineColor);
+            hold on;
+            forceReference = intraSegmentData(1).fref; 
+            plot(indexSetOfTrials,...
+                (intraSegmentData(1).filtered.force(end)-forceReference),...
+                 'x','Color',[1,0,0],'MarkerFaceColor',[1,0,0]);
+            hold on;
+            box off;
+            xlabel(['Trial Number']);
+            ylabel(['Force (',auroraData.Data.Fin.Unit,')']); 
+            title('Force prior to first perturbation');
+            
+        end
 
 
     
@@ -997,9 +1188,26 @@ if(settings.processData==1)
                 temperatureSummary.max = temp;
             end
     
-            segmentJson.time=[timeStart,timeEnd];
+            segmentJson.interval=[timeStart,timeEnd];
             segmentJson.index = idxSeg;
             segmentJson.type  = trialJson.segments(idxSeg).type; 
+
+            segmentJson.time    = auroraData.Data.Time.Values(dataIndex,1);
+            segmentJson.length  = auroraData.Data.Lin.Values(dataIndex,1);
+            segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);            
+            
+            segmentJson.forceReference = ...
+                intraSegmentData(1).fref;
+
+            if(~isempty(activeIntervals))
+                segmentJson.pre.time = intraSegmentData(idxSeg).filtered.time(end);
+                segmentJson.pre.length = intraSegmentData(idxSeg).filtered.length(end);
+                segmentJson.pre.force = intraSegmentData(idxSeg).filtered.force(end);                
+            else
+                segmentJson.pre.time = [];
+                segmentJson.pre.length = [];
+                segmentJson.pre.force = [];
+            end
             segmentJson.summary.length      = lengthSummary;
             segmentJson.summary.force       = forceSummary;
             segmentJson.summary.temperature = temperatureSummary;
@@ -1015,37 +1223,42 @@ if(settings.processData==1)
                 scaleTime=1000;
             end
     
-            timePreStart = timeStart...
-                            -prePostWindowTimeWidth*scaleTime...
-                            -prePostWindowTimeOffset*scaleTime;
-            timePreEnd   = timeStart-prePostWindowTimeOffset*scaleTime;
-    
-            preIndex = find( auroraData.Data.Time.Values >= timePreStart ...
-                            & auroraData.Data.Time.Values <= timePreEnd); 
-    
-            segmentJson.pre.time = [timePreStart,timePreEnd];
-            segmentJson.pre.summary.length = ...
-                getSummaryStatistics(auroraData.Data.Lin.Values(preIndex,1));
-            segmentJson.pre.summary.force = ...
-                getSummaryStatistics(auroraData.Data.Fin.Values(preIndex,1));
-    
-            timePostStart = timeEnd+prePostWindowTimeOffset*scaleTime;
-            timePostEnd   = timeEnd+prePostWindowTimeOffset*scaleTime...
-                                   +prePostWindowTimeWidth*scaleTime;
-    
-            postIndex = find( auroraData.Data.Time.Values >= timePostStart ...
-                            & auroraData.Data.Time.Values <= timePostEnd); 
-    
-            segmentJson.post.time = [timePostStart,timePostEnd];
-            segmentJson.post.summary.length = ...
-                getSummaryStatistics(auroraData.Data.Lin.Values(postIndex,1));
-            segmentJson.post.summary.force = ...
-                getSummaryStatistics(auroraData.Data.Fin.Values(postIndex,1));
-    
+%             timePreStart = timeStart...
+%                             -prePostWindowTimeWidth*scaleTime...
+%                             -prePostWindowTimeOffset*scaleTime;
+%             timePreEnd   = timeStart-prePostWindowTimeOffset*scaleTime;
+%     
+%             preIndex = find( auroraData.Data.Time.Values >= timePreStart ...
+%                             & auroraData.Data.Time.Values <= timePreEnd); 
+%     
+%             segmentJson.pre.time = [timePreStart,timePreEnd];
+%             segmentJson.pre.summary.length = ...
+%                 getSummaryStatistics(auroraData.Data.Lin.Values(preIndex,1));
+%             segmentJson.pre.summary.force = ...
+%                 getSummaryStatistics(auroraData.Data.Fin.Values(preIndex,1));
+%     
+%             timePostStart = timeEnd+prePostWindowTimeOffset*scaleTime;
+%             timePostEnd   = timeEnd+prePostWindowTimeOffset*scaleTime...
+%                                    +prePostWindowTimeWidth*scaleTime;
+%     
+%             postIndex = find( auroraData.Data.Time.Values >= timePostStart ...
+%                             & auroraData.Data.Time.Values <= timePostEnd); 
+%     
+%             segmentJson.post.time = [timePostStart,timePostEnd];
+%             segmentJson.post.summary.length = ...
+%                 getSummaryStatistics(auroraData.Data.Lin.Values(postIndex,1));
+%             segmentJson.post.summary.force = ...
+%                 getSummaryStatistics(auroraData.Data.Fin.Values(postIndex,1));
+%     
     
             segmentJson.Hs.bandwidth = optSettings.bandwidth;
+            segmentJson.Hs.frequencyHz = HsFit.frequencyHz(idxA:idxB);
+            segmentJson.Hs.gain = HsFit.gain(idxA:idxB);   
+            segmentJson.Hs.phase = HsFit.phase(idxA:idxB);               
+            segmentJson.Hs.coherenceSq = HsFit.coherenceSq(idxA:idxB);               
+            
             segmentJson.Hs.summary.gain = ...
-                getSummaryStatistics(HsFit.gain(idxA:idxB));
+                getSummaryStatistics(HsFit.gain(idxA:idxB));            
             segmentJson.Hs.summary.phase = ...
                 getSummaryStatistics(HsFit.phase(idxA:idxB).*(180/pi));
             segmentJson.Hs.summary.coherenceSq = ...
@@ -1065,7 +1278,14 @@ if(settings.processData==1)
                     params.(segmentJson.model.param_names{idxParam});
             end
             segmentJson.model.rmse.gain     = rmse.gain;
-            segmentJson.model.rmse.phase    = rmse.phase;        
+            segmentJson.model.rmse.phase    = rmse.phase;  
+
+            segmentJson.model.bandwidth     = optSettings.bandwidth;
+            segmentJson.model.frequencyHz   = model.frequencyHz(idxA:idxB);
+            segmentJson.model.gain          = model.gain(idxA:idxB);
+            segmentJson.model.phase         = model.phase(idxA:idxB);
+            segmentJson.model.coherenceSq   = model.coherenceSq(idxA:idxB);
+            
                     
 
             %%
@@ -1077,29 +1297,29 @@ if(settings.processData==1)
             subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
         
             yyaxis left;
-            plot(auroraData.Data.Time.Values(preIndex,1),...
-                 auroraData.Data.Lin.Values(preIndex,1),'-b');...
-            hold on;        
+%             plot(auroraData.Data.Time.Values(preIndex,1),...
+%                  auroraData.Data.Lin.Values(preIndex,1),'-b');...
+%             hold on;        
             plot(auroraData.Data.Time.Values(dataIndex,1),...
                  auroraData.Data.Lin.Values(dataIndex,1),'-b');...
             hold on;
-            plot(auroraData.Data.Time.Values(postIndex,1),...
-                 auroraData.Data.Lin.Values(postIndex,1),'-b');...
-            hold on;
+%             plot(auroraData.Data.Time.Values(postIndex,1),...
+%                  auroraData.Data.Lin.Values(postIndex,1),'-b');...
+%             hold on;
             box off;    
             xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
             ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
         
             yyaxis right;
-            plot(auroraData.Data.Time.Values(preIndex,1),...
-                 auroraData.Data.Fin.Values(preIndex,1),'-r');...
-            hold on;        
+%             plot(auroraData.Data.Time.Values(preIndex,1),...
+%                  auroraData.Data.Fin.Values(preIndex,1),'-r');...
+%             hold on;        
             plot(auroraData.Data.Time.Values(dataIndex,1),...
                  auroraData.Data.Fin.Values(dataIndex,1),'-r');...
             hold on;
-            plot(auroraData.Data.Time.Values(postIndex,1),...
-                 auroraData.Data.Fin.Values(postIndex,1),'-r');...
-            hold on;
+%             plot(auroraData.Data.Time.Values(postIndex,1),...
+%                  auroraData.Data.Fin.Values(postIndex,1),'-r');...
+%             hold on;
             box off;    
             ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
             
@@ -1229,6 +1449,13 @@ if(settings.processData==1)
     print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
     saveas(figSegments,fullfile(outputPlotDir,[fileName,'.fig']));
     close(figSegments);
+
+    figIntraSegments=configPlotExporter(figIntraSegments, ...
+                        pageWidthIntraSegment, pageHeightIntraSegment);
+    fileName =    ['fig_IntraSegmentDegradation_',folderName,fileNameMod];
+    print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
+    saveas(figIntraSegments,fullfile(outputPlotDir,[fileName,'.fig']));
+    close(figIntraSegments);
 
 
     figTimeSeries=configPlotExporter(figTimeSeries, ...
