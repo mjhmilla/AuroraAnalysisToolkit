@@ -42,12 +42,20 @@ prePostWindowTimeOffset = 0.5;
 modelSettings.coherenceSquaredThreshold=settings.coherenceSquaredThreshold;
 modelSettings.numberOfParameters    = 2;
 modelSettings.useManuallySetDelay   = 1;
-modelSettings.manuallySetDelay      = settings.delay;
+
+modelSettings.delayModel                        = settings.delayModel;
+modelSettings.manuallySetDelay                  = settings.delay;
+modelSettings.manuallySetDelayFilterFrequencyHz = settings.delayFilterFrequencyHz;
 
 if(strcmp(trialType,'delay'))
+    assert(  strcmp(settings.delayModel,'time-domain') ...
+          || strcmp(settings.delayModel,'frequency-domain'), ...
+          'Error: settings.delayModel shou');
+
     modelSettings.useManuallySetDelay   = 0;
     modelSettings.zeroPhaseResponseSlope= 1;
     modelSettings.numberOfParameters    = 1;
+    modelSettings.delayModel            = settings.delayModel;
 end
 
 % Delay of the force signal as measured using small steel springs.
@@ -520,7 +528,8 @@ if(settings.processData==1)
         
 
         intraSegmentData(length(setOfSegments)) = ...
-            struct('duration',[],'model',[],'xyMax',[],'filtered',[],'fref',0);
+            struct('duration',[],'model',[],'xyMax',[],...
+            'filtered',[],'forceReference',0);
         for j=1:1:length(setOfSegments)
             intraSegmentData(j).filtered.time = [];
             intraSegmentData(j).filtered.length = [];
@@ -537,6 +546,7 @@ if(settings.processData==1)
                 t0 = 0;
                 t1 = 0;
                 if(j==1)
+
                     assert(strcmp(auroraData.Data.Time.Unit,'ms'),...
                            ['Error: Assumed time unit is ms, not ',...
                             auroraData.Data.Time.Unit]);
@@ -544,32 +554,45 @@ if(settings.processData==1)
                     t0 = activeIntervals(1,1);                    
                     t1 = trialJson.segments(idSeg).duration(1,1);
                 
-                    % We want to find the first measured force that does
-                    % not contain any vibration. This will be our
-                    % refernence force for this trial
-                    %
+%                     We want to find the first measured force that does
+%                     not contain any vibration. This will be our
+%                     refernence force for this trial
+%                     
                     intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
                                            & auroraData.Data.Time.Values <= t1);
+% 
+%                     nyquistFrequency = ...
+%                         auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
+%                     cutoffFrequency = settings.isometricNoiseFilterCutoffFrequencyHz;
+% 
+%                     [b,a]=butter(2,cutoffFrequency/nyquistFrequency);
+%                     f = filtfilt(b,a, auroraData.Data.Fin.Values(intraSegmentIndex,1));                    
+%                     
+%                     fnoise = abs(auroraData.Data.Fin.Values(intraSegmentIndex,1)-f);
+%                     ffnoise = filtfilt(b,a,fnoise);
+% 
+%                     idxRef=length(ffnoise);
+%                     while( ffnoise(idxRef) < settings.forceNoiseThreshold && idxRef > 1 )
+%                         idxRef=idxRef-1;
+%                     end
+%                     idxRef=idxRef+1;
+% 
+%                     t0 = auroraData.Data.Time.Values(intraSegmentIndex(idxRef));
+%                     f0 = f(idxRef);
+% 
+%                     fref = f(idxRef);
 
-                    nyquistFrequency = ...
-                        auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
-                    cutoffFrequency = settings.isometricNoiseFilterCutoffFrequencyHz;
+                    flagPlotReference=0;
+                    [forceReference, indexReference] ...
+                        = identifyActiveFiberReferenceForce600A(...
+                                auroraData.Data.Fin.Values(intraSegmentIndex,1), ...
+                                settings.forceNoiseThreshold,...
+                                settings.isometricNoiseFilterCutoffFrequencyHz,...
+                                auroraData.Setup_Parameters.A_D_Sampling_Rate.Value,...
+                                flagPlotReference);
 
-                    [b,a]=butter(2,cutoffFrequency/nyquistFrequency);
-                    f = filtfilt(b,a, auroraData.Data.Fin.Values(intraSegmentIndex,1));                    
-                    
-                    fnoise = abs(auroraData.Data.Fin.Values(intraSegmentIndex,1)-f);
-                    ffnoise = filtfilt(b,a,fnoise);
-
-                    idxRef=length(ffnoise);
-                    while( ffnoise(idxRef) < settings.forceNoiseThreshold && idxRef > 1 )
-                        idxRef=idxRef-1;
-                    end
-
-                    t0 = auroraData.Data.Time.Values(intraSegmentIndex(idxRef));
-                    f0 = f(idxRef);
-
-                    fref = f(idxRef);
+                    f0 = forceReference;
+                    t0 = auroraData.Data.Time.Values(intraSegmentIndex(indexReference));
 
                     flag_debugFF=0;
                     if(flag_debugFF==1)
@@ -685,7 +708,7 @@ if(settings.processData==1)
                     filtfilt(b,a, auroraData.Data.Fin.Values(intraSegmentIndex,1));
                 intraSegmentData(j).filtered.length =...
                     filtfilt(b,a, auroraData.Data.Lin.Values(intraSegmentIndex,1));
-                intraSegmentData(j).fref=fref;
+                intraSegmentData(j).forceReference=forceReference;
                 here=1;
                 
             end
@@ -808,7 +831,7 @@ if(settings.processData==1)
             plot(indexSetOfTrials,intraSegmentData(1).filtered.force(end),...
                  'o','Color',lineColor,'MarkerFaceColor',lineColor);
             hold on;
-            forceReference = intraSegmentData(1).fref; 
+            forceReference = intraSegmentData(1).forceReference; 
             plot(indexSetOfTrials,...
                 (intraSegmentData(1).filtered.force(end)-forceReference),...
                  'x','Color',[1,0,0],'MarkerFaceColor',[1,0,0]);
@@ -917,6 +940,8 @@ if(settings.processData==1)
                 params.k            = 1.4;
                 params.beta         = 0;
                 params.delay        = 0.0005; %in seconds
+                params.delayFilterFrequencyHz = 200;
+                params.delayModel   = settings.delayModel;
             
                 params.bandwidth    = bandwidth(1,2);
                 params.sampleFrequency= sampleFrequency;
@@ -991,7 +1016,7 @@ if(settings.processData==1)
                 optSettings.objScaling=1;
                 optSettings.lambda = 0.9;
             
-                optSettings.phasePolishingInterations = 10;
+                optSettings.phasePolishingInterations = 15;
                 lambdaSchedule = [0.9,0.1,0.01,0];
             
                 for indexLambda = 1:1:length(lambdaSchedule)
@@ -1008,11 +1033,48 @@ if(settings.processData==1)
                                          'Display','none');
                     end
             
-                    %
-                    % Fit the delay to the phase response
-                    %    
-                
-                    if(modelSettings.useManuallySetDelay==0)
+                    %%
+                    % Fit the delay to the phase response by fitting an 
+                    % inverse-low-pass filter until the phase response of
+                    % the speciment is flat.
+                    %%
+                    if(modelSettings.useManuallySetDelay==0 ...
+                            && strcmp(modelSettings.delayModel,'frequency-domain'))
+                        
+                        expResponse = evaluateGainPhaseCoherenceSq(  ...
+                                            expData.x,...
+                                            expData.y,...
+                                            expData.bandwidth,...
+                                            expData.sampleFrequency);  
+
+
+                        omegaHzDeltaMax = params.delayFilterFrequencyHz*0.5;
+
+                        fittingResults = ...
+                            calcLowPassFilterFrequencyToZeroPhaseResponseSlope(...
+                                params,...
+                                expResponse,...
+                                omegaHzDeltaMax,...
+                                optSettings.bandwidth,...
+                                100);  
+
+                        params.delayFilterFrequencyHz = ...
+                                fittingResults.filterFrequencyHz;
+
+                        here=1;
+                    end
+                    if(modelSettings.useManuallySetDelay==1 ...
+                            && strcmp(modelSettings.delayModel,'frequency-domain'))
+                        params.delayFilterFrequencyHz = settings.delayFilterFrequencyHz;
+                    end
+
+                    %%
+                    % Fit the delay to the phase response by re-interpolating
+                    % the time-domain signal with the specified delay until
+                    % the phase response of the speciment is flat.
+                    %%
+                    if(modelSettings.useManuallySetDelay==0 ...
+                            && strcmp(modelSettings.delayModel,'time-domain'))
                         x0 = [1];
                         optSettings.scaling = params.delay;
                         lb = [x0].*0;
@@ -1042,17 +1104,19 @@ if(settings.processData==1)
                         %
                         if(modelSettings.zeroPhaseResponseSlope==1)
                             delayDelta = 0.001;
-                            delayBest = calcDelayToZeroPhaseResponseSlope(...
-                                                    params,...
-                                                    expData,...
-                                                    delayDelta,...
-                                                    optSettings.bandwidth,...
-                                                    optSettings.phasePolishingInterations);            
+                            delayBest = ...
+                                calcDelayToZeroPhaseResponseSlope(...
+                                    params,...
+                                    expData,...
+                                    delayDelta,...
+                                    optSettings.bandwidth,...
+                                    optSettings.phasePolishingInterations);            
                 
                             params.delay = delayBest;
                         end
-            
-                    else
+                    end
+                    if(modelSettings.useManuallySetDelay==1 ...
+                            && strcmp(modelSettings.delayModel,'time-domain'))
                         params.delay = modelSettings.manuallySetDelay;
                     end
             
@@ -1061,19 +1125,49 @@ if(settings.processData==1)
                     %
                     if((modelSettings.useManuallySetDelay==1 && indexLambda==1) ...
                         || modelSettings.useManuallySetDelay==0 )
-                        timeDelayedVec  = expData.time + params.delay;
-                        yDelayed        = interp1(  expData.time, ...
+
+                        switch settings.delayModel
+                            case 'time-domain'
+                                timeDelayedVec  = expData.time + params.delay;
+                                yDelayed        = interp1(  expData.time, ...
+                                                            expData.y,...
+                                                            timeDelayedVec,...
+                                                            'linear','extrap');
+                                
+                                HsFit = evaluateGainPhaseCoherenceSq(  ...
+                                                    expData.x,...
+                                                    yDelayed,...
+                                                    expData.bandwidth,...
+                                                    expData.sampleFrequency); 
+                
+                                expData.HsDelayed = HsFit;
+                            case 'frequency-domain'
+                                expResponse = evaluateGainPhaseCoherenceSq(  ...
+                                                    expData.x,...
                                                     expData.y,...
-                                                    timeDelayedVec,...
-                                                    'linear','extrap');
-                        
-                        HsFit = evaluateGainPhaseCoherenceSq(  ...
-                                            expData.x,...
-                                            yDelayed,...
-                                            expData.bandwidth,...
-                                            expData.sampleFrequency); 
-        
-                        expData.HsDelayed = HsFit;
+                                                    expData.bandwidth,...
+                                                    expData.sampleFrequency);  
+                                omegaHz= params.delayFilterFrequencyHz;
+                                omega = omegaHz * (2*pi);
+                                lpfInv  = ((omega + complex(0,1).*expResponse.frequency)./omega);
+                                HsFit = expResponse;
+                                HsFit.H = lpfInv.*expResponse.H;
+                                HsFit.gain = abs(HsFit.H);
+                                HsFit.phase= angle(HsFit.H);
+
+%                                 yUpd = ifft(HsFit.H.*fft(expData.x),...
+%                                     length(expData.x),...
+%                                     'symmetric');
+%                                 
+%                                 [coherenceSq,freqCpsd] = ...
+%                                     mscohere(expData.x,yUpd,...
+%                                     [],[],[],sampleFrequency);
+                                
+%                                HsFit.coherenceSq = expResponse.coherenceSq;
+                                disp('Update coherenceSq?');
+                                expData.HsDelayed=HsFit;
+
+                        end
                     end
             
                     switch modelSettings.numberOfParameters
@@ -1129,17 +1223,59 @@ if(settings.processData==1)
                 %
                 % Evaluate the delay-corrected experimental data
                 %
-                timeDelayedVec  = expData.time + params.delay;
-                yDelayed        = interp1(  expData.time, ...
+%                 timeDelayedVec  = expData.time + params.delay;
+%                 yDelayed        = interp1(  expData.time, ...
+%                                             expData.y,...
+%                                             timeDelayedVec,...
+%                                             'linear','extrap');
+%                 
+%                 HsFit = evaluateGainPhaseCoherenceSq(  ...
+%                                     expData.x,...
+%                                     yDelayed,...
+%                                     expData.bandwidth,...
+%                                     expData.sampleFrequency);
+
+                switch settings.delayModel
+                    case 'time-domain'
+                        timeDelayedVec  = expData.time + params.delay;
+                        yDelayed        = interp1(  expData.time, ...
+                                                    expData.y,...
+                                                    timeDelayedVec,...
+                                                    'linear','extrap');
+                        
+                        HsFit = evaluateGainPhaseCoherenceSq(  ...
+                                            expData.x,...
+                                            yDelayed,...
+                                            expData.bandwidth,...
+                                            expData.sampleFrequency); 
+        
+                        expData.HsDelayed = HsFit;
+                    case 'frequency-domain'
+                        expResponse = evaluateGainPhaseCoherenceSq(  ...
+                                            expData.x,...
                                             expData.y,...
-                                            timeDelayedVec,...
-                                            'linear','extrap');
-                
-                HsFit = evaluateGainPhaseCoherenceSq(  ...
-                                    expData.x,...
-                                    yDelayed,...
-                                    expData.bandwidth,...
-                                    expData.sampleFrequency);    
+                                            expData.bandwidth,...
+                                            expData.sampleFrequency);  
+                        omegaHz= params.delayFilterFrequencyHz;
+                        omega = omegaHz * (2*pi);
+                        lpfInv  = ...
+                            ((omega + complex(0,1).*expResponse.frequency)./omega);
+                        HsFit = expResponse;
+                        HsFit.H = lpfInv.*expResponse.H;
+                        HsFit.gain = abs(HsFit.H);
+                        HsFit.phase= angle(HsFit.H);
+
+%                         yUpd = ifft(HsFit.H ...
+%                             .* HsFit.frequency,...
+%                             'symmetric');
+%                         
+%                         [coherenceSq,freqCpsd] = ...
+%                             mscohere(expData.x,yUpd,...
+%                             [],[],[],sampleFrequency);
+%                         
+%                         HsFit.coherenceSq = coherenceSq;
+                        disp('Update coherenceSq?');
+                end
                 %%
                 % Evaluate errors
                 %%
@@ -1197,7 +1333,7 @@ if(settings.processData==1)
             segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);            
             
             segmentJson.forceReference = ...
-                intraSegmentData(1).fref;
+                intraSegmentData(1).forceReference;
 
             if(~isempty(activeIntervals))
                 segmentJson.pre.time = intraSegmentData(idxSeg).filtered.time(end);
@@ -1269,7 +1405,9 @@ if(settings.processData==1)
             segmentJson.Hs.units.coherenceSq = '';
     
             segmentJson.model.settings      = modelSettings;
+            segmentJson.model.delayModel    = params.delayModel;
             segmentJson.model.delay         = params.delay;
+            segmentJson.model.delayFilterFrequencyHz = params.delayFilterFrequencyHz;
             segmentJson.model.bandwidth     = optSettings.bandwidth;
             segmentJson.model.param_names   = paramNames;
             segmentJson.model.param_values  = zeros(size(segmentJson.model.param_names));
@@ -1348,17 +1486,35 @@ if(settings.processData==1)
                          '-c');
                     hold on;
                 end
-                text(max(HsFit.frequencyHz(idxFreq)),...
-                     min(HsFit.gain(idxFreq)),...
-                     sprintf(['%1.2e k\n',...
-                              '%1.2e beta\n',...
-                              '%1.2e delay'],...
-                             params.k,...
-                             params.beta,...
-                             params.delay),...
-                             'HorizontalAlignment','right',...
-                             'VerticalAlignment','bottom',...
-                             'FontSize',8);
+                switch settings.delayModel
+                    case 'time-domain'
+                        text(max(HsFit.frequencyHz(idxFreq)),...
+                             min(HsFit.gain(idxFreq)),...
+                             sprintf(['%1.2e k\n',...
+                                      '%1.2e beta\n',...
+                                      '%1.2e delay'],...
+                                     params.k,...
+                                     params.beta,...
+                                     params.delay),...
+                                     'HorizontalAlignment','right',...
+                                     'VerticalAlignment','bottom',...
+                                     'FontSize',8);
+                    case 'frequency-domain'
+                        text(max(HsFit.frequencyHz(idxFreq)),...
+                             min(HsFit.gain(idxFreq)),...
+                             sprintf(['%1.2e k\n',...
+                                      '%1.2e beta\n',...
+                                      '%1.2e Hz %s'],...
+                                     params.k,...
+                                     params.beta,...
+                                     params.delayFilterFrequencyHz,...
+                                     '$$\omega_o$$'),...
+                                     'HorizontalAlignment','right',...
+                                     'VerticalAlignment','bottom',...
+                                     'FontSize',8);
+                    otherwise
+                        assert(0,'Error: delayModel must be either frequency-domain or time-domain');
+                end
                 hold on;
                 box off;    
                 xlabel('Frequency (Hz)');
@@ -1433,7 +1589,8 @@ if(settings.processData==1)
         mkdir(outputPlotDir);
     end
     
-    fileNameMod ='';
+    fileNameMod =['_delayModel_',settings.delayModel];
+    fileNameMod = strrep(fileNameMod,'-','_');
     if(modelSettings.useManuallySetDelay==1)
         fileNameMod = '_fixedDelay';
     else

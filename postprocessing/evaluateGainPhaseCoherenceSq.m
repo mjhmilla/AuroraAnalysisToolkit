@@ -46,6 +46,7 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.idxBandwidth = [1:1:idxMax];
     frequencyResponse.frequencyHz  = freqHz;
     frequencyResponse.frequency    = freqRadians;
+    frequencyResponse.H            = cpsd_Gyx./cpsd_Gxx;    
     frequencyResponse.gain         = gain;
     frequencyResponse.phase        = phase;
     frequencyResponse.coherenceSq  = coherenceSq;
@@ -53,6 +54,7 @@ else
     frequencyResponse.idxBandwidth = [];
     frequencyResponse.frequencyHz  = [];
     frequencyResponse.frequency    = [];
+    frequencyResponse.H            = [];
     frequencyResponse.gain         = [];
     frequencyResponse.phase        = [];
     frequencyResponse.coherenceSq  = [];
