@@ -3,7 +3,8 @@ function fittingResults=calcLowPassFilterFrequencyToZeroPhaseResponseSlope(...
                             expResponse,...
                             filterFrequencyHzDeltaMax,...
                             fittingBandwidth,...
-                            numberOfIterations)
+                            numberOfIterations,...
+                            flag_plotFinalFit)
 
 
 
@@ -55,8 +56,8 @@ fittingResults.filterFrequencyHz    = omegaHzBest;
 fittingResults.inverseLowPassFilter = lpfInvBest;
 
 
-flag_debug=0;
-if(flag_debug==1)
+
+if(flag_plotFinalFit==1)
     figTest=figure;
 
     phaseLsq = [expResponse.frequencyHz(indexFit),ones(size(indexFit))]*xLsqBest;
@@ -72,13 +73,13 @@ if(flag_debug==1)
         ylabel('Gain (mN/mm)');
     subplot(1,2,2);
         plot(expResponse.frequencyHz(indexFit),...
-             angle(expResponse.H(indexFit)),'-','Color',[1,1,1].*0.5);
+             angle(expResponse.H(indexFit)).*(180/pi),'-','Color',[1,1,1].*0.5);
         hold on;
         plot(expResponse.frequencyHz(indexFit),...
-             phaseLsq,'-','Color',[1,0,0]);
+             phaseLsq.*(180/pi),'-','Color',[1,0,0]);
         hold on;        
         plot(expResponse.frequencyHz(indexFit),...
-             angle(Hbest),'-','Color',[0,0,1]);
+             angle(Hbest).*(180/pi),'-','Color',[0,0,1]);
         box off;
 
         xlabel('Frequency (Hz)');

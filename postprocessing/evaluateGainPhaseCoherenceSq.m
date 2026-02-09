@@ -1,4 +1,5 @@
 function frequencyResponse = evaluateGainPhaseCoherenceSq(...
+                                            timeVector,...
                                             xTimeDomain,...
                                             yTimeDomain,...
                                             bandwidth,...
@@ -43,6 +44,9 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
         mscohere(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency);
     assert( max(abs(coherenceSqCheck-coherenceSq)) < 1e-6);
     
+    frequencyResponse.time = timeVector;
+    frequencyResponse.x = xTimeDomain;
+    frequencyResponse.y = yTimeDomain;
     frequencyResponse.idxBandwidth = [1:1:idxMax];
     frequencyResponse.frequencyHz  = freqHz;
     frequencyResponse.frequency    = freqRadians;
@@ -51,6 +55,9 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.phase        = phase;
     frequencyResponse.coherenceSq  = coherenceSq;
 else
+    frequencyResponse.time = [];
+    frequencyResponse.x = [];
+    frequencyResponse.y = [];
     frequencyResponse.idxBandwidth = [];
     frequencyResponse.frequencyHz  = [];
     frequencyResponse.frequency    = [];
