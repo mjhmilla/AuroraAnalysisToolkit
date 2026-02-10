@@ -22,16 +22,21 @@ settings.isometricNoiseFilterCutoffFrequencyHz = 30;
 settings.forceNoiseThreshold = 0.025;
 settings.optimalSarcomereLengthInUM = 2.525;
 
-settings.useManuallySetDelay=0;
-settings.delayModel = 'frequency-domain'; 
-settings.delay      = 6.67e-4; %Only used when the delay is fixed
-settings.delayFilterFrequencyHz = 5.070417203589778e+02;
+settings.useManuallySetDaqDelay=0;
+settings.daqDelayModel        = 'frequency-domain'; 
+settings.daqDelay             = 6.67e-4; %Only used when the delay is fixed
+settings.daqFilterFrequencyHz = 5.070417203589778e+02;
 
-switch(settings.delayModel)
+settings.phaseDelayTolerance = 1e-5;
+settings.phaseDelayMaxIteration=50;
+
+settings.normFittingBandwidth = [0.05,0.95];
+
+switch(settings.daqDelayModel)
     case 'time-domain'
-        settings.delayFilterFrequencyHz = nan;
+        settings.daqFilterFrequencyHz = nan;
     case 'frequency-domain'
-        settings.delay = nan;
+        settings.daqDelay = nan;
     otherwise
         assert(0,'Error: delayModel must be either frequency-domain or time-domain');
 end

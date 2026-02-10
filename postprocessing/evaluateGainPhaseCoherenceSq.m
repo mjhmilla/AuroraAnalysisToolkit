@@ -44,10 +44,10 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
         mscohere(xTimeDomain,yTimeDomain,[],[],[],sampleFrequency);
     assert( max(abs(coherenceSqCheck-coherenceSq)) < 1e-6);
     
-    frequencyResponse.time = timeVector;
-    frequencyResponse.x = xTimeDomain;
-    frequencyResponse.y = yTimeDomain;
-    frequencyResponse.idxBandwidth = [1:1:idxMax];
+    frequencyResponse.time         = timeVector;
+    frequencyResponse.x            = xTimeDomain;
+    frequencyResponse.y            = yTimeDomain;
+    frequencyResponse.idxBW        = [1:1:idxMax];
     frequencyResponse.frequencyHz  = freqHz;
     frequencyResponse.frequency    = freqRadians;
     frequencyResponse.H            = cpsd_Gyx./cpsd_Gxx;    
@@ -55,10 +55,10 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.phase        = phase;
     frequencyResponse.coherenceSq  = coherenceSq;
 else
-    frequencyResponse.time = [];
-    frequencyResponse.x = [];
-    frequencyResponse.y = [];
-    frequencyResponse.idxBandwidth = [];
+    frequencyResponse.time         = [];
+    frequencyResponse.x            = [];
+    frequencyResponse.y            = [];
+    frequencyResponse.idxBW        = [];
     frequencyResponse.frequencyHz  = [];
     frequencyResponse.frequency    = [];
     frequencyResponse.H            = [];

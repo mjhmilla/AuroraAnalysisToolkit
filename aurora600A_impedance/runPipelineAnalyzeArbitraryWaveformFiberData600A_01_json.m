@@ -13,7 +13,7 @@ optSettings.objScaling= 1;
 optSettings.lambda    = [];
 optSettings.phasePolishingInterations = 15;
 
-assert(strcmp(settings.delayModel,'frequency-domain'),...
+assert(strcmp(settings.daqDelayModel,'frequency-domain'),...
        'Error: ')
 
 flag_readHeader         = 1;
@@ -64,7 +64,17 @@ modelSettings.coherenceSquaredThreshold=settings.coherenceSquaredThreshold;
 modelSettings.numberOfParameters    = 2;
 
 %% 
-% Delay model:
+% Delay model
+%
+%   There are two sources of delay:
+%   1. The longitudinal wave takes time to propagate down the fiber to 
+%      the sensor.
+%   2. The sensor has a bandwidth of 800 Hz (from Aurora) and the little
+%      wire hooks that we use apparently reduce this bandwidth further.
+%      For the purpose of simplicity I'm going to model this assuming that
+%      it behaves like a low-pass filter
+%
+% 1. Propagation delay
 % - spring: from CE Mungan
 %
 %          v = L sqrt(k/m)
@@ -72,17 +82,24 @@ modelSettings.numberOfParameters    = 2;
 %          k: stiffness
 %          m: mass
 %
-% - fiber: use an interative method to converge upon a frequency 
-%          specific delay described in Pritz 1981 as
+% - fiber: Each frequency has its own specific delay described 
+%         in Pritz 1981 as
 %           
 %           v  = ve sqrt(2) D / sqrt(D+1)
 %           ve = L sqrt(k/m)
 %           D  = sqrt(1+ne^2)
 %           ne = E''/E'
+%
+%       : A more detailed derivation from Google Gemini has something a bit
+%         different, and unlike Pritz, I can follow all of the steps of the
+%         the Gemini derivation. It's quite possible that the two are
+%         equivalent. 
+%
+%
 %%
-modelSettings.delayModel             = settings.delayModel;
-modelSettings.zeroPhaseResponseSlope = 1;
-modelSettings.useManuallySetDelay    = settings.useManuallySetDelay;
+modelSettings.daqDelayModel             = settings.daqDelayModel;
+modelSettings.zeroPhaseResponseSlope    = 1;
+modelSettings.useManuallySetDaqDelay    = settings.useManuallySetDaqDelay;
 
 %%
 % folders
@@ -723,43 +740,45 @@ if(settings.processData==1)
                 samples     = length(x);
                 timeVec     = [0:(1/(samples-1)):1]' .* (samples/sampleFrequency);
             
+                segData.x = x;
+                segData.y = y;
+                segData.time=timeVec;
+                segData.bandwidth = bandwidth(1,2);
+                segData.sampleFrequency = sampleFrequency;
+
                 %[freqHz, gain, phase,coherenceSq] = ...
-                Hs = evaluateGainPhaseCoherenceSq(  timeVec,...
-                                                    x,...
-                                                    y,...
-                                                    bandwidth(1,2),...
-                                                    sampleFrequency);
+                segData.H0 = evaluateGainPhaseCoherenceSq(...
+                                    timeVec,...
+                                    x,...
+                                    y,...
+                                    bandwidth(1,2),...
+                                    sampleFrequency);
         
-                expData.x = x;
-                expData.y = y;
-                expData.time=timeVec;
-                expData.bandwidth = bandwidth(1,2);
-                expData.sampleFrequency = sampleFrequency;
-                            
                 dfreq = 1;
-                idxFreq     = find(Hs.frequencyHz <= (bandwidth(1,2)+dfreq));
-                idxFreqBand = find(Hs.frequencyHz <= bandwidth(1,2) ...
-                                 & Hs.frequencyHz >= bandwidth(1,1));
+                idxFreq     = find(segData.H0.frequencyHz <= (bandwidth(1,2)+dfreq));
+                idxFreqBand = find(segData.H0.frequencyHz <= bandwidth(1,2) ...
+                                 & segData.H0.frequencyHz >= bandwidth(1,1));
 
                 %
                 % Update the fitting bandwidth
                 %
-                idxFirst = find(Hs.coherenceSq(Hs.idxBandwidth) ...
+                idxFirst = find(segData.H0.coherenceSq(segData.H0.idxBW) ...
                         >= modelSettings.coherenceSquaredThreshold,1,'first');
-                idxLast =  find(Hs.coherenceSq(Hs.idxBandwidth) ...
+                idxLast =  find(segData.H0.coherenceSq(segData.H0.idxBW) ...
                         >= modelSettings.coherenceSquaredThreshold,1,'last');
                 
+                optSettings.bandwidth =   segData.bandwidth...
+                                        .*settings.normFittingBandwidth;
+
                 if(~isempty(idxFirst) && ~isempty(idxLast))
-                    freqA = Hs.frequencyHz(idxFirst);
-                    freqB = Hs.frequencyHz(idxLast);
-                    freqWidth = freqB-freqA;
-                    if(freqWidth > expData.bandwidth*0.25)
-                        optSettings.bandwidth = [freqA,freqB];                
-                    else
-                        optSettings.bandwidth = expData.bandwidth.*[0.05,0.95];                
+                    freqA = segData.H0.frequencyHz(idxFirst);
+                    freqB = segData.H0.frequencyHz(idxLast);
+                    if(freqA > optSettings.bandwidth(1,1))
+                        optSettings.bandwidth(1,1)=freqA;
                     end
-                else
-                    optSettings.bandwidth = expData.bandwidth.*[0.05,0.95];
+                    if(freqB < optSettings.bandwidth(1,2))
+                        optSettings.bandwidth(1,2)=freqB;
+                    end
                 end                
             end
         
@@ -768,30 +787,32 @@ if(settings.processData==1)
             %%
         
             if(xyDataIsValid==1)
-                omega3dB_Hz = 250;    
+
+                delayModel.delayPropagation=0;
+                delayModel.daqDelay        = settings.daqDelay; %in seconds
+                delayModel.daqFilterFrequencyHz = settings.daqFilterFrequencyHz;
+                delayModel.daqDelayModel   = settings.daqDelayModel;
+                 
             
-                omega               = Hs.frequency;
-                params.k            = 1.4;
-                params.beta         = 0;
-                params.delayPropagation=0;
-                params.delay        = settings.delay; %in seconds
-                params.delayFilterFrequencyHz = settings.delayFilterFrequencyHz;
-                params.delayModel   = settings.delayModel;
+
+                modelParams.k            = 1.4;
+                modelParams.beta         = 0;
+
             
-                params.bandwidth    = bandwidth(1,2);
-                params.sampleFrequency= sampleFrequency;
-                params.time         = auroraData.Data.Time.Values(dataIndex);
-                params.x            = ifft(fft(x),'symmetric');
-                params.type         = modelSettings.type;
+                modelParams.bandwidth    = bandwidth(1,2);
+                modelParams.sampleFrequency= sampleFrequency;
+                modelParams.time         = auroraData.Data.Time.Values(dataIndex);
+                modelParams.x            = ifft(fft(x),'symmetric');
+                modelParams.type         = modelSettings.type;
             
                 samples     = length(x);
                 timeVec     = [0:(1/(samples-1)):1]' .* (samples/sampleFrequency);
                 freqHz      = [1:1:samples]' .*(sampleFrequency/samples);
                 freq        = freqHz.*(2*pi);
             
-                params.xdot         = ifft(fft(x).*(complex(0,1).*freq) ,'symmetric');
-                params.frequency    = freq;
-                params.frequencyHz  = freqHz;
+                modelParams.xdot         = ifft(fft(x).*(complex(0,1).*freq) ,'symmetric');
+                modelParams.frequency    = freq;
+                modelParams.frequencyHz  = freqHz;
             
                 flag_checkXdot=0;
                 if(flag_checkXdot==1)
@@ -799,7 +820,7 @@ if(settings.processData==1)
             
                     figXdotCheck = figure;
                     subplot(2,1,1);
-                    plot(timeVec,params.xdot,'-b');
+                    plot(timeVec,modelParams.xdot,'-b');
                     hold on;
                     plot(timeVec,xdotNum,'-r');
                     hold on;
@@ -808,7 +829,7 @@ if(settings.processData==1)
                     title('xdot');
             
                     subplot(2,1,2);
-                    plot(timeVec,params.xdot-xdotNum,'-k');
+                    plot(timeVec,modelParams.xdot-xdotNum,'-k');
                     hold on;
                     xlabel('Time (s)');
                     ylabel('mm/s');
@@ -819,7 +840,7 @@ if(settings.processData==1)
             
                 xdotNum = calcCentralDifferenceDataSeries(timeVec,x);
                         
-                model = calcImpedanceModelFrequencyResponse600A(params);
+                model = calcImpedanceModelFrequencyResponse600A(modelParams);
             
                 %%
                 % Compensate for the propagation delay
@@ -830,54 +851,61 @@ if(settings.processData==1)
                                ['Error: a stainless steel material must go with a ',...
                                'Spring specimen']);
 
-                        Hs = evaluateGainPhaseCoherenceSq(  ...
-                                            expData.time,...
-                                            expData.x,...
-                                            expData.y,...
-                                            expData.bandwidth,...
-                                            expData.sampleFrequency); 
-
-                        springK = mean(Hs.gain); %In units of mN/mm or N/m
-                        springL_MM = mean(auroraData.Data.Lin.Values(dataIndex,1)); %mm
-                        springL = springL_MM * mm2m;
-                        coilGap = springL/experimentJson.experiment.number_of_coils;
-
-                        coilDiameter_MM = ...
-                            (experimentJson.experiment.width_mm ...
-                            +experimentJson.experiment.height_mm)*0.5;
-                        coilDiameter = coilDiameter_MM * mm2m;
-
-                        coilL = sqrt((pi*coilDiameter)^2 + coilGap^2);
-                        wireL = coilL*experimentJson.experiment.number_of_coils;
-                        wireDiameter_MM = experimentJson.experiment.wire_diameter_mm;
-                        wireDiameter = wireDiameter_MM*mm2m;
-                        wireA = pi*(wireDiameter*0.5)^2;
-                        wireV = wireL * wireA;
-                        wireM = wireV * experimentJson.experiment.rho_kg_m3;
-
-                        v = springL*sqrt(springK/wireM);
-                        delay = springL/v;
-                        
                         %
-                        % Compensate for the delay
+                        % Compensating for the delay changes the gain
+                        % and thus the estimated stiffness of the spring. 
+                        % Here we iterate over candidate delays until
+                        % the difference between subsequent delays is small
                         %
-                        
-                        timeDelayedVec  = expData.time + delay;
-                        y01        = interp1(   expData.time, ...
-                                                expData.y,...
-                                                timeDelayedVec,...
-                                                'linear','extrap');
-                        
-                        HsFit = evaluateGainPhaseCoherenceSq(  ...
-                                            timeDelayedVec,...
-                                            expData.x,...
-                                            y01,...
-                                            expData.bandwidth,...
-                                            expData.sampleFrequency); 
-                        
-                        expData.HsPropagationDelayed = HsFit;
+                        H = segData.H0;
+                        delayError = inf;
+                        delayP = 0;
+                        iter=0;
 
-                        params.delayPropagation = delay;
+                        while delayError > settings.phaseDelayTolerance ...
+                                && iter < settings.phaseDelayMaxIteration
+
+                            bandwidthFit = segData.bandwidth...
+                                          .*settings.normFittingBandwidth;
+
+                            idxFit = find(H.frequencyHz >= bandwidthFit(1,1)...
+                                        & H.frequencyHz <= bandwidthFit(1,2));
+
+                            delay = calcPhaseDelayOfThinElasticRod(...
+                                H.gain(idxFit),...
+                                auroraData.Data.Lin.Values(dataIndex,1),...
+                                experimentJson,...
+                                mm2m);
+
+                            timeDelayedVec  = segData.time + delay;
+                            y01        = interp1(   segData.time, ...
+                                                    segData.y,...
+                                                    timeDelayedVec,...
+                                                    'linear','extrap');
+                            
+                            H = evaluateGainPhaseCoherenceSq(  ...
+                                    timeDelayedVec,...
+                                    segData.x,...
+                                    y01,...
+                                    segData.bandwidth,...
+                                    segData.sampleFrequency);
+                            if(iter > 1)
+                                delayError = abs(delay-delayP);
+                            end
+                            delayP = delay;
+                            iter=iter+1;
+                        end
+                        segData.H1=H;
+                        delayModel.delayPropagation = delay;
+
+                        if(iter > settings.phaseDelayMaxIteration)
+                            fprintf(['  Warning: delay tolerance not met\n',...
+                                     '  %1.2e > %1.2e\t error\n',...
+                                     '  %i \t iterations'],...
+                                     delayError, ...
+                                     settings.phaseDelayTolerance,...
+                                     settings.phaseDelayMaxIteration);
+                        end
 
                     case "muscle"
                         assert(0,'Error: not yet implemented');
@@ -895,56 +923,55 @@ if(settings.processData==1)
                 % inverse-low-pass filter until the phase response of
                 % the spring is flat.
                 %%
-                if(modelSettings.useManuallySetDelay==0 ...
-                        && strcmp(modelSettings.delayModel,'frequency-domain'))
+                if(modelSettings.useManuallySetDaqDelay==0 ...
+                        && strcmp(modelSettings.daqDelayModel,'frequency-domain'))
                     
                     expResponse = evaluateGainPhaseCoherenceSq(  ...
-                                        expData.HsPropagationDelayed.time,...
-                                        expData.HsPropagationDelayed.x,...
-                                        expData.HsPropagationDelayed.y,...
-                                        expData.bandwidth,...
-                                        expData.sampleFrequency);  
+                                        segData.H1.time,...
+                                        segData.H1.x,...
+                                        segData.H1.y,...
+                                        segData.bandwidth,...
+                                        segData.sampleFrequency);  
 
-                    omegaHzDeltaMax = params.delayFilterFrequencyHz;
                     
                     fittingResults = ...
                         calcLowPassFilterFrequencyToZeroPhaseResponseSlope(...
-                            params,...
+                            delayModel.daqFilterFrequencyHz,...
                             expResponse,...
-                            omegaHzDeltaMax,...
+                            delayModel.daqFilterFrequencyHz*0.5,...
                             optSettings.bandwidth,...
                             100,...
                             0);  
 
-                    params.delayFilterFrequencyHz = ...
+                    delayModel.daqFilterFrequencyHz = ...
                             fittingResults.filterFrequencyHz;
 
                 end
-                if(modelSettings.useManuallySetDelay==1 ...
-                        && strcmp(modelSettings.delayModel,'frequency-domain'))
-                    params.delayFilterFrequencyHz = settings.delayFilterFrequencyHz;
+                if(modelSettings.useManuallySetDaqDelay==1 ...
+                        && strcmp(modelSettings.daqDelayModel,'frequency-domain'))
+                    delayModel.daqFilterFrequencyHz = settings.daqFilterFrequencyHz;
                 end
 
                 %
-                % Compensate for the filter
+                % Compensate for the filtering effect of the DAQ
                 %
-                n = length(expData.HsPropagationDelayed.x);
-                omega = params.delayFilterFrequencyHz*2*pi;
+                n = length(segData.H1.x);
+                omega = delayModel.daqFilterFrequencyHz*2*pi;
                 frequencyHz = [0:(1/(n)): (1-(1/n)) ]'...
                                 .* (sampleFrequency);
                 frequency=frequencyHz.*(2*pi);
                 lpfInv = ((omega + complex(0,1).*frequency)./omega);
-                yUpd = ifft(lpfInv.*fft(expData.HsPropagationDelayed.y),...
+                yUpd = ifft(lpfInv.*fft(segData.H1.y),...
                         'symmetric');
                 
-                HsFit = evaluateGainPhaseCoherenceSq(  ...
-                            expData.HsPropagationDelayed.time,...
-                            expData.HsPropagationDelayed.x,...
+                segData.H2 = evaluateGainPhaseCoherenceSq(  ...
+                            segData.H1.time,...
+                            segData.H1.x,...
                             yUpd,...
-                            expData.bandwidth,...
-                            expData.sampleFrequency); 
+                            segData.bandwidth,...
+                            segData.sampleFrequency); 
 
-                expData.HsDelayCompensated=HsFit;
+
            
 
                 %%
@@ -973,20 +1000,21 @@ if(settings.processData==1)
                     switch modelSettings.numberOfParameters
                         case 1
                             x0 = [1];              
-                            params.time         = expData.HsDelayCompensated.time;
-                            params.k            = mean(expData.HsDelayCompensated.gain);
-                            params.beta         = 0;
-                            optSettings.scaling = [params.k];
+                            modelParams.time         = segData.H2.time;
+                            modelParams.k            = mean(segData.H2.gain);
+                            modelParams.beta         = 0;
+                            optSettings.scaling = [modelParams.k];
                             paramNames = {'k'};
             
                         case 2
                             x0 = [1,1]; 
-                            params.time         = expData.HsDelayCompensated.time;
-                            params.k            = mean(expData.HsDelayCompensated.gain);
-                            params.beta         = params.k*0.01;                
-                            optSettings.scaling = [params.k,params.beta];
+                            modelParams.time         = segData.H2.time;
+                            modelParams.k            = mean(segData.H2.gain);
+                            modelParams.beta         = modelParams.k*0.01;                
+                            optSettings.scaling = [modelParams.k,modelParams.beta];
                             paramNames = {'k','beta'};                
-                        otherwise assert(0,'Error modelSettings.numberOfParameters incorrectly set');
+                        otherwise assert(0,['Error modelSettings.numberOfParameters',...
+                                ' incorrectly set']);
                     end
                     
                     lb = [x0].*0;
@@ -998,7 +1026,7 @@ if(settings.processData==1)
                     optSettings.type = 1; %1. gain error, 2. phase error
                     errFcn = @(argX)calcErrorOfImpedanceModel600A(...
                                         argX, paramNames,...
-                                        optSettings, params, expData);
+                                        optSettings, modelParams, segData);
                     errVec = errFcn(x0);
                     optSettings.objScaling = 1/sqrt(sum(errVec.^2));
                     [xSol, resnorm, residual,exitflag,output] = ...
@@ -1011,7 +1039,7 @@ if(settings.processData==1)
             %         disp(output);
                 
                     for j=1:1:length(xSol)
-                        params.(paramNames{j})=xSol(j)*optSettings.scaling(j);
+                        modelParams.(paramNames{j})=xSol(j)*optSettings.scaling(j);
                     end
                 
                 
@@ -1020,36 +1048,35 @@ if(settings.processData==1)
                 %
                 % Evaluate the fitted model response
                 %
-                model = calcImpedanceModelFrequencyResponse600A(params);
+                model = calcImpedanceModelFrequencyResponse600A(modelParams);
             
-                HsFit  = expData.HsDelayCompensated;
 
                 %%
                 % Evaluate errors
                 %%
-                assert(length(model.idxBandwidth)==length(HsFit.idxBandwidth),...
+                assert(length(model.idxBW)==length(segData.H2.idxBW),...
                        ['Error: model and experimental data frequency responses'...
                         ' have differing lengths']);
         
-                for j=1:1:length(model.idxBandwidth)
-                    modelFreq=model.frequency(model.idxBandwidth(j));
-                    dataFreq =HsFit.frequency(HsFit.idxBandwidth(j));
+                for j=1:1:length(model.idxBW)
+                    modelFreq=model.frequency(model.idxBW(j));
+                    dataFreq =segData.H2.frequency(segData.H2.idxBW(j));
                     
                     assert(abs(modelFreq-dataFreq)<1e-3,...
                         ['Error: model and data frequencies differ'])
                 end
         
-                idxA = find(HsFit.frequencyHz >= ...
+                idxA = find(segData.H2.frequencyHz >= ...
                                 optSettings.bandwidth(1,1),1,'first');
-                idxB = find(HsFit.frequencyHz <= ...
+                idxB = find(segData.H2.frequencyHz <= ...
                                 optSettings.bandwidth(1,2),1,'last');
                 
         
                 rmse.gain = sqrt( mean( (model.gain(idxA:idxB) ...
-                                        -HsFit.gain(idxA:idxB)).^2 ));
+                                        -segData.H2.gain(idxA:idxB)).^2 ));
                 rmse.phase = sqrt( mean( (model.phase(idxA:idxB) ...
-                                         -HsFit.phase(idxA:idxB)).^2 ));
-                rmse.coherenceSq = getSummaryStatistics(HsFit.coherenceSq(idxA:idxB));
+                                         -segData.H2.phase(idxA:idxB)).^2 ));
+                rmse.coherenceSq = getSummaryStatistics(segData.H2.coherenceSq(idxA:idxB));
             end
             %%
             % Record the analysis to a segment json file
@@ -1109,33 +1136,33 @@ if(settings.processData==1)
       
     
             segmentJson.Hs.bandwidth = optSettings.bandwidth;
-            segmentJson.Hs.frequencyHz = HsFit.frequencyHz(idxA:idxB);
-            segmentJson.Hs.gain = HsFit.gain(idxA:idxB);   
-            segmentJson.Hs.phase = HsFit.phase(idxA:idxB);               
-            segmentJson.Hs.coherenceSq = HsFit.coherenceSq(idxA:idxB);               
+            segmentJson.Hs.frequencyHz = segData.H2.frequencyHz(idxA:idxB);
+            segmentJson.Hs.gain = segData.H2.gain(idxA:idxB);   
+            segmentJson.Hs.phase = segData.H2.phase(idxA:idxB);               
+            segmentJson.Hs.coherenceSq = segData.H2.coherenceSq(idxA:idxB);               
             
             segmentJson.Hs.summary.gain = ...
-                getSummaryStatistics(HsFit.gain(idxA:idxB));            
+                getSummaryStatistics(segData.H2.gain(idxA:idxB));            
             segmentJson.Hs.summary.phase = ...
-                getSummaryStatistics(HsFit.phase(idxA:idxB).*(180/pi));
+                getSummaryStatistics(segData.H2.phase(idxA:idxB).*(180/pi));
             segmentJson.Hs.summary.coherenceSq = ...
-                getSummaryStatistics(HsFit.coherenceSq(idxA:idxB));
+                getSummaryStatistics(segData.H2.coherenceSq(idxA:idxB));
             segmentJson.Hs.units.gain = ...
                 [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
             segmentJson.Hs.units.phase = 'degrees';
             segmentJson.Hs.units.coherenceSq = '';
     
             segmentJson.model.settings      = modelSettings;
-            segmentJson.model.delayPropagation = params.delayPropagation;
-            segmentJson.model.delayModel    = params.delayModel;
-            segmentJson.model.delay         = params.delay;
-            segmentJson.model.delayFilterFrequencyHz = params.delayFilterFrequencyHz;
+            segmentJson.model.delayPropagation = delayModel.delayPropagation;
+            segmentJson.model.daqDelayModel    = delayModel.daqDelayModel;
+            segmentJson.model.daqDelay         = delayModel.daqDelay;
+            segmentJson.model.daqFilterFrequencyHz = delayModel.daqFilterFrequencyHz;
             segmentJson.model.bandwidth     = optSettings.bandwidth;
             segmentJson.model.param_names   = paramNames;
             segmentJson.model.param_values  = zeros(size(segmentJson.model.param_names));
             for(idxParam=1:1:length(segmentJson.model.param_names))
                 segmentJson.model.param_values(idxParam) = ...
-                    params.(segmentJson.model.param_names{idxParam});
+                    modelParams.(segmentJson.model.param_names{idxParam});
             end
             segmentJson.model.rmse.gain     = rmse.gain;
             segmentJson.model.rmse.phase    = rmse.phase;  
@@ -1154,32 +1181,24 @@ if(settings.processData==1)
             figure(figSegments);
         
             idxRow = (idxSeg-1)*4 + 1;
-            subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-        
+            subplot('Position',reshape(...
+                subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));        
             yyaxis left;
-%             plot(auroraData.Data.Time.Values(preIndex,1),...
-%                  auroraData.Data.Lin.Values(preIndex,1),'-b');...
-%             hold on;        
+     
             plot(auroraData.Data.Time.Values(dataIndex,1),...
                  auroraData.Data.Lin.Values(dataIndex,1),'-b');...
             hold on;
-%             plot(auroraData.Data.Time.Values(postIndex,1),...
-%                  auroraData.Data.Lin.Values(postIndex,1),'-b');...
-%             hold on;
+
             box off;    
             xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
             ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
         
             yyaxis right;
-%             plot(auroraData.Data.Time.Values(preIndex,1),...
-%                  auroraData.Data.Fin.Values(preIndex,1),'-r');...
-%             hold on;        
+     
             plot(auroraData.Data.Time.Values(dataIndex,1),...
                  auroraData.Data.Fin.Values(dataIndex,1),'-r');...
             hold on;
-%             plot(auroraData.Data.Time.Values(postIndex,1),...
-%                  auroraData.Data.Fin.Values(postIndex,1),'-r');...
-%             hold on;
+
             box off;    
             ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
             
@@ -1194,48 +1213,62 @@ if(settings.processData==1)
             %%    
             if(xyDataIsValid==1)
                 idxRow = (idxSeg-1)*4 + 2;
-                subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));    
-                plot(Hs.frequencyHz(idxFreq),Hs.gain(idxFreq),'-','Color',[1,1,1].*0.75);
+                subplot('Position',reshape(...
+                    subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4)); 
+
+                plot(segData.H0.frequencyHz(segData.H0.idxBW),...
+                     segData.H0.gain(segData.H0.idxBW),...
+                    '-','Color',lineColors.red);
                 hold on;
-                plot(HsFit.frequencyHz(idxFreq),HsFit.gain(idxFreq),'-','Color',[1,1,1].*0.5);
+                plot(segData.H1.frequencyHz(segData.H1.idxBW),...
+                     segData.H1.gain(segData.H1.idxBW),...
+                    '-','Color',lineColors.purple);
                 hold on;
-                plot(model.frequencyHz(model.idxBandwidth),...
-                     model.gain(model.idxBandwidth),'--k');
+                plot(segData.H2.frequencyHz(segData.H2.idxBW),...
+                    segData.H2.gain(segData.H2.idxBW),...
+                    '-','Color',lineColors.blue);
+                hold on;
+                
+                plot(model.frequencyHz(model.idxBW),...
+                     model.gain(model.idxBW),'--k');
                 hold on;
                 for j=1:1:2
-                    plot([optSettings.bandwidth(j);optSettings.bandwidth(j)],...
-                         [min(HsFit.gain(idxFreq)),max(HsFit.gain(idxFreq))],...
+                    plot([optSettings.bandwidth(j);...
+                          optSettings.bandwidth(j)],...
+                         [min(segData.H2.gain(segData.H2.idxBW)),...
+                          max(segData.H2.gain(segData.H2.idxBW))],...
                          '-c');
                     hold on;
                 end
-                switch settings.delayModel
+                switch settings.daqDelayModel
                     case 'time-domain'
-                        text(max(HsFit.frequencyHz(idxFreq)),...
-                             min(HsFit.gain(idxFreq)),...
+                        text(max(segData.H2.frequencyHz(segData.H2.idxBW)),...
+                             min(segData.H2.gain(segData.H2.idxBW)),...
                              sprintf(['%1.2e k\n',...
                                       '%1.2e beta\n',...
                                       '%1.2e delay'],...
-                                     params.k,...
-                                     params.beta,...
-                                     params.delay),...
+                                     modelParams.k,...
+                                     modelParams.beta,...
+                                     delayModel.daqDelay),...
                                      'HorizontalAlignment','right',...
                                      'VerticalAlignment','bottom',...
                                      'FontSize',8);
                     case 'frequency-domain'
-                        text(max(HsFit.frequencyHz(idxFreq)),...
-                             min(HsFit.gain(idxFreq)),...
+                        text(max(segData.H2.frequencyHz(segData.H2.idxBW)),...
+                             min(segData.H2.gain(segData.H2.idxBW)),...
                              sprintf(['%1.2e k\n',...
                                       '%1.2e beta\n',...
                                       '%1.2e Hz %s'],...
-                                     params.k,...
-                                     params.beta,...
-                                     params.delayFilterFrequencyHz,...
+                                     modelParams.k,...
+                                     modelParams.beta,...
+                                     delayModel.daqFilterFrequencyHz,...
                                      '$$\omega_o$$'),...
                                      'HorizontalAlignment','right',...
                                      'VerticalAlignment','bottom',...
                                      'FontSize',8);
                     otherwise
-                        assert(0,'Error: delayModel must be either frequency-domain or time-domain');
+                        assert(0,['Error: delayModel must be either',...
+                                  ' frequency-domain or time-domain']);
                 end
                 hold on;
                 box off;    
@@ -1251,13 +1284,23 @@ if(settings.processData==1)
             %%            
             if(xyDataIsValid==1)        
                 idxRow = (idxSeg-1)*4 + 3;
-                subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-                plot(Hs.frequencyHz(idxFreq),Hs.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.75);
+                subplot('Position',reshape(...
+                    subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
+
+                plot(segData.H0.frequencyHz(segData.H0.idxBW),...
+                     segData.H0.phase(segData.H0.idxBW).*(180/pi),...
+                     '-','Color',lineColors.red);
                 hold on;
-                plot(HsFit.frequencyHz(idxFreq),HsFit.phase(idxFreq).*(180/pi),'-','Color',[1,1,1].*0.25);
+                plot(segData.H1.frequencyHz(segData.H1.idxBW),...
+                     segData.H1.phase(segData.H1.idxBW).*(180/pi),...
+                     '-','Color',lineColors.purple);
                 hold on;
-                plot(model.frequencyHz(model.idxBandwidth),...
-                     model.phase(model.idxBandwidth).*(180/pi),'--k');
+                plot(segData.H2.frequencyHz(segData.H2.idxBW),...
+                     segData.H2.phase(segData.H2.idxBW).*(180/pi),...
+                     '-','Color',lineColors.blue);
+                hold on;
+                plot(model.frequencyHz(model.idxBW),...
+                     model.phase(model.idxBW).*(180/pi),'--k');
                 hold on;    
                 
                 box off;    
@@ -1273,11 +1316,22 @@ if(settings.processData==1)
             %%            
             if(xyDataIsValid==1)
                 idxRow = (idxSeg-1)*4 + 4;
-                subplot('Position',reshape(subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-                plot(Hs.frequencyHz(idxFreq),Hs.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.75);
+                subplot('Position',reshape(...
+                    subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
+
+                plot(segData.H0.frequencyHz(segData.H0.idxBW),...
+                    segData.H0.coherenceSq(segData.H0.idxBW),...
+                    '-','Color',lineColors.red);
                 hold on;
-                plot(HsFit.frequencyHz(idxFreq),HsFit.coherenceSq(idxFreq),'-','Color',[1,1,1].*0.25);
+                plot(segData.H1.frequencyHz(segData.H1.idxBW),...
+                    segData.H1.coherenceSq(segData.H1.idxBW),...
+                    '-','Color',lineColors.purple);
                 hold on;
+                plot(segData.H2.frequencyHz(segData.H2.idxBW),...
+                    segData.H2.coherenceSq(segData.H2.idxBW),...
+                    '-','Color',lineColors.blue);
+                hold on;
+
                 box off;    
                 xlabel('Frequency (Hz)');
                 ylabel('Coherence-Sq');
@@ -1311,11 +1365,11 @@ if(settings.processData==1)
         mkdir(outputPlotDir);
     end
     
-    fileNameMod =['_delayModel_',settings.delayModel];
+    fileNameMod =['_daqDelayModel_',settings.daqDelayModel];
     fileNameMod = strrep(fileNameMod,'-','_');
-    switch settings.delayModel
+    switch settings.daqDelayModel
         case 'time-domain'
-            if(modelSettings.useManuallySetDelay==1)
+            if(modelSettings.useManuallySetDaqDelay==1)
                 fileNameMod = [fileNameMod,'_fixedDelay'];
             else
                 fileNameMod = [fileNameMod,'_fitDelayRmsePhase'];
@@ -1324,7 +1378,7 @@ if(settings.processData==1)
                 end
             end            
         case 'frequency-domain'
-            if(modelSettings.useManuallySetDelay==1)
+            if(modelSettings.useManuallySetDaqDelay==1)
                 fileNameMod = [fileNameMod,'_fixedInvLpfFrequency'];
             else
                 fileNameMod = [fileNameMod,'_fitInvLpfFrequency'];
