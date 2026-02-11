@@ -22,10 +22,13 @@ settings.isometricNoiseFilterCutoffFrequencyHz = 30;
 settings.forceNoiseThreshold = 0.025;
 settings.optimalSarcomereLengthInUM = 2.525;
 
-settings.useManuallySetDaqDelay=0;
+settings.useManuallySetDaqDelay=1;
 settings.daqDelayModel        = 'frequency-domain'; 
 settings.daqDelay             = 6.67e-4; %Only used when the delay is fixed
-settings.daqFilterFrequencyHz = 5.070417203589778e+02;
+settings.daqFilterFrequencyHz = mean([635,654]); 
+% Avg of filter-of-best-fit to the spring data from the 
+% 0.01 Lo perturbations in water
+
 
 settings.phaseDelayTolerance = 1e-5;
 settings.phaseDelayMaxIteration=50;
@@ -62,7 +65,8 @@ end
 
 
 
-experimentsToProcess = {'20260116_impedance_larb_spring'};
+experimentsToProcess = {'20251118_impedance_larb_1'};
+skipToTrialWithKeyword = '_active_100Lo_';
 
 trialTypeKeywords = {'spring','degradation','impedance'};
 trialTypeName     = {'delay','degradation','impedance'};
@@ -82,7 +86,11 @@ for i=1:1:length(experimentsToProcess)
     end
 
     runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json(...
-            experimentsToProcess{i},specimenType,trialType,...
-            settings,projectFolders);
+            experimentsToProcess{i}, ...
+            skipToTrialWithKeyword,...
+            specimenType,...
+            trialType,...
+            settings,...
+            projectFolders);
     pause(0.1);
 end

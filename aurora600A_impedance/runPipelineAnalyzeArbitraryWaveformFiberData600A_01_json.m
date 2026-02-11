@@ -1,5 +1,6 @@
-function success = runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json(...
-                        folderName, specimenType, trialType, settings,projectFolders)
+function success = ...
+    runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json(...
+        folderName, fileKeyWord,specimenType, trialType, settings,projectFolders)
 
 success=0;
 mm2m = 0.001;
@@ -116,8 +117,11 @@ fprintf(fidLogFile,'%s\n',currentDateTime);
 fprintf('%s\n',currentDateTime);
 
 indexSegmentLarb = 1;
-
-
+%%
+% Default setting
+%%
+setOfTrialsDefault = [1:1:length(experimentJson.trials)];
+setOfTrialsVerified =[];
 
 %%
 % Plot settings
@@ -134,7 +138,7 @@ lineColors = getPaulTolColourSchemes('bright');
 if(settings.checkDataIntegrity==1)
 
    
-    setOfTrials=verifyDataIntegrityCompletnessOrder(...
+    setOfTrialsVerified=verifyDataIntegrityCompletnessOrder(...
                 dataFolder,experimentJson,fidLogFile,...
                 flag_readHeader,flag_checkSha256Sum);
 
@@ -144,9 +148,9 @@ if(settings.checkDataIntegrity==1)
     fprintf(fidLogFile,'%s\n','Preprocessing: ');
     fprintf(fidLogFile,'%s\n','  Counting the number of segments to plot');
     
-    for indexSetOfTrials=1:1:length(setOfTrials)
+    for indexSetOfTrials=1:1:length(setOfTrialsVerified)
     
-        i = setOfTrials(indexSetOfTrials);
+        i = setOfTrialsVerified(indexSetOfTrials);
     
         %%
         % Read in the meta data
@@ -207,10 +211,34 @@ if(settings.checkDataIntegrity==1)
     fprintf('\t%i segments found\n',totalNumberOfSegmentsToPlot);
     fprintf(fidLogFile,'\t%i segments found\n',totalNumberOfSegmentsToPlot);
 
+    
 end
 
 if(settings.processData==1)
-
+    
+    setOfTrials = [];
+    if(~isempty(setOfTrialsVerified))
+        if(~isempty(fileKeyWord))            
+            for i=1:1:length(setOfTrialsVerified)
+                if(contains(experimentJson.trials{i},fileKeyWord))
+                    setOfTrials = [setOfTrials; i];
+                end
+            end
+        else
+            setOfTrials = setOfTrialsVerified;
+        end
+    else
+        if(~isempty(fileKeyWord))
+            for i=1:1:length(setOfTrialsVerified)
+                if(contains(experimentJson.trials{i},fileKeyWord))
+                    setOfTrials = [setOfTrials; i];
+                end
+            end            
+        else
+            setOfTrials = setOfTrialsDefault;
+        end        
+    end
+    
 
 
     %
@@ -270,11 +298,11 @@ if(settings.processData==1)
     numberOfVerticalPlotRowsGeneric         = length(setOfTrials);
 
     
-    plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*25;
-    plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*10;
-    plotHorizMarginCm                       = 3;
-    plotVertMarginCm                        = 2;
-    baseFontSize                            = 12;
+    plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*25;
+    plotHeight         = ones(numberOfVerticalPlotRowsGeneric,1).*10;
+    plotHorizMarginCm  = 3;
+    plotVertMarginCm   = 2;
+    baseFontSize       = 12;
     
     [subPlotPanelTimeSeries, pageWidthTimeSeries,pageHeightTimeSeries]= ...
       plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
@@ -845,11 +873,11 @@ if(settings.processData==1)
                 %%
                 % Compensate for the propagation delay
                 %%
-                switch experimentJson.experiment.material
-                    case "stainless steel"
-                        assert(strcmp(experimentJson.experiment.specimen,'Spring'),...
-                               ['Error: a stainless steel material must go with a ',...
-                               'Spring specimen']);
+                %switch experimentJson.experiment.material
+                %    case "stainless steel"
+                %        assert(strcmp(experimentJson.experiment.specimen,'Spring'),...
+                %               ['Error: a stainless steel material must go with a ',...
+                %               'Spring specimen']);
 
                         %
                         % Compensating for the delay changes the gain
@@ -872,7 +900,9 @@ if(settings.processData==1)
                                         & H.frequencyHz <= bandwidthFit(1,2));
 
                             delay = calcPhaseDelayOfThinElasticRod(...
+                                H.frequencyHz(idxFit),...
                                 H.gain(idxFit),...
+                                H.phase(idxFit),...
                                 auroraData.Data.Lin.Values(dataIndex,1),...
                                 experimentJson,...
                                 mm2m);
@@ -907,12 +937,17 @@ if(settings.processData==1)
                                      settings.phaseDelayMaxIteration);
                         end
 
-                    case "muscle"
-                        assert(0,'Error: not yet implemented');
-                    otherwise assert(0,['Error: Unrecognized ',...
-                        'material. Only muscle and stainless steel',...
-                        ' have been implemented']);        
-                end
+                    %case "muscle"
+
+                    %    [H1,modelParams] = ...
+                    %        simulatenouslyFitDelayModelKelvinVoightModel(...
+                    %            H0, delayModel,modelParams,experimentJson);
+
+                    %    assert(0,'Error: not yet implemented');
+                   % otherwise assert(0,['Error: Unrecognized ',...
+                   %     'material. Only muscle and stainless steel',...
+                   %     ' have been implemented']);        
+                %end
                 
                 %%
                 % Compensate for delay introduced by the low-pass-filter
@@ -1026,7 +1061,7 @@ if(settings.processData==1)
                     optSettings.type = 1; %1. gain error, 2. phase error
                     errFcn = @(argX)calcErrorOfImpedanceModel600A(...
                                         argX, paramNames,...
-                                        optSettings, modelParams, segData);
+                                        optSettings, modelParams, segData.H2);
                     errVec = errFcn(x0);
                     optSettings.objScaling = 1/sqrt(sum(errVec.^2));
                     [xSol, resnorm, residual,exitflag,output] = ...
@@ -1050,7 +1085,24 @@ if(settings.processData==1)
                 %
                 model = calcImpedanceModelFrequencyResponse600A(modelParams);
             
-
+                %
+                % Check the transmission delays
+                %
+                if(strcmp(experimentJson.experiment.material,'muscle'))
+                    k_Nm        = modelParams.k;
+                    beta_Nms    = modelParams.beta;
+                    length_MM   = mean(auroraData.Data.Lin.Values(dataIndex,1));
+                    length_M    = length_MM*mm2m;
+                    area_MM2    = (pi/4)*experimentJson.experiment.width_mm ...
+                                        *experimentJson.experiment.height_mm;
+                    area_M2     = area_MM2*mm2m*mm2m;
+                    rho_kgm3    = experimentJson.experiment.rho_kg_m3;
+                    flag_plot   = 1;
+                    kelvinVoightRodModel = evaluateDelayModelThinKelvinVoightRod(...
+                                    k_Nm,beta_Nms,length_M,area_M2,...
+                                    rho_kgm3,segData.H2.frequency,flag_plot);
+                    here=1;
+                end
                 %%
                 % Evaluate errors
                 %%
