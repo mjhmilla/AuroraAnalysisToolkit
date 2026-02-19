@@ -1,12 +1,29 @@
 function modelResponse = calcImpedanceModelFrequencyResponse600A(params)
 
-
+modelResponse = [];
 %
 % Time domain signal
 %
 switch params.type
     case 0
-        y = params.k.*params.x + params.beta.*params.xdot;
+%         y = params.k.*params.x + params.beta.*params.xdot;
+%         modelResponseTime = evaluateGainPhaseCoherenceSq(  ...
+%                             params.time,...
+%                             params.x,...
+%                             y,...
+%                             params.bandwidth,...
+%                             params.sampleFrequency);
+        z = params.k + (params.beta*complex(0,1)).*params.frequency;
+        modelResponse.H             = z;
+        modelResponse.idxBW         = find(params.frequencyHz <= params.bandwidth);
+        modelResponse.frequency     = params.frequency;
+        modelResponse.frequencyHz   = params.frequencyHz;
+        modelResponse.gain          = abs(z);
+        modelResponse.phase         = angle(z);
+        modelResponse.storage       = real(z);
+        modelResponse.loss          = imag(z);
+
+        here=1;
     case 1
         assert(0,'Error: model type not yet implemented');
         
@@ -16,11 +33,7 @@ switch params.type
 end
 
 
-modelResponse = evaluateGainPhaseCoherenceSq(  params.time,...
-                                    params.x,...
-                                    y,...
-                                    params.bandwidth,...
-                                    params.sampleFrequency);
+
 
 % Hs = evaluateGainPhaseCoherenceSq(  params.time,...
 %                                     params.x,...

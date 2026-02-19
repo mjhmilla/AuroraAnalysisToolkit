@@ -1,21 +1,16 @@
 function success = ...
-    runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json(...
-        folderName, fileKeyWord,specimenType, trialType, settings,projectFolders)
+    runPipelineAnalyzeArbitraryWaveformFiberData600A_02_json(...
+        folderName, fileKeyWord,specimenType, trialType, ...
+        modelSeries, settings,projectFolders)
 
 success=0;
 mm2m = 0.001;
 
-optSettings.type=1;
-% 1. min rmse gain error
-% 2. min rmse phase error
-% 3. min rmse of the slope of the phase error
-optSettings.scaling   = [];
-optSettings.objScaling= 1;
-optSettings.lambda    = [];
-optSettings.phasePolishingInterations = 15;
+fittedModelSeries=modelSeries;
 
 assert(strcmp(settings.daqDelayModel,'frequency-domain'),...
-       'Error: ')
+       ['Error: the DAQ delay can only be compensated',...
+        ' in the frequency-domain using this implementation']);
 
 flag_readHeader         = 1;
 flag_checkSha256Sum     = 1; %Might not work on Windows
@@ -48,21 +43,9 @@ assert(foundTrialType,...
 keyword.label          = 'Larb-Stochastic';
 keyword.controlFunction= 'Length-Arb';
 
-modelSettings.type = 0; 
-% 0. spring-damper in parallel
-% 1. spring-damper in series
-switch modelSettings.type
-    case 0
-        modelSettings.name ='parallel-spring-damper';
-    case 1
-        modelSettings.name ='no-model';
-    otherwise assert(0,'Error: invalid modelSettings.type');
-end
 
 
 
-modelSettings.coherenceSquaredThreshold=settings.coherenceSquaredThreshold;
-modelSettings.numberOfParameters    = 2;
 
 %% 
 % Delay model
@@ -101,6 +84,9 @@ modelSettings.numberOfParameters    = 2;
 modelSettings.daqDelayModel             = settings.daqDelayModel;
 modelSettings.zeroPhaseResponseSlope    = 1;
 modelSettings.useManuallySetDaqDelay    = settings.useManuallySetDaqDelay;
+modelSettings.coherenceSquaredThreshold = settings.coherenceSquaredThreshold;
+
+
 
 %%
 % folders
@@ -482,33 +468,6 @@ if(settings.processData==1)
                     f0 = forceReference;
                     t0 = auroraData.Data.Time.Values(intraSegmentIndex(indexReference));
 
-                    flag_debugFF=0;
-                    if(flag_debugFF==1)
-                        figDebugFF=figure;
-                        plot(auroraData.Data.Time.Values(intraSegmentIndex,1),...
-                             auroraData.Data.Fin.Values(intraSegmentIndex,1),...
-                             '-','Color',[1,1,1].*0.75,'DisplayName','Raw Data');
-                        hold on;
-                        plot(auroraData.Data.Time.Values(intraSegmentIndex,1),...
-                             f,'-k','DisplayName',sprintf('Filtered Data (%i)',...
-                             settings.isometricNoiseFilterCutoffFrequencyHz));
-                        hold on;
-                        plot(auroraData.Data.Time.Values(intraSegmentIndex,1),...
-                             ffnoise,'-','Color',[0,1,1],'DisplayName','Noise Magnitude');
-                        hold on;
-                        plot(t0,f0,'o','Color',[0,0,0],'MarkerFaceColor',[0,0,0],...
-                            'DisplayName','Reference Force');
-                        hold on;
-                        legend('Location','NorthWest');
-                        hold on;
-                        box off;
-
-                        xlabel(['Time (',auroraData.Data.Time.Unit,')']);
-                        ylabel(['Force (',auroraData.Data.Fin.Unit,')']);
-                        here=1;
-                    end
-
-   
                 else
                     idSeg=setOfSegments(j-1,1);
                     t0 = trialJson.segments(idSeg).duration(2,1);
@@ -703,7 +662,7 @@ if(settings.processData==1)
 
     
         %%
-        % Plot each of the segments
+        % Process each of the segments
         %%
     
     
@@ -739,13 +698,15 @@ if(settings.processData==1)
                 fprintf(fidLogFile,'%s\n',...
                     ['Error: could not find larb-segment property bandwidth']);
             end
-            assert(isempty(bandwidth)==0,'Error: could not find larb-segment property bandwidth');
+            assert(isempty(bandwidth)==0,...
+                'Error: could not find larb-segment property bandwidth');
     
             if(isempty(amplitude))
                 fprintf(fidLogFile,'%s\n',...
                     ['Error: could not find larb-segment property amplitude']);
             end
-            assert(isempty(amplitude)==0,'Error: could not find larb-segment property amplitude');
+            assert(isempty(amplitude)==0,...
+                'Error: could not find larb-segment property amplitude');
        
             %%
             % Evaluate frequency response   
@@ -757,6 +718,9 @@ if(settings.processData==1)
             y = y-mean(y);
             
             xyDataIsValid =0;
+
+
+
     
             if(length(y)>10 && length(x)>10)
                 xyDataIsValid=1;
@@ -771,7 +735,7 @@ if(settings.processData==1)
                 segData.x = x;
                 segData.y = y;
                 segData.time=timeVec;
-                segData.bandwidth = bandwidth(1,2);
+                segData.bandwidth = bandwidth;
                 segData.sampleFrequency = sampleFrequency;
 
                 %[freqHz, gain, phase,coherenceSq] = ...
@@ -779,103 +743,39 @@ if(settings.processData==1)
                                     timeVec,...
                                     x,...
                                     y,...
-                                    bandwidth(1,2),...
-                                    sampleFrequency);
+                                    bandwidth,...
+                                    sampleFrequency,...
+                                    settings.coherenceSquaredThreshold);
 
-
-
-        
-                dfreq = 1;
-                idxFreq     = find(segData.H0.frequencyHz <= (bandwidth(1,2)+dfreq));
-                idxFreqBand = find(segData.H0.frequencyHz <= bandwidth(1,2) ...
-                                 & segData.H0.frequencyHz >= bandwidth(1,1));
-
-                %
-                % Update the fitting bandwidth
-                %
-                idxFirst = find(segData.H0.coherenceSq(segData.H0.idxBW) ...
-                        >= modelSettings.coherenceSquaredThreshold,1,'first');
-                idxLast =  find(segData.H0.coherenceSq(segData.H0.idxBW) ...
-                        >= modelSettings.coherenceSquaredThreshold,1,'last');
-                
-                optSettings.bandwidth =   segData.bandwidth...
-                                        .*settings.normFittingBandwidth;
-
-                if(~isempty(idxFirst) && ~isempty(idxLast))
-                    freqA = segData.H0.frequencyHz(idxFirst);
-                    freqB = segData.H0.frequencyHz(idxLast);
-                    if(freqA > optSettings.bandwidth(1,1))
-                        optSettings.bandwidth(1,1)=freqA;
-                    end
-                    if(freqB < optSettings.bandwidth(1,2))
-                        optSettings.bandwidth(1,2)=freqB;
-                    end
-                end                
             end
         
+
+
             %%
             % Fit a first order low pass model to the response
             %%
         
             if(xyDataIsValid==1)
 
-                delayModel.delayPropagation=0;
+                delayModel.phaseDelayElasticRod=0;
                 delayModel.daqDelay        = settings.daqDelay; %in seconds
                 delayModel.daqFilterFrequencyHz = settings.daqFilterFrequencyHz;
                 delayModel.daqDelayModel   = settings.daqDelayModel;
                  
-            
 
-                modelParams.k            = 1.4;
-                modelParams.beta         = 0;
+                %Test the models with the default parameters
 
-            
-                modelParams.bandwidth    = bandwidth(1,2);
-                modelParams.sampleFrequency= sampleFrequency;
-                modelParams.time         = auroraData.Data.Time.Values(dataIndex);
-                modelParams.x            = ifft(fft(x),'symmetric');
-                modelParams.type         = modelSettings.type;
-            
-                samples     = length(x);
-                timeVec     = [0:(1/(samples-1)):1]' .* (samples/sampleFrequency);
-                freqHz      = [1:1:samples]' .*(sampleFrequency/samples);
-                freq        = freqHz.*(2*pi);
-            
-                modelParams.xdot         = ifft(fft(x).*(complex(0,1).*freq) ,'symmetric');
-                modelParams.frequency    = freq;
-                modelParams.frequencyHz  = freqHz;
-            
-                flag_checkXdot=0;
-                if(flag_checkXdot==1)
-                    xdotNum = calcCentralDifferenceDataSeries(timeVec,x);
-            
-                    figXdotCheck = figure;
-                    subplot(2,1,1);
-                    plot(timeVec,modelParams.xdot,'-b');
-                    hold on;
-                    plot(timeVec,xdotNum,'-r');
-                    hold on;
-                    xlabel('Time (s)');
-                    ylabel('mm/s');
-                    title('xdot');
-            
-                    subplot(2,1,2);
-                    plot(timeVec,modelParams.xdot-xdotNum,'-k');
-                    hold on;
-                    xlabel('Time (s)');
-                    ylabel('mm/s');
-                    title('xdot error');
-                    
-                    here=1;
+                for idxMdl = 1:1:length(modelSeries)
+                    modelSeries(idxMdl).settings.applyParameterMap=0;
+                    modelResponse = calcMaxwellKelvinVoigtNetworkImpedance(...
+                                        segData.H0.frequency(segData.H0.idxBWC2),...
+                                        modelSeries(idxMdl).model.parameters,...
+                                        modelSeries(idxMdl).model.settings);
                 end
-            
-                xdotNum = calcCentralDifferenceDataSeries(timeVec,x);
-                        
-                model = calcImpedanceModelFrequencyResponse600A(modelParams);
-            
-                %%`
-                % Compensate for the propagation delay
+
                 %%
+                % Compensate for the propagation delay
+                %
                 %
                 % Compensating for the delay changes the gain
                 % and thus the estimated stiffness of the spring. 
@@ -900,71 +800,77 @@ if(settings.processData==1)
                 % frequency range determined from tension transients. 
                 % Journal of Muscle Research & Cell Motility. 1993 
                 % Jun;14(3):302-10.
-                %
-                if(strcmp(experimentJson.experiment.material,'stainless steel'))
-                    H = segData.H0;
-                    delayError = inf;
-                    delayP = 0;
-                    iter=0;
-    
-                    while delayError > settings.phaseDelayTolerance ...
-                            && iter < settings.phaseDelayMaxIteration
-    
-                        bandwidthFit = segData.bandwidth...
-                                      .*settings.normFittingBandwidth;
-    
-                        idxFit = find(H.frequencyHz >= bandwidthFit(1,1)...
-                                    & H.frequencyHz <= bandwidthFit(1,2));
-    
-                        delay = calcPhaseDelayOfThinElasticRod(...
-                            H.frequencyHz(idxFit),...
-                            H.gain(idxFit),...
-                            H.phase(idxFit),...
-                            auroraData.Data.Lin.Values(dataIndex,1),...
-                            experimentJson,...
-                            mm2m);
-    
-                        timeDelayedVec  = segData.time + delay;
-                        y01        = interp1(   segData.time, ...
-                                                segData.y,...
-                                                timeDelayedVec,...
-                                                'linear','extrap');
-                        
-                        H = evaluateGainPhaseCoherenceSq(  ...
-                                timeDelayedVec,...
-                                segData.x,...
-                                y01,...
-                                segData.bandwidth,...
-                                segData.sampleFrequency);
-                        if(iter > 1)
-                            delayError = abs(delay-delayP);
-                        end
-                        delayP = delay;
-                        iter=iter+1;
-                    end
-                    if(iter > settings.phaseDelayMaxIteration)
-                        fprintf(['  Warning: delay tolerance not met\n',...
-                                 '  %1.2e > %1.2e\t error\n',...
-                                 '  %i \t iterations'],...
-                                 delayError, ...
-                                 settings.phaseDelayTolerance,...
-                                 settings.phaseDelayMaxIteration);
-                    end                
-                    segData.H1=H;
-                    delayModel.delayPropagation = delay;
+                %%
 
+                
+                H = segData.H0;
+                delayError = inf;
+                delayP = 0;
+                delay = 0;
+                iter=0;
+
+                while delayError > settings.phaseDelayTolerance ...
+                        && iter < settings.phaseDelayMaxIteration
+
+                    bandwidthFit = segData.bandwidth...
+                                  .*settings.normFittingBandwidth;
+
+                    idxFit = find(H.frequencyHz >= bandwidthFit(1,1)...
+                                & H.frequencyHz <= bandwidthFit(1,2));
+
+                    delay = calcPhaseDelayOfThinElasticRod(...
+                                H.frequencyHz(idxFit),...
+                                H.gain(idxFit),...
+                                H.phase(idxFit),...
+                                auroraData.Data.Lin.Values(dataIndex,1),...
+                                experimentJson,...
+                                mm2m);
+
+                    timeDelayedVec  = segData.time + delay;
+                    y01        = interp1(   segData.time, ...
+                                            segData.y,...
+                                            timeDelayedVec,...
+                                            'linear','extrap');
+                    
+                    H = evaluateGainPhaseCoherenceSq(  ...
+                            timeDelayedVec,...
+                            segData.x,...
+                            y01,...
+                            segData.bandwidth,...
+                            segData.sampleFrequency,...
+                            settings.coherenceSquaredThreshold);
+
+                    if(iter > 1)
+                        delayError = abs(delay-delayP);
+                    end
+                    delayP = delay;
+                    iter=iter+1;
+                end
+                if(iter > settings.phaseDelayMaxIteration)
+                    fprintf(['  Warning: delay tolerance not met\n',...
+                             '  %1.2e > %1.2e\t error\n',...
+                             '  %i \t iterations'],...
+                             delayError, ...
+                             settings.phaseDelayTolerance,...
+                             settings.phaseDelayMaxIteration);
+                end          
+
+                if(strcmp(experimentJson.experiment.material,'stainless steel'))      
+                    segData.H1=H;
                 else
                     %%
                     % For now, I'm not compensating for any of the delay
                     % that is present in the fiber for two reasons:
                     %
-                    % 1. Between 0-90 Hz the delay is negligible
+                    % 1. Between 0-90 Hz the delay is negligible. It is 
+                    %    negligible for the fiber but not the spring because
+                    %    the fiber is ~1/100th the mass of the spring.
                     %
                     % 2. The delay varies with frequency. To correctly 
                     %    capture this delay you need to have an accurate
                     %    model of the frequency response of the fiber,
                     %    which I currently do not have: a Kelvin-Voigt
-                    %    model captures the gain, but not the phase.
+                    %    model captures the gain, but not the phase correctly
                     %
                     %  A muscle fiber is viscoelastic, and the damping causes
                     %  the higher frequency waves to travel faster. To
@@ -974,11 +880,8 @@ if(settings.processData==1)
                     %%
                     segData.H1=segData.H0;
                 end
-                
 
-
-
-
+                delayModel.phaseDelay = delay;
                 
                 %%
                 % Compensate for delay introduced by the low-pass-filter
@@ -997,15 +900,15 @@ if(settings.processData==1)
                                         segData.H1.x,...
                                         segData.H1.y,...
                                         segData.bandwidth,...
-                                        segData.sampleFrequency);  
-
+                                        segData.sampleFrequency,...
+                                        settings.coherenceSquaredThreshold);  
                     
                     fittingResults = ...
                         calcLowPassFilterFrequencyToZeroPhaseResponseSlope(...
                             delayModel.daqFilterFrequencyHz,...
                             expResponse,...
                             delayModel.daqFilterFrequencyHz*0.5,...
-                            optSettings.bandwidth,...
+                            expResponse.bandwidthHzC2,...
                             100,...
                             0);  
 
@@ -1031,144 +934,141 @@ if(settings.processData==1)
                         'symmetric');
                 
                 segData.H2 = evaluateGainPhaseCoherenceSq(  ...
-                            segData.H1.time,...
-                            segData.H1.x,...
-                            yUpd,...
-                            segData.bandwidth,...
-                            segData.sampleFrequency); 
-
-
-           
+                                segData.H1.time,...
+                                segData.H1.x,...
+                                yUpd,...
+                                segData.bandwidth,...
+                                segData.sampleFrequency,...
+                                settings.coherenceSquaredThreshold); 
 
                 %%
                 % Fit the spring model
                 %%
+            
+                lsqnonlinOptions =...
+                    optimoptions('lsqnonlin','MaxFunctionEvaluations',2000,...
+                                 'MaxIterations',2000,...
+                                 'Display','none');
 
-                lambdaSchedule = [0.9,0.1,0.01,0];
-            
-                for indexLambda = 1:1:length(lambdaSchedule)
-                    optSettings.lambda = lambdaSchedule(indexLambda);
-            
-                    lsqnonlinOptions =...
-                        optimoptions('lsqnonlin','MaxFunctionEvaluations',2000,...
-                                     'Algorithm','trust-region-reflective',...
-                                     'Display','none');
-                    if(indexLambda == length(lambdaSchedule))
-                        lsqnonlinOptions =...
-                            optimoptions('lsqnonlin','MaxFunctionEvaluations',2000,...
-                                         'Algorithm','trust-region-reflective',...
-                                         'Display','none');
+                optSettings.objScaling = [1,1]; %gain and phase error
+
+                for idxMdl = 1:1:length(modelSeries)
+                    x0 = zeros(length(modelSeries(idxMdl).model.settings.parameterMap),1);
+                    for i=1:1:length(x0)
+                        
+                        row     = modelSeries(idxMdl).model.settings.parameterMap(i,1);
+                        col     = modelSeries(idxMdl).model.settings.parameterMap(i,2);
+
+                        assert(col > 1, ['Error: the first column in ',...
+                                        'model.settings.parameterMap is reserved',...
+                                        ' for the branch number']);
+                        x0(i,1) = modelSeries(idxMdl).model.parameters(row,col);
                     end
 
-                    %%
-                    % Fit k & d of the spring to the gain response
-                    %%                                    
-                    switch modelSettings.numberOfParameters
-                        case 1
-                            x0 = [1];              
-                            modelParams.time         = segData.H2.time;
-                            modelParams.k            = mean(segData.H2.gain);
-                            modelParams.beta         = 0;
-                            optSettings.scaling = [modelParams.k];
-                            paramNames = {'k'};
-            
-                        case 2
-                            x0 = [1,1]; 
-                            modelParams.time         = segData.H2.time;
-                            modelParams.k            = mean(segData.H2.gain);
-                            modelParams.beta         = modelParams.k*0.01;                
-                            optSettings.scaling = [modelParams.k,modelParams.beta];
-                            paramNames = {'k','beta'};                
-                        otherwise assert(0,['Error modelSettings.numberOfParameters',...
-                                ' incorrectly set']);
-                    end
-                    
-                    lb = [x0].*0;
-                    ub = [x0].*10;
-            
-                    for j=1:1:length(paramNames)
-                        model.([paramNames{j},'_bounds'])=[];
-                    end
-                    optSettings.type = 1; %1. gain error, 2. phase error
+                    modelSeries(idxMdl).model.settings.applyParameterMap=1;
+
                     errFcn = @(argX)calcErrorOfImpedanceModel600A(...
-                                        argX, paramNames,...
-                                        optSettings, modelParams, segData.H2);
+                                        argX, ...
+                                        modelSeries(idxMdl).model.settings, ...                                    
+                                        segData.H2,...
+                                        optSettings);
+
                     errVec = errFcn(x0);
-                    optSettings.objScaling = 1/sqrt(sum(errVec.^2));
-                    [xSol, resnorm, residual,exitflag,output] = ...
-                        lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
+                    n=length(errVec);
+                    errGain = errVec(1:1:(n/2));
+                    errPhase= errVec(((n/2)+1):1:n);
+                    optSettings.objScaling = ...
+                        [1/sqrt(mean(errGain.^2)) 1/sqrt(mean(errPhase.^2))];
+
+                    lb = zeros(size(errVec));
+                    [xFit, resnorm, residual,exitflag,output] = ...
+                        lsqnonlin(errFcn,x0,lb,[],lsqnonlinOptions);
                 
-            %         disp('lsqnonlin output');
-            %         for j=1:1:length(paramNames)
-            %             disp(paramNames{j});
-            %         end
-            %         disp(output);
+                    %
+                    % Evaluate the fitted model response
+                    %
+                    
+                    fittedModelSeries(idxMdl).model.parameters = ...
+                        getMaxwellKelvinVoigtNetworkParameters(...
+                            xFit,...
+                            modelSeries(idxMdl).model.settings);
+
+                    fittedModelSeries(idxMdl).model.rmse = sqrt(mean(residual.^2));
                 
-                    for j=1:1:length(xSol)
-                        modelParams.(paramNames{j})=xSol(j)*optSettings.scaling(j);
-                    end
-                
-                
+                    fittedModelSeries(idxMdl).model.response ...
+                        = calcMaxwellKelvinVoigtNetworkImpedance(...
+                              segData.H2.frequency(segData.H2.idxBWC2),...
+                              xFit,...
+                              modelSeries(idxMdl).model.settings);
                 end
             
-                %
-                % Evaluate the fitted model response
-                %
-                model = calcImpedanceModelFrequencyResponse600A(modelParams);
-            
+                disp('*** Update the viscoelastic rod model ***');
                 %
                 % Check the transmission delays
                 %
-                kelvinVoigtRodModel = [];
-                if(strcmp(experimentJson.experiment.material,'muscle'))
-
-                    if(~isempty(experimentJson.experiment.width_mm) ...
-                            && ~isempty(experimentJson.experiment.height_mm) ...
-                            && ~isempty(experimentJson.experiment.rho_kg_m3))
-
-                        k_Nm        = modelParams.k;
-                        beta_Nms    = modelParams.beta;
-                        length_MM   = mean(auroraData.Data.Lin.Values(dataIndex,1));
-                        length_M    = length_MM*mm2m;
-                        area_MM2    = (pi/4)*experimentJson.experiment.width_mm ...
-                                            *experimentJson.experiment.height_mm;
-                        area_M2     = area_MM2*mm2m*mm2m;
-                        rho_kgm3    = experimentJson.experiment.rho_kg_m3;
-                        flag_plot   = 0;
-                        kelvinVoigtRodModel = ...
-                            evaluateDelayModelThinKelvinVoigtRod(...
-                                        k_Nm,beta_Nms,length_M,area_M2,...
-                                        rho_kgm3,segData.H2.frequency,...
-                                        flag_plot);
-                        
-                    end
-                end
+                %   2026/2/19: Commenting this out for now. Muscle fibers
+                %              behave more like a Maxwell element in series
+                %              with a Kelvin-Voigt element. The frequency 
+                %              dependent delay times below are estimated only
+                %              for a Kelvin-Voigt rod which is the wrong model.
+                %
+                % kelvinVoigtRodModel = [];
+                % if(strcmp(experimentJson.experiment.material,'muscle'))
+                %         
+                %     if(~isempty(experimentJson.experiment.width_mm) ...
+                %             && ~isempty(experimentJson.experiment.height_mm) ...
+                %             && ~isempty(experimentJson.experiment.rho_kg_m3))
+                %     
+                %         k_Nm        = modelParams.k;
+                %         beta_Nms    = modelParams.beta;
+                %         length_MM   = mean(auroraData.Data.Lin.Values(dataIndex,1));
+                %         length_M    = length_MM*mm2m;
+                %         area_MM2    = (pi/4)*experimentJson.experiment.width_mm ...
+                %                             *experimentJson.experiment.height_mm;
+                %         area_M2     = area_MM2*mm2m*mm2m;
+                %         rho_kgm3    = experimentJson.experiment.rho_kg_m3;
+                %         flag_plot   = 0;
+                %         kelvinVoigtRodModel = ...
+                %             evaluateDelayModelThinKelvinVoigtRod(...
+                %                         k_Nm,beta_Nms,length_M,area_M2,...
+                %                         rho_kgm3,segData.H2.frequency,...
+                %                         flag_plot);
+                %         
+                %     end
+                % end
                 %%
                 % Evaluate errors
                 %%
-                assert(length(model.idxBW)==length(segData.H2.idxBW),...
+                assert(length(fittedModelSeries(idxMdl).model.response.idxBW)...
+                               ==length(segData.H2.idxBW),...
                        ['Error: model and experimental data frequency responses'...
                         ' have differing lengths']);
         
-                for j=1:1:length(model.idxBW)
-                    modelFreq=model.frequency(model.idxBW(j));
+                for j=1:1:length(fittedModelSeries(idxMdl).model.response.idxBW)
+                    modelFreq=fittedModelSeries(idxMdl).model.response.frequency(...
+                                fittedModelSeries(idxMdl).model.response.idxBW(j));
                     dataFreq =segData.H2.frequency(segData.H2.idxBW(j));
                     
                     assert(abs(modelFreq-dataFreq)<1e-3,...
                         ['Error: model and data frequencies differ'])
                 end
         
-                idxBW = segData.H2.idxBW;
+                idxBWC2 = segData.H2.idxBWC2;
                         
-                rmse.gain = sqrt( mean( (model.gain(idxBW) ...
-                                        -segData.H2.gain(idxBW)).^2 ));
-                rmse.phase = sqrt( mean( (model.phase(idxBW) ...
-                                         -segData.H2.phase(idxBW)).^2 ));
-                rmse.storage = sqrt( mean( (model.storage(idxBW) ...
-                                        -segData.H2.storage(idxBW)).^2 ));
-                rmse.loss = sqrt( mean( (model.loss(idxBW) ...
-                                         -segData.H2.loss(idxBW)).^2 ));
-                rmse.coherenceSq = getSummaryStatistics(segData.H2.coherenceSq(idxBW));
+                rmse.gain = sqrt( mean( ...
+                    (fittedModelSeries(idxMdl).model.response.gain(idxBWC2) ...
+                     -segData.H2.gain(idxBWC2)).^2 ));
+                rmse.phase = sqrt( mean( ...
+                    (fittedModelSeries(idxMdl).model.response.phase(idxBWC2) ...
+                    -segData.H2.phase(idxBWC2)).^2 ));
+                rmse.storage = sqrt( mean(... 
+                    (fittedModelSeries(idxMdl).model.response.storage(idxBWC2) ...
+                    -segData.H2.storage(idxBWC2)).^2 ));
+                rmse.loss = sqrt( mean( ...
+                    (fittedModelSeries(idxMdl).model.response.loss(idxBWC2) ...
+                    -segData.H2.loss(idxBWC2)).^2 ));
+                rmse.coherenceSq = ...
+                    getSummaryStatistics(segData.H2.coherenceSq(idxBWC2));
             end
             %%
             % Record the analysis to a segment json file
@@ -1191,9 +1091,9 @@ if(settings.processData==1)
                 temperatureSummary.max = temp;
             end
     
-            segmentJson.interval=[timeStart,timeEnd];
-            segmentJson.index = idxSeg;
-            segmentJson.type  = trialJson.segments(idxSeg).type; 
+            segmentJson.interval= [timeStart,timeEnd];
+            segmentJson.index   = idxSeg;
+            segmentJson.type    = trialJson.segments(idxSeg).type; 
 
             segmentJson.time    = auroraData.Data.Time.Values(dataIndex,1);
             segmentJson.length  = auroraData.Data.Lin.Values(dataIndex,1);
@@ -1203,14 +1103,15 @@ if(settings.processData==1)
                 intraSegmentData(1).forceReference;
 
             if(~isempty(activeIntervals))
-                segmentJson.pre.time = intraSegmentData(idxSeg).filtered.time(end);
-                segmentJson.pre.length = intraSegmentData(idxSeg).filtered.length(end);
-                segmentJson.pre.force = intraSegmentData(idxSeg).filtered.force(end);                
+                segmentJson.pre.time    = intraSegmentData(idxSeg).filtered.time(end);
+                segmentJson.pre.length  = intraSegmentData(idxSeg).filtered.length(end);
+                segmentJson.pre.force   = intraSegmentData(idxSeg).filtered.force(end);                
             else
-                segmentJson.pre.time = [];
-                segmentJson.pre.length = [];
-                segmentJson.pre.force = [];
+                segmentJson.pre.time    = [];
+                segmentJson.pre.length  = [];
+                segmentJson.pre.force   = [];
             end
+
             segmentJson.summary.length      = lengthSummary;
             segmentJson.summary.force       = forceSummary;
             segmentJson.summary.temperature = temperatureSummary;
@@ -1263,52 +1164,70 @@ if(settings.processData==1)
 
             end
 
-            if(strcmp(experimentJson.experiment.material,'muscle'))
-                if(~isempty(kelvinVoigtRodModel))
-                    segmentJson.KelvinVoigtRodModel.frequencyHz = ...
-                        kelvinVoigtRodModel.frequency_Hz;
-                    segmentJson.KelvinVoigtRodModel.velocity_mps = ...
-                        kelvinVoigtRodModel.velocity_mps;
-                    segmentJson.KelvinVoigtRodModel.attenuation = ...
-                        kelvinVoigtRodModel.attenuation;
-                    segmentJson.KelvinVoigtRodModel.delay_s = ...
-                        kelvinVoigtRodModel.delay_s;
-                    segmentJson.KelvinVoigtRodModel.phase_degrees = ...
-                        kelvinVoigtRodModel.phase_degrees;
-                else
-                    segmentJson.KelvinVoigtRodModel.frequencyHz     = [];
-                    segmentJson.KelvinVoigtRodModel.velocity_mps    = [];
-                    segmentJson.KelvinVoigtRodModel.attenuation     = [];
-                    segmentJson.KelvinVoigtRodModel.delay_s         = [];
-                    segmentJson.KelvinVoigtRodModel.phase_degrees   = [];
-                end
-            end
+            % if(strcmp(experimentJson.experiment.material,'muscle'))
+            %     if(~isempty(kelvinVoigtRodModel))
+            %         segmentJson.KelvinVoigtRodModel.frequencyHz = ...
+            %             kelvinVoigtRodModel.frequency_Hz;
+            %         segmentJson.KelvinVoigtRodModel.velocity_mps = ...
+            %             kelvinVoigtRodModel.velocity_mps;
+            %         segmentJson.KelvinVoigtRodModel.attenuation = ...
+            %             kelvinVoigtRodModel.attenuation;
+            %         segmentJson.KelvinVoigtRodModel.delay_s = ...
+            %             kelvinVoigtRodModel.delay_s;
+            %         segmentJson.KelvinVoigtRodModel.phase_degrees = ...
+            %             kelvinVoigtRodModel.phase_degrees;
+            %     else
+            %         segmentJson.KelvinVoigtRodModel.frequencyHz     = [];
+            %         segmentJson.KelvinVoigtRodModel.velocity_mps    = [];
+            %         segmentJson.KelvinVoigtRodModel.attenuation     = [];
+            %         segmentJson.KelvinVoigtRodModel.delay_s         = [];
+            %         segmentJson.KelvinVoigtRodModel.phase_degrees   = [];
+            %     end
+            % end
             
     
-            segmentJson.model.settings          = modelSettings;
-            segmentJson.model.delayPropagation  = delayModel.delayPropagation;
-            segmentJson.model.daqDelayModel     = delayModel.daqDelayModel;
-            segmentJson.model.daqDelay          = delayModel.daqDelay;
-            segmentJson.model.daqFilterFrequencyHz = delayModel.daqFilterFrequencyHz;
-            segmentJson.model.bandwidth     = optSettings.bandwidth;
-            segmentJson.model.param_names   = paramNames;
-            segmentJson.model.param_values  = zeros(size(segmentJson.model.param_names));
-            for(idxParam=1:1:length(segmentJson.model.param_names))
-                segmentJson.model.param_values(idxParam) = ...
-                    modelParams.(segmentJson.model.param_names{idxParam});
+            segmentJson.delayModel.settings      = modelSettings;
+            segmentJson.delayModel.phaseDelayElasticRodElasticRod  ...
+                                            = delayModel.phaseDelayElasticRod;
+
+            segmentJson.delayModel.phaseDelayCompensated = 0;
+            if(strcmp(experimentJson.experiment.material,'stainless steel'))
+                segmentJson.delayModel.phaseDelayCompensated = 1;
+            end            
+
+            segmentJson.delayModel.daqDelayModel = delayModel.daqDelayModel;
+            segmentJson.delayModel.daqDelay      = delayModel.daqDelay;
+            segmentJson.delayModel.daqFilterFrequencyHz ...
+                                            = delayModel.daqFilterFrequencyHz;
+
+            for idxMdl = 1:1:length(fittedModelSeries)
+
+                abb = fittedModelSeries(idxMdl).model.abbreviation;
+
+                segmentJson.model.(abb).name = ...
+                    fittedModelSeries(idxMdl).model.name;
+
+                segmentJson.model.(abb).abbreviation = ...
+                    fittedModelSeries(idxMdl).model.abbreviation;
+
+                segmentJson.model.(abb).abbreviation = ...
+                    fittedModelSeries(idxMdl).model.parameters;
+
+                segmentJson.model.(abb).settings = ...
+                    fittedModelSeries(idxMdl).model.settings;
+
+                segmentJson.model.(abb).response = ...
+                    fittedModelSeries(idxMdl).model.response;
+
+                segmentJson.model.(abb).rmse.total    = ...
+                    fittedModelSeries(idxMdl).model.rmse;
+
+                segmentJson.model.(abb).rmse.gain     = rmse.gain;
+                segmentJson.model.(abb).rmse.phase    = rmse.phase; 
+                segmentJson.model.(abb).rmse.storage  = rmse.storage; 
+                segmentJson.model.(abb).rmse.loss     = rmse.loss; 
+                            
             end
-            segmentJson.model.rmse.gain     = rmse.gain;
-            segmentJson.model.rmse.phase    = rmse.phase; 
-            segmentJson.model.rmse.storage  = rmse.storage; 
-            segmentJson.model.rmse.loss     = rmse.loss; 
-            
-            idxBW=model.idxBW;
-            segmentJson.model.bandwidth     = optSettings.bandwidth;
-            segmentJson.model.frequencyHz   = model.frequencyHz(idxBW);
-            segmentJson.model.gain          = model.gain(idxBW);
-            segmentJson.model.phase         = model.phase(idxBW);
-            segmentJson.model.coherenceSq   = model.coherenceSq(idxBW);
-            
                     
 
             %%
@@ -1365,9 +1284,19 @@ if(settings.processData==1)
                     '-','Color',lineColors.blue);
                 hold on;
                 
-                plot(model.frequencyHz(model.idxBW),...
-                     model.gain(model.idxBW),'--k');
-                hold on;
+                for idxMdl=1:1:length(fittedModelSeries)
+                    idxBW=fittedModelSeries(idxMdl).model.response.idxBW;
+                    plot(fittedModelSeries(idxMdl).model.response.frequencyHz(idxBW),...
+                         fittedModelSeries(idxMdl).model.response.gain(idxBW).*(180/pi),...
+                         fittedModelSeries(idxMdl).model.lineType,...
+                         'Color', fittedModelSeries(idxMdl).model.color);
+                    hold on;    
+                end
+
+
+                %plot(model.frequencyHz(model.idxBW),...
+                %     model.gain(model.idxBW),'--k');
+                %hold on;
                 for j=1:1:2
                     plot([optSettings.bandwidth(j);...
                           optSettings.bandwidth(j)],...
@@ -1435,9 +1364,14 @@ if(settings.processData==1)
                      segData.H2.phase(segData.H2.idxBW).*(180/pi),...
                      '-','Color',lineColors.blue);
                 hold on;
-                plot(model.frequencyHz(model.idxBW),...
-                     model.phase(model.idxBW).*(180/pi),'--k');
-                hold on;    
+                for idxMdl=1:1:length(fittedModelSeries)
+                    idxBW=fittedModelSeries(idxMdl).model.response.idxBW;
+                    plot(fittedModelSeries(idxMdl).model.response.frequencyHz(idxBW),...
+                         fittedModelSeries(idxMdl).model.response.phase(idxBW).*(180/pi),...
+                         fittedModelSeries(idxMdl).model.lineType,...
+                         'Color', fittedModelSeries(idxMdl).model.color);
+                    hold on;    
+                end
                 
                 box off;    
                 xlabel('Frequency (Hz)');

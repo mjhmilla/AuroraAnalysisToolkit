@@ -1,4 +1,4 @@
-function kelvinVoightRodModel = evaluateDelayModelThinKelvinVoightRod(...
+function kelvinVoigtRodModel = evaluateDelayModelThinKelvinVoigtRod(...
                                 k_Nm,beta_Nms,...
                                 length_M,area_M2,...
                                 rho_kgm3,frequency_rad,...
@@ -77,11 +77,11 @@ function kelvinVoightRodModel = evaluateDelayModelThinKelvinVoightRod(...
 % so that the magnitude is the same but phi i schanged by dphi
 
 
-kelvinVoightRodModel.frequency  = zeros(size(frequency_rad));
-kelvinVoightRodModel.v          = zeros(size(frequency_rad)); %phase velocity
-kelvinVoightRodModel.ac         = zeros(size(frequency_rad)); %attenuation 
-kelvinVoightRodModel.dt         = zeros(size(frequency_rad)); %delay
-kelvinVoightRodModel.dphi       = zeros(size(frequency_rad)); %phase shift
+kelvinVoigtRodModel.frequency_Hz  = zeros(size(frequency_rad));
+kelvinVoigtRodModel.velocity_mps          = zeros(size(frequency_rad)); %phase velocity
+kelvinVoigtRodModel.attenuation         = zeros(size(frequency_rad)); %attenuation 
+kelvinVoigtRodModel.delay_s         = zeros(size(frequency_rad)); %delay
+kelvinVoigtRodModel.phase_degrees       = zeros(size(frequency_rad)); %phase shift
 
 Y   = k_Nm*length_M/area_M2;
 eta = beta_Nms*length_M/area_M2;
@@ -90,37 +90,37 @@ for i=1:1:length(frequency_rad)
     k2 = rho_kgm3*(frequency_rad(i)^2)/(Y - complex(0,frequency_rad(i)*eta));
     period = (2*pi)/(frequency_rad(i));
 
-    kelvinVoightRodModel.frequency_rad(i) = frequency_rad(i);
-    kelvinVoightRodModel.v(i)    =frequency_rad(i)/real(sqrt(k2));
+    kelvinVoigtRodModel.frequency_Hz(i) = frequency_rad(i)/(2*pi);
+    kelvinVoigtRodModel.velocity_mps(i)    =frequency_rad(i)/real(sqrt(k2));
 
     alpha = imag(sqrt(k2));
 
-    kelvinVoightRodModel.at(i)   = exp(-alpha*length_M);
-    kelvinVoightRodModel.dt(i)   =length_M/kelvinVoightRodModel.v(i);
-    kelvinVoightRodModel.dphi(i) =2*pi*(kelvinVoightRodModel.dt(i)/period);
+    kelvinVoigtRodModel.attenuation(i)   = exp(-alpha*length_M);
+    kelvinVoigtRodModel.delay_s(i)   =length_M/kelvinVoigtRodModel.velocity_mps(i);
+    phase_rad =2*pi*(kelvinVoigtRodModel.delay_s(i)/period);
+    kelvinVoigtRodModel.phase_degrees(i) = phase_rad*(180/pi);
 end
 
 
 if(flag_plot==1)
     figKVModel=figure;
-    frequencyHz = frequency_rad./(2*pi);
     subplot(4,1,1);        
-        plot(frequencyHz,kelvinVoightRodModel.v,'-k');
+        plot(kelvinVoigtRodModel.frequency_Hz,kelvinVoigtRodModel.velocity_mps,'-k');
         xlabel('Frequency (Hz)');
         ylabel('Phase Velocity (m/s)');
         box off;
     subplot(4,1,2);
-        plot(frequencyHz,kelvinVoightRodModel.dt,'-k');
+        plot(kelvinVoigtRodModel.frequency_Hz,kelvinVoigtRodModel.delay_s,'-k');
         xlabel('Frequency (Hz)');
         ylabel('Delay (s)');
         box off;
     subplot(4,1,3);
-        plot(frequencyHz,kelvinVoightRodModel.dphi.*(180/pi),'-k');
+        plot(kelvinVoigtRodModel.frequency_Hz,kelvinVoigtRodModel.phase_degrees,'-k');
         xlabel('Frequency (Hz)');
         ylabel('Phase shift (degrees)');
         box off;
     subplot(4,1,4);
-        plot(frequencyHz,kelvinVoightRodModel.at,'-k');
+        plot(kelvinVoigtRodModel.frequency_Hz,kelvinVoigtRodModel.attenuation,'-k');
         xlabel('Frequency (Hz)');
         ylabel('Attenuation over length');
         box off;

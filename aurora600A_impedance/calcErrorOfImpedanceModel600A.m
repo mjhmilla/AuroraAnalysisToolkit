@@ -1,67 +1,25 @@
 function errorVector = calcErrorOfImpedanceModel600A(...
-                        argNum, argModelParamNames,...
-                        settings, modelParams, Href)
-
-for i=1:1:length(argModelParamNames)
-    modelParams.(argModelParamNames{i})=argNum(i)*settings.scaling(i);
-end
-
-modelResponse = calcImpedanceModelFrequencyResponse600A(modelParams);
-
-%
-% Evaluate the experimental frequency response with a compensation
-% for the delay
-%
+                        params,  modelSettings, Href, optSettings)
 
 
 
-
-
+modelResponse = calcMaxwellKelvinVoigtNetworkImpedance(...
+                  Href.frequency(Href.idxBWC2),...
+                  params,...
+                  modelSettings);
 
 %
 %Evaluate the error
 %
-npts=100;
-errorVector = zeros(npts,1);
+n=length(Href.frequency(Href.idxBWC2));
+
+errorVector = zeros(2*n,1);
 
 
-
-frequencyLB = modelParams.bandwidth*0.1;
-frequencyUB = modelParams.bandwidth*0.9;
-
-lambda = settings.lambda;
-
-switch settings.type
-    case 1
-        npts = 100;
-        for i=1:1:npts
-            freqHz = frequencyLB ...
-                  + (frequencyUB-frequencyLB)*((i-1)/npts);
-            gainMdl = interp1(modelResponse.frequencyHz,...
-                              modelResponse.gain,...
-                              freqHz);
-            gainExp = interp1(Href.frequencyHz,...
-                              Href.gain,...
-                              freqHz);
-            errorVector(i,1) = ...
-                ((gainExp-gainMdl).*(1-lambda) ...
-                                   + 0.*lambda)*settings.objScaling;
-        end
-    case 2
-        for i=1:1:npts
-            freqHz = frequencyLB ...
-                  + (frequencyUB-frequencyLB)*((i-1)/npts);
-            phaseMdl = interp1(modelResponse.frequencyHz,...
-                              modelResponse.phase,...
-                              freqHz);
-            phaseExp = interp1(Href.frequencyHz,...
-                              Href.phase,...
-                              freqHz);
-            errorVector(i,1) = ...
-                ((phaseExp-phaseMdl).*(1-lambda) ...
-                                    + 0.*lambda)*settings.objScaling;
-        end
-        
-    otherwise
-        assert(0,'Error: unrecognized errorType');
-end
+errorVector(1:n,1)      =   (Href.gain(Href.idxBWC2) ...
+                            -modelResponse.gain ...
+                            )*settings.objScaling(1,1);
+errorVector((n+1),2*n)  =   (Href.phase(Href.idxBWC2)...
+                            -modelResponse.phase ...
+                            ).*settings.objScaling(1,2);
+    
