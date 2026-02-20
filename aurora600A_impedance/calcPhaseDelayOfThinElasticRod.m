@@ -66,6 +66,9 @@ else
     assert(0,'Error: unrecognized material')
 end
 
-
-v = l*sqrt(k/m);
-delay = l/v;
+v=nan;
+delay=nan;
+if(~isempty(l) && ~isempty(k) && ~isempty(m))
+    v = l*sqrt(k/m);    
+    delay = l/v;
+end

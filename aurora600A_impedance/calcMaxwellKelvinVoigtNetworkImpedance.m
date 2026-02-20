@@ -2,7 +2,7 @@ function response = calcMaxwellKelvinVoigtNetworkImpedance(...
                                     omega,paramsIn,settings)
 
 
-params = getMaxwellKelvinVoigtNetworkParameters_upd(paramsIn, settings);
+params = getMaxwellKelvinVoigtNetworkParameters(paramsIn, settings);
 
 z = complex(0,0);
 ziInv = complex(0,0);
