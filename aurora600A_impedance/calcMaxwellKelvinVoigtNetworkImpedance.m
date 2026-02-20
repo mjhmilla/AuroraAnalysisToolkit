@@ -2,7 +2,7 @@ function response = calcMaxwellKelvinVoigtNetworkImpedance(...
                                     omega,paramsIn,settings)
 
 
-params = getMaxwellKelvinVoigtNetworkParameters(paramsIn, settings);
+params = getMaxwellKelvinVoigtNetworkParameters_upd(paramsIn, settings);
 
 z = complex(0,0);
 ziInv = complex(0,0);
@@ -10,7 +10,7 @@ ziInv = complex(0,0);
 lastBranch=nan;
 
 
-for i=1:1:length(params)
+for i=1:1:size(params,1)
     
     branchNo = params(i,1);
 
@@ -35,22 +35,33 @@ for i=1:1:length(params)
     end
     
     if(lastBranch == branchNo)
-        %If we're on the same branch, then add the admittance in series
-        ziInv = ziInv + 1./zj;
-    else
+        if(i==size(params,1))
+            ziInv = ziInv + 1./zj;
+            zi = 1./ziInv;
+            z = z + zi;
+        else
+            ziInv = ziInv + 1./zj;
+        end
+    elseif(lastBranch ~= branchNo)
         %If were on a new branch, then add the impedance of the last 
         %branch to the total impedance z. Start accumulating the admittance
-        %starting with zj.
-        zi = 1./ziInv;
-        z = z + zi;
-        
-        ziInv = 1./zj;
+        %starting with zj.       
+        if(i==size(params,1))
+            zi      = 1./ziInv;
+            z       = z + zi + zj;  
+        else
+            zi      = 1./ziInv;
+            z       = z + zi;        
+            ziInv   = 1./zj;
+        end        
     end
+
 
     lastBranch = branchNo;
 
 end
 response.frequency = omega;
+response.frequencyHz = omega./(2*pi);
 response.gain      = abs(z);
 response.phase     = angle(z);
 response.storage   = real(z);

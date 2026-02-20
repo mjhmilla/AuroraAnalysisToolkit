@@ -55,11 +55,23 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     idxLast =  find(coherenceSq(frequencyResponse.idxBW) ...
                     >= coherenceSquaredThreshold,1,'last');
 
-    frequencyResponse.idxBWC2 = ...
-        [frequencyResponse.idxBW(idxFirst):1:frequencyResponse.idxBW(idxLast)]';
 
-    frequencyResponse.bandwidthHz    = [];
-    frequencyResponse.bandwidthHzC2  = [];    
+    frequencyResponse.idxBWC2       = [];
+    frequencyResponse.bandwidthHzC2 = [];
+
+    if(~isempty(idxFirst) && ~isempty(idxLast))
+        frequencyResponse.idxBWC2 = ...
+            [   frequencyResponse.idxBW(idxFirst):1: ...
+                frequencyResponse.idxBW(idxLast)]';
+        frequencyResponse.bandwidthHzC2= ...
+            [   freqHz(frequencyResponse.idxBWC2(1,1)),...
+                 freqHz(frequencyResponse.idxBWC2(end,1))];           
+
+    end
+
+
+    
+        
 
 
 
@@ -67,8 +79,6 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.x            = xTimeDomain;
     frequencyResponse.y            = yTimeDomain;
     frequencyResponse.bandwidthHz  = bandwidth;
-    frequencyResponse.bandwidthHzC2= [freqHz(frequencyResponse.idxBWC2(1,1)),...
-                                      freqHz(frequencyResponse.idxBWC2(end,1))];       
     frequencyResponse.frequencyHz  = freqHz;
     frequencyResponse.frequency    = freqRadians;
     frequencyResponse.H            = cpsd_Gyx./cpsd_Gxx;    
