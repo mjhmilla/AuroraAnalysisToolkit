@@ -26,28 +26,24 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
       ' I have not yet derived the phase delay of a Maxwell-Kelvin-Voigt ',...
       'rod yet.']);
 
+experimentsToProcess = {
+  '20260116_impedance_larb_spring',...
+  '20260108_impedance_larb_spring',...   
+  '20251118_impedance_larb_1',...
+  '20251118_impedance_larb_2',...
+  '20251120_impedance_larb_3',...
+  '20251121_impedance_larb_4',...
+  '20251121_impedance_larb_5',...
+  '20251128_impedance_larb_6',...
+  '20251203_impedance_larb_7',...
+  '20251114_degradation_larb_1',...
+  '20251119_degradation_larb_2',...
+  '20251121_degradation_larb_3',...
+  '20251121_degradation_larb_4'...
+};
 
-
-% '20260116_impedance_larb_spring',...
-% '20260108_impedance_larb_spring',...    
-% '20251118_impedance_larb_1',...
-% '20251118_impedance_larb_2',...
-% '20251120_impedance_larb_3',...
-% '20251121_impedance_larb_4',...
-% '20251121_impedance_larb_5',...
-% '20251128_impedance_larb_6',...
-% '20251203_impedance_larb_7',...
-% '20251114_degradation_larb_1',...
-% '20251119_degradation_larb_2',...
-% '20251121_degradation_larb_3',...
-% '20251121_degradation_larb_4',...
-
-experimentsToProcess = { ...
-'20260109_impedance_temperature_pilot'};
-
-
-%experimentsToProcess = {'20251118_impedance_larb_1'};
-skipToTrialWithKeyword = [];%['_active_100Lo_'];
+% experimentsToProcess = {'20251203_impedance_larb_7'};
+ skipToTrialWithKeyword = [];%['_passive_100Lo_'];%['_active_070Lo_'];
 
 trialTypeKeywords = {'spring','degradation','impedance'};
 trialTypeName     = {'delay','degradation','impedance'};
@@ -56,14 +52,18 @@ specimenTypeName      = {'spring','fiber','fiber'};
 
 settings.checkDataIntegrity         = 1;
 settings.processData                = 1;
-settings.coherenceSquaredThreshold  = 0.8;
-settings.activationBathNumber       = 3;
-settings.deactivationBathNumber     = 1;
-settings.preactivationBathNumber    = 2;
-settings.timeBathChangeMs           = 1500;
-settings.isometricNoiseFilterCutoffFrequencyHz  = 30;
-settings.forceNoiseThresholdmN                  = 0.025;
+
+settings.trialsInPassiveActivePairs = 1;
+
 settings.optimalSarcomereLengthInUM             = 2.525;
+
+settings.activationBathNumber                   = 3;
+settings.deactivationBathNumber                 = 1;
+settings.preactivationBathNumber                = 2;
+settings.timeBathChangeMs                       = 1500;
+settings.isometricNoiseFilterCutoffFrequencyHz  = 30;
+settings.coherenceSquaredThreshold              = 0.8;
+settings.forceNoiseThresholdmN                  = 0.025;
 
 settings.useManuallySetDaqDelay = 1;
 settings.daqDelayModel          = 'frequency-domain'; 
@@ -76,6 +76,7 @@ settings.phaseDelayTolerance    = 1e-5;
 settings.phaseDelayMaxIteration = 50;
 
 settings.normFittingBandwidth = [0.05,1];
+settings.minAcceptableBandwidthFraction = 0.67;
 
 switch(settings.daqDelayModel)
     case 'time-domain'
@@ -88,13 +89,20 @@ switch(settings.daqDelayModel)
 end
 
 lineColors = getPaulTolColourSchemes('bright');
+settings.colorData0 = [0,0,0].*0.25 + [1,1,1].*0.75;
+settings.colorData1 = [0,0,0].*0.5  + [1,1,1].*0.5;
+settings.colorData2 = [0,0,0].*0.75 + [1,1,1].*0.25;
+
 %
 %Kelvin-Voigt Model
 %
 modelKV.name        = 'Kelvin-Voigt';
 modelKV.abbreviation= 'KV';
-modelKV.color       = [0,0,0];
-modelKV.lineType    = '--';
+modelKV.specimenTypes= {'spring','fiber'};
+modelKV.trialTypes   = {'delay','degradation','impedance'};
+modelKV.activityTypes= {'active','passive'};
+modelKV.color       = lineColors.green;
+modelKV.lineType    = '-';
 
 modelKV.parameters  = [1, 1,0.1,0,0];
 
@@ -116,27 +124,48 @@ modelKV.settings.defaultParameters=modelKV.parameters;
 %
 %   zij = (a + b*js)/(c + d*js);
 %
-modelMKV.name       = 'Maxwell--Kelvin-Voigt';
-modelMKV.abbreviation= 'MKV';
-modelMKV.color      = [0,0,0];
-modelMKV.lineType   = '-';
-
-modelMKV.parameters    = [1, 0,  1,1,1;...
+modelMKVp.name       = 'Maxwell--Kelvin-Voigt (P)';
+modelMKVp.abbreviation= 'MKVp';
+modelMKVp.specimenTypes= {'fiber'};
+modelMKVp.trialTypes   = {'degradation','impedance'};
+modelMKVp.activityTypes= {'passive'};
+modelMKVp.color      = lineColors.blue;
+modelMKVp.lineType   = '-';
+modelMKVp.parameters    = [1, 0,  1,1,1;...
                           1, 1,0.1,0,0];
-
-modelMKV.settings.applyParameterMap   = nan;
-modelMKV.settings.parameterMap =[1,3;...
+modelMKVp.settings.applyParameterMap   = nan;
+modelMKVp.settings.parameterMap =[1,3;...
                                  1,4;...
                                  2,2;...
                                  2,3]; 
-modelMKV.settings.defaultParameters=modelMKV.parameters;
+modelMKVp.settings.defaultParameters=modelMKVp.parameters;
+
+modelMKVa.name       = 'Maxwell--Kelvin-Voigt (P+A)';
+modelMKVa.abbreviation= 'MKVap';
+modelMKVa.specimenTypes= {'fiber'};
+modelMKVa.trialTypes   = {'impedance'};
+modelMKVa.activityTypes= {'active'};
+modelMKVa.color      = lineColors.red;
+modelMKVa.lineType   = '-';
+modelMKVa.parameters    = [1, 0,  1,1,1;...
+                          1, 1,0.1,0,0;...
+                          2, 0,  1,1,1;...
+                          2, 1,0.1,0,0];
+modelMKVa.settings.applyParameterMap   = nan;
+modelMKVa.settings.parameterMap =[3,3;...
+                                  3,4;...
+                                  4,2;...
+                                  4,3]; 
+modelMKVa.settings.defaultParameters=modelMKVa.parameters;
+
 %
 % Populate the model series struct
 %
-modelSeries(2)=struct('model',[]);
+modelSeries(3)=struct('model',[]);
 
 modelSeries(1).model = modelKV;
-modelSeries(2).model = modelMKV;
+modelSeries(2).model = modelMKVp;
+modelSeries(3).model = modelMKVa;
 
 for i=1:1:length(experimentsToProcess)
     fprintf('\n\n%s\n\n',experimentsToProcess{i});
@@ -149,6 +178,12 @@ for i=1:1:length(experimentsToProcess)
             specimenType=specimenTypeName{j};
         end
         j=j+1;
+    end
+
+    if(strcmp(specimenType,'fiber'))
+        settings.trialsInPassiveActivePairs=1;
+    else
+        settings.trialsInPassiveActivePairs=0;
     end
 
     runPipelineAnalyzeArbitraryWaveformFiberData600A_02_json(...
