@@ -27,7 +27,7 @@ assert(foundSpecimenType,...
       ' keywords: spring or fiber']);
 
 
-setOfTrialTypes = {'delay','degradation','impedance'};
+setOfTrialTypes = {'delay','degradation','impedance','impedance temperature'};
 foundTrialType=0;
 for i=1:1:length(setOfTrialTypes)
   if(strcmp(setOfTrialTypes{i},trialType))
@@ -116,96 +116,99 @@ lineColors = getPaulTolColourSchemes('bright');
 
 
 
+
+
 %%
 % Scan through the meta data 
 % - check the sha256 value
 % - count the total number of segments to plot. 
 %%
-if(settings.checkDataIntegrity==1)
 
    
-  setOfTrialsVerified=verifyDataIntegrityCompletnessOrder(...
-        dataFolder,experimentJson,fidLogFile,...
-        flag_readHeader,flag_checkSha256Sum);
+setOfTrialsVerified=verifyDataIntegrityCompletnessOrder(...
+                      dataFolder,experimentJson,fidLogFile,...
+                      settings.checkFileOrder,settings.checkSha256Sum);
 
-  totalNumberOfSegmentsToPlot = 0;
-  fprintf('%s\n','Preprocessing: ');
-  fprintf('%s\n','  Counting the number of segments to plot');
-  fprintf(fidLogFile,'%s\n','Preprocessing: ');
-  fprintf(fidLogFile,'%s\n','  Counting the number of segments to plot');
-  
-  for indexSetOfTrials=1:1:length(setOfTrialsVerified)
-  
-    i = setOfTrialsVerified(indexSetOfTrials);
-  
-    %%
-    % Read in the meta data
-    %%  
-    %fprintf('\t%s\n',experimentJson.trials{i});
-    trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
-    trialJson = jsondecode(trialStr);
-  
-  
-    %%
-    % Count the number of segments to plot and check if wave files exist
-    %%
-    setOfSegments=[];
-    numSegmentsToPlot = 0;
-    for j=1:1:length(trialJson.segments)
-      if(strcmp(trialJson.segments(j).type,keyword.label))
-        %assert(idxSeg==0,['Error: multiple segments have the name ',...
-        %          keyword.label]);
-        if(isempty(setOfSegments)==1)
-          setOfSegments = j;
-        else
-          setOfSegments = [setOfSegments;j];
-        end      
-      end
-      if(strcmp(trialJson.segments(j).type,'Larb-Stochastic'))
-        waveFile = '';
-        for k=1:1:length(trialJson.segments(j).meta_data.file)
-          if(k==1)
-            waveFile = trialJson.segments(j).meta_data.file{k};
-          else
-            waveFile = [waveFile,filesep,...
-                  trialJson.segments(j).meta_data.file{k}];
-          end
-        end
-        waveFilePath = fullfile(dataFolder, waveFile);
-        if( ~exist(waveFilePath,'file'))
-          fprintf('%s\n','  Error: wave file not found: ');
-          fprintf('%s\n',['  ', waveFilePath]);
-          fprintf(fidLogFile,'%s\n','  Error: wave file not found: ');
-          fprintf(fidLogFile,'%s\n',['  ', waveFilePath]);
-        end
-  
-      end
-    end  
-  
-    if(isempty(setOfSegments))
-      fprintf(fidLogFile,'%s\n', ...
-          ['Error: could not find segment with ',keyword.label]);
+
+totalNumberOfSegmentsToPlot = 0;
+fprintf('%s\n','Preprocessing: ');
+fprintf('%s\n','  Counting the number of segments to plot');
+fprintf(fidLogFile,'%s\n','Preprocessing: ');
+fprintf(fidLogFile,'%s\n','  Counting the number of segments to plot');
+
+for indexSetOfTrials=1:1:length(setOfTrialsVerified)
+
+  i = setOfTrialsVerified(indexSetOfTrials);
+
+  %%
+  % Read in the meta data
+  %%  
+  %fprintf('\t%s\n',experimentJson.trials{i});
+  trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
+  trialJson = jsondecode(trialStr);
+
+
+  %%
+  % Count the number of segments to plot and check if wave files exist
+  %%
+  setOfSegments=[];
+  numSegmentsToPlot = 0;
+  for j=1:1:length(trialJson.segments)
+    if(strcmp(trialJson.segments(j).type,keyword.label))
+      %assert(idxSeg==0,['Error: multiple segments have the name ',...
+      %          keyword.label]);
+      if(isempty(setOfSegments)==1)
+        setOfSegments = j;
+      else
+        setOfSegments = [setOfSegments;j];
+      end      
     end
-  
-    assert(~isempty(setOfSegments),...
+    if(strcmp(trialJson.segments(j).type,'Larb-Stochastic'))
+      waveFile = '';
+      for k=1:1:length(trialJson.segments(j).meta_data.file)
+        if(k==1)
+          waveFile = trialJson.segments(j).meta_data.file{k};
+        else
+          waveFile = [waveFile,filesep,...
+                trialJson.segments(j).meta_data.file{k}];
+        end
+      end
+      waveFilePath = fullfile(dataFolder, waveFile);
+      if( ~exist(waveFilePath,'file'))
+        fprintf('%s\n','  Error: wave file not found: ');
+        fprintf('%s\n',['  ', waveFilePath]);
+        fprintf(fidLogFile,'%s\n','  Error: wave file not found: ');
+        fprintf(fidLogFile,'%s\n',['  ', waveFilePath]);
+      end
+
+    end
+  end  
+
+  if(isempty(setOfSegments))
+    fprintf(fidLogFile,'%s\n', ...
         ['Error: could not find segment with ',keyword.label]);
-    if(length(setOfSegments) > totalNumberOfSegmentsToPlot)
-      totalNumberOfSegmentsToPlot = length(setOfSegments);
-    end  
   end
 
-  fprintf('\t%i segments found\n',totalNumberOfSegmentsToPlot);
-  fprintf(fidLogFile,'\t%i segments found\n',totalNumberOfSegmentsToPlot);
-
-  
+  assert(~isempty(setOfSegments),...
+      ['Error: could not find segment with ',keyword.label]);
+  if(length(setOfSegments) > totalNumberOfSegmentsToPlot)
+    totalNumberOfSegmentsToPlot = length(setOfSegments);
+  end  
 end
+
+fprintf('\t%i segments found\n',totalNumberOfSegmentsToPlot);
+fprintf(fidLogFile,'\t%i segments found\n',totalNumberOfSegmentsToPlot);
+
+
 
 if(settings.processData==1)
   
   setOfTrials = [];
   if(~isempty(setOfTrialsVerified))
     if(~isempty(fileKeyWord))      
-      for i=1:1:length(setOfTrialsVerified)
+      for idxSoT=1:1:length(setOfTrialsVerified)
+        i = setOfTrialsVerified(idxSoT);
+        disp(experimentJson.trials{i});
         if(contains(experimentJson.trials{i},fileKeyWord))
           setOfTrials = [setOfTrials; i];
         end
@@ -231,7 +234,7 @@ if(settings.processData==1)
   % Plot the segment data
   %  
   numberOfHorizontalPlotColumnsGeneric  = length(setOfTrials);
-  numberOfVerticalPlotRowsGeneric     = 4*totalNumberOfSegmentsToPlot;
+  numberOfVerticalPlotRowsGeneric     = 5*totalNumberOfSegmentsToPlot;
   % 1. Time domain
   % 2. gain
   % 3. phase
@@ -943,6 +946,92 @@ if(settings.processData==1)
         delayModel.daqDelayCompensated=1;
         
         %%
+        % If this is an impedance-temperature study, then try to remove
+        % any variation in the low frequency mean. This sometimes happens
+        % because fibers at the higher temperature do not maintain a
+        % stable force for long.
+        %%
+        if(strcmp(trialType,'impedance temperature'))
+          wn = settings.impedanceTemperatureBaseLineFilterHz ...
+               / (0.5*segData.sampleFrequency);
+          [b,a] = butter(2,wn,'low');
+          yBase0 = filtfilt(b,a,segData.H2.y);
+          yFlat = segData.H2.y-yBase0;
+          yBase1= filtfilt(b,a,yFlat);
+          segData.H3 = evaluateGainPhaseCoherenceSq(  ...
+                        segData.H2.time,...
+                        segData.H2.x,...
+                        yFlat,...
+                        segData.bandwidth,...
+                        segData.sampleFrequency,...
+                        settings.coherenceSquaredThreshold,...
+                        settings.minAcceptableBandwidthFraction); 
+          flag_debugH3=0;
+          if(flag_debugH3==1)
+            figDebugFlat = figure;
+            subplot(1,4,1);
+              plot(segData.H2.time,segData.H2.y,'-','Color',[1,1,1].*0.75);
+              hold on;
+              plot(segData.H2.time,yFlat,'-','Color',[1,1,1].*0.25);            
+              hold on;
+              plot(segData.H2.time,yBase0,'-','Color',[0,0,1]);            
+              hold on;
+              plot(segData.H2.time,yBase1,'-','Color',[1,0,0]);            
+              hold on;
+              xlabel('Time (ms)');
+              ylabel('Force (mN)');
+            subplot(1,4,2);
+              plot(segData.H2.frequencyHz(segData.H2.idxBW),...
+                   segData.H2.gain(segData.H2.idxBW),...
+                   '-','Color',[1,1,1].*0.5);
+              hold on;
+              plot(segData.H3.frequencyHz(segData.H3.idxBW),...
+                   segData.H3.gain(segData.H3.idxBW),...
+                   '-','Color',[0,0,0]);
+              hold on;
+              xlabel('Frequency (Hz)');
+              ylabel('Gain (mN/mm)');
+            subplot(1,4,3);
+              plot(segData.H2.frequencyHz(segData.H2.idxBW),...
+                   segData.H2.phase(segData.H2.idxBW).*(180/pi),...
+                   '-','Color',[1,1,1].*0.5);
+              hold on;
+              plot(segData.H3.frequencyHz(segData.H3.idxBW),...
+                   segData.H3.phase(segData.H3.idxBW).*(180/pi),...
+                   '-','Color',[0,0,0]);
+              hold on;
+              xlabel('Frequency (Hz)');
+              ylabel('Phase (degrees)');
+            subplot(1,4,4);
+              plot(segData.H2.frequencyHz(segData.H2.idxBW),...
+                   segData.H2.coherenceSq(segData.H2.idxBW),...
+                   '-','Color',[1,1,1].*0.5);
+              hold on;
+              plot(segData.H3.frequencyHz(segData.H3.idxBW),...
+                   segData.H3.coherenceSq(segData.H3.idxBW),...
+                   '-','Color',[0,0,0]);
+              hold on;
+              xlabel('Frequency (Hz)');
+              ylabel('Coherence Sq');
+          end
+
+        end
+      
+        switch trialType
+          case 'delay'
+            segData.H = segData.H2;
+          case 'degradation'
+            segData.H = segData.H2;
+          case 'impedance'
+            segData.H = segData.H2;
+          case 'impedance temperature'
+            segData.H = segData.H3;
+          otherwise
+            assert(0,'Error: invalid trialType');
+        end
+
+
+        %%
         % Fit the impedance model(s)
         %%
       
@@ -953,7 +1042,7 @@ if(settings.processData==1)
 
         optSettings.objScaling = [1,1]; %gain and phase error
         
-        if(~isempty(segData.H2.idxBWC2))
+        if(~isempty(segData.H.idxBWC2))
           modelSeriesToFit = [];
           fittedModelSeries = modelSeries;
 
@@ -1014,42 +1103,47 @@ if(settings.processData==1)
             if(trialJson.segments(idxSeg).meta_data.is_active==1 ...
               && strcmp(modelSeries(idxMdl).model.abbreviation,'MKVap'))
 
-              assert(settings.trialsInPassiveActivePairs==1,...
-                   ['Error: trialsInPassiveActivePairs is not true',...
-                  ' it is not clear to to find the passive trial']);
-              outputJsonDir = fullfile(projectFolders.output_json,folderName);
-              jsonPassiveFileName = ['analysis_',experimentJson.trials{idxTrial-1}];
+              if(settings.trialsInPassiveActivePairs==1)
+                outputJsonDir = fullfile(projectFolders.output_json,folderName);
+                jsonPassiveFileName = ['analysis_',experimentJson.trials{idxTrial-1}];
+  
+                passiveExpStr   = fileread(fullfile(outputJsonDir,jsonPassiveFileName));
+                passiveExpJson  = jsondecode(passiveExpStr);
+  
+                updatedPassiveParams=0;
+                %
+                % A model will only exist if the coherence-sq threshold is 
+                % met by the data.
+                %
+                if(isfield(passiveExpJson(idxSeg).segment,'model'))
+                  if(isfield(passiveExpJson(idxSeg).segment.model,'MKVp'))
+                    indexPE = modelSeries(idxMdl).model.settings.indexParallelElement;
 
-              passiveExpStr   = fileread(fullfile(outputJsonDir,jsonPassiveFileName));
-              passiveExpJson  = jsondecode(passiveExpStr);
-
-              updatedPassiveParams=0;
-              %
-              % A model will only exist if the coherence-sq threshold is 
-              % met by the data.
-              %
-              if(isfield(passiveExpJson(idxSeg).segment,'model'))
-                if(isfield(passiveExpJson(idxSeg).segment.model,'MKVp'))
-                  
-                  modelSeries(idxMdl).model.parameters(1,:)= ...
-                    passiveExpJson(idxSeg).segment.model.MKVp.parameters(1,:);
-                  modelSeries(idxMdl).model.parameters(2,:)= ...
-                    passiveExpJson(idxSeg).segment.model.MKVp.parameters(2,:);
-
-                  modelSeries(idxMdl).model.settings.defaultParameters(1,:)= ...
-                    passiveExpJson(idxSeg).segment.model.MKVp.parameters(1,:);
-                  modelSeries(idxMdl).model.settings.defaultParameters(2,:)= ...
-                    passiveExpJson(idxSeg).segment.model.MKVp.parameters(2,:);
-
-                  updatedPassiveParams=1;
-                end                
-              end
-              
-              if(updatedPassiveParams==0)
-                modelSeries(idxMdl).model.parameters(1,:)=[1,0,0,0,0];
-                modelSeries(idxMdl).model.parameters(2,:)=[1,0,0,0,0];
-                modelSeries(idxMdl).model.defaultParameters(1,:)=[1,0,0,0,0];
-                modelSeries(idxMdl).model.defaultParameters(2,:)=[1,0,0,0,0];
+                    if(~isempty(indexPE))
+                      modelSeries(idxMdl).model.parameters(indexPE,:)= ...
+                        passiveExpJson(idxSeg).segment.model.MKVp.parameters(indexPE,:);
+    
+                      modelSeries(idxMdl).model.settings.defaultParameters(indexPE,:)= ...
+                        passiveExpJson(idxSeg).segment.model.MKVp.parameters(indexPE,:);
+                    end
+  
+                    updatedPassiveParams=1;
+                  end                
+                end
+                
+                if(updatedPassiveParams==0)
+                  indexPE = modelSeries(idxMdl).model.settings.indexParallelElement;
+                  if(~isempty(indexPE))
+                    modelSeries(idxMdl).model.parameters(indexPE,:)=[1,0,0,0,0];
+                    modelSeries(idxMdl).model.defaultParameters(indexPE,:)=[1,0,0,0,0];
+                  end
+                end
+              else
+                indexPE = modelSeries(idxMdl).model.settings.indexParallelElement;
+                if(~isempty(indexPE))
+                  modelSeries(idxMdl).model.parameters(indexPE,:)=[1,0,0,0,0];
+                  modelSeries(idxMdl).model.defaultParameters(indexPE,:)=[1,0,0,0,0];
+                end
               end
               
               fittedModelSeries(idxMdl).model = modelSeries(idxMdl).model;
@@ -1076,7 +1170,7 @@ if(settings.processData==1)
             errFcn = @(argX)calcErrorOfImpedanceModel600A(...
                       argX, ...
                       modelSeries(idxMdl).model.settings, ...                  
-                      segData.H2,...
+                      segData.H,...
                       optSettings);
   
             errVec = errFcn(x0);
@@ -1101,28 +1195,28 @@ if(settings.processData==1)
           
             fittedModelSeries(idxMdl).model.response ...
               = calcMaxwellKelvinVoigtNetworkImpedance(...
-                  segData.H2.frequency(segData.H2.idxBWC2),...
+                  segData.H.frequency(segData.H.idxBWC2),...
                   xFit,...
                   modelSeries(idxMdl).model.settings);
   
-            idxBWC2 = segData.H2.idxBWC2;
+            idxBWC2 = segData.H.idxBWC2;
               
             fittedModelSeries(idxMdl).model.rmse.gain =...
               sqrt( mean( ...
               (fittedModelSeries(idxMdl).model.response.gain ...
-               -segData.H2.gain(idxBWC2)).^2 ));
+               -segData.H.gain(idxBWC2)).^2 ));
             fittedModelSeries(idxMdl).model.rmse.phase = ...
               sqrt( mean( ...
               (fittedModelSeries(idxMdl).model.response.phase ...
-              -segData.H2.phase(idxBWC2)).^2 ));
+              -segData.H.phase(idxBWC2)).^2 ));
             fittedModelSeries(idxMdl).model.rmse.storage = ...
               sqrt( mean(... 
               (fittedModelSeries(idxMdl).model.response.storage ...
-              -segData.H2.storage(idxBWC2)).^2 ));
+              -segData.H.storage(idxBWC2)).^2 ));
             fittedModelSeries(idxMdl).model.rmse.loss = ...
               sqrt( mean( ...
               (fittedModelSeries(idxMdl).model.response.loss ...
-              -segData.H2.loss(idxBWC2)).^2 ));
+              -segData.H.loss(idxBWC2)).^2 ));
              
           end
         end
@@ -1156,7 +1250,7 @@ if(settings.processData==1)
         %     kelvinVoigtRodModel = ...
         %       evaluateDelayModelThinKelvinVoigtRod(...
         %             k_Nm,beta_Nms,length_M,area_M2,...
-        %             rho_kgm3,segData.H2.frequency,...
+        %             rho_kgm3,segData.H.frequency,...
         %             flag_plot);
         %     
         %   end
@@ -1224,72 +1318,73 @@ if(settings.processData==1)
       end
     
   
-      hStages = {'H0','H1','H2'};
+      hStages = {'H','H0','H1','H2','H3'};
 
       for idxH = 1:1:length(hStages)
         hStr = hStages{idxH};
 
-        idxBW = segData.(hStr).idxBW;
-        
-        responseFields = fields(segData.(hStr));
-        idxBW = segData.(hStr).idxBW;
-        fieldsToSkip ={'H'};
-        fieldsToBWLimit = ...
-          {'frequencyHz','frequency','gain','phase',...
-           'storage','loss','coherenceSq'};
-        for idxF = 1:1:length(responseFields)
-          fStr = responseFields{idxF};
-          flag_skip = 0;
-          for idxS = 1:1:length(fieldsToSkip)
-            if(strcmp(responseFields{idxF},fieldsToSkip{idxS}))
-              flag_skip=1;
-            end
-          end
+        if(isfield(segData,hStr))
+          idxBW = segData.(hStr).idxBW;
           
-          flag_bwlimit=0;
-          for idxL = 1:1:length(fieldsToBWLimit)
-            if(strcmp(responseFields{idxF},fieldsToBWLimit{idxL}))
-              flag_bwlimit=1;
+          responseFields = fields(segData.(hStr));
+          idxBW = segData.(hStr).idxBW;
+          fieldsToSkip ={'H'};
+          fieldsToBWLimit = ...
+            {'frequencyHz','frequency','gain','phase',...
+             'storage','loss','coherenceSq'};
+          for idxF = 1:1:length(responseFields)
+            fStr = responseFields{idxF};
+            flag_skip = 0;
+            for idxS = 1:1:length(fieldsToSkip)
+              if(strcmp(responseFields{idxF},fieldsToSkip{idxS}))
+                flag_skip=1;
+              end
             end
-          end
-
-          if(flag_skip==0)
-            if(flag_bwlimit==0)
-              segmentJson.(hStr).(fStr)=segData.(hStr).(fStr);
-            else
-              segmentJson.(hStr).(fStr)=segData.(hStr).(fStr)(idxBW);
+            
+            flag_bwlimit=0;
+            for idxL = 1:1:length(fieldsToBWLimit)
+              if(strcmp(responseFields{idxF},fieldsToBWLimit{idxL}))
+                flag_bwlimit=1;
+              end
             end
+  
+            if(flag_skip==0)
+              if(flag_bwlimit==0)
+                segmentJson.(hStr).(fStr)=segData.(hStr).(fStr);
+              else
+                segmentJson.(hStr).(fStr)=segData.(hStr).(fStr)(idxBW);
+              end
+            end
+  
           end
-
+          %
+          % There is no way to encode complex numbers, so we must
+          % cut H out.
+          %
+  %         segmentJson.(hStr) = segData.(hStr);         
+  %         segmentJson.(hStr).H = [];
+  
+          
+          segmentJson.(hStr).summary.gain = ...
+            getSummaryStatistics(segData.(hStr).gain(idxBW));      
+          segmentJson.(hStr).summary.phase = ...
+            getSummaryStatistics(segData.(hStr).phase(idxBW));
+          segmentJson.(hStr).summary.storage = ...
+            getSummaryStatistics(segData.(hStr).storage(idxBW));      
+          segmentJson.(hStr).summary.loss = ...
+            getSummaryStatistics(segData.(hStr).loss(idxBW));
+          segmentJson.(hStr).summary.coherenceSq = ...
+            getSummaryStatistics(segData.(hStr).coherenceSq(idxBW));
+  
+          segmentJson.(hStr).units.gain = ...
+            [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
+          segmentJson.(hStr).units.phase = 'radians';
+          segmentJson.(hStr).units.storage = ...
+            [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
+          segmentJson.(hStr).units.loss = ...
+            [auroraData.Data.Fin.Unit,'s/',auroraData.Data.Lin.Unit];
+          segmentJson.(hStr).units.coherenceSq = '';
         end
-        %
-        % There is no way to encode complex numbers, so we must
-        % cut H out.
-        %
-%         segmentJson.(hStr) = segData.(hStr);         
-%         segmentJson.(hStr).H = [];
-
-        
-        segmentJson.(hStr).summary.gain = ...
-          getSummaryStatistics(segData.(hStr).gain(idxBW));      
-        segmentJson.(hStr).summary.phase = ...
-          getSummaryStatistics(segData.(hStr).phase(idxBW));
-        segmentJson.(hStr).summary.storage = ...
-          getSummaryStatistics(segData.(hStr).storage(idxBW));      
-        segmentJson.(hStr).summary.loss = ...
-          getSummaryStatistics(segData.(hStr).loss(idxBW));
-        segmentJson.(hStr).summary.coherenceSq = ...
-          getSummaryStatistics(segData.(hStr).coherenceSq(idxBW));
-
-        segmentJson.(hStr).units.gain = ...
-          [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
-        segmentJson.(hStr).units.phase = 'radians';
-        segmentJson.(hStr).units.storage = ...
-          [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
-        segmentJson.(hStr).units.loss = ...
-          [auroraData.Data.Fin.Unit,'s/',auroraData.Data.Lin.Unit];
-        segmentJson.(hStr).units.coherenceSq = '';
-
       end
 
       % if(strcmp(experimentJson.experiment.material,'muscle'))
@@ -1329,7 +1424,7 @@ if(settings.processData==1)
       segmentJson.delayModel.daqDelayCompensated ...
         = delayModel.daqDelayCompensated;
 
-      if(~isempty(segData.H2.idxBWC2))
+      if(~isempty(segData.H.idxBWC2))
         for idxMdl = 1:1:length(fittedModelSeries)
   
           abb = modelSeries(idxMdl).model.abbreviation;
@@ -1358,7 +1453,7 @@ if(settings.processData==1)
       %%
       figure(figSegments);
     
-      idxRow = (idxSeg-1)*4 + 1;
+      idxRow = (idxSeg-1)*5 + 1;
       subplot('Position',reshape(...
         subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));    
       yyaxis left;
@@ -1391,7 +1486,7 @@ if(settings.processData==1)
       % Plot the gain response 
       %%  
       if(xyDataIsValid==1)
-        idxRow = (idxSeg-1)*4 + 2;
+        idxRow = (idxSeg-1)*5 + 2;
         subplot('Position',reshape(...
           subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4)); 
 
@@ -1408,8 +1503,14 @@ if(settings.processData==1)
           segData.H2.gain(segData.H2.idxBW),...
           '-','Color',settings.colorData2);
         hold on;
+        if(isfield(segData,'H3'))
+          plot(segData.H3.frequencyHz(segData.H3.idxBW),...
+            segData.H3.gain(segData.H3.idxBW),...
+            '-','Color',settings.colorData3);
+          hold on;
+        end
           
-        if(~isempty(segData.H2.idxBWC2))
+        if(~isempty(segData.H.idxBWC2))
           for idxMdl=1:1:length(fittedModelSeries)  
             if(~isempty(fittedModelSeries(idxMdl).model))
               plot(fittedModelSeries(idxMdl).model.response.frequencyHz,...
@@ -1420,19 +1521,19 @@ if(settings.processData==1)
             end
           end
           for j=1:1:2
-            plot([segData.H2.bandwidthHzC2(j);...
-                segData.H2.bandwidthHzC2(j)],...
-               [min(segData.H2.gain(segData.H2.idxBW)),...
-                max(segData.H2.gain(segData.H2.idxBW))],...
-               '-','Color',lineColors.grey);
+            plot([segData.H.bandwidthHzC2(j);...
+                  segData.H.bandwidthHzC2(j)],...
+                 [min(segData.H.gain(segData.H.idxBW)),...
+                  max(segData.H.gain(segData.H.idxBW))],...
+                 '-','Color',lineColors.grey);
             hold on;
           end
         end
 
 %         switch settings.daqDelayModel
 %           case 'time-domain'
-%             text(max(segData.H2.frequencyHz(segData.H2.idxBW)),...
-%                min(segData.H2.gain(segData.H2.idxBW)),...
+%             text(max(segData.H.frequencyHz(segData.H.idxBW)),...
+%                min(segData.H.gain(segData.H.idxBW)),...
 %                sprintf(['%1.2e k\n',...
 %                     '%1.2e beta\n',...
 %                     '%1.2e delay'],...
@@ -1443,8 +1544,8 @@ if(settings.processData==1)
 %                    'VerticalAlignment','bottom',...
 %                    'FontSize',8);
 %           case 'frequency-domain'
-%             text(max(segData.H2.frequencyHz(segData.H2.idxBW)),...
-%                min(segData.H2.gain(segData.H2.idxBW)),...
+%             text(max(segData.H.frequencyHz(segData.H.idxBW)),...
+%                min(segData.H.gain(segData.H.idxBW)),...
 %                sprintf(['%1.2e k\n',...
 %                     '%1.2e beta\n',...
 %                     '%1.2e Hz %s'],...
@@ -1473,7 +1574,7 @@ if(settings.processData==1)
       %%      
       if(xyDataIsValid==1)   
 
-        idxRow = (idxSeg-1)*4 + 3;
+        idxRow = (idxSeg-1)*5 + 3;
         subplot('Position',reshape(...
           subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
 
@@ -1485,12 +1586,18 @@ if(settings.processData==1)
            segData.H1.phase(segData.H1.idxBW).*(180/pi),...
            '-','Color',settings.colorData1);
         hold on;
-        plot(segData.H2.frequencyHz(segData.H2.idxBW),...
-             segData.H2.phase(segData.H2.idxBW).*(180/pi),...
+        plot(segData.H2.frequencyHz(segData.H.idxBW),...
+             segData.H2.phase(segData.H.idxBW).*(180/pi),...
              '-','Color',settings.colorData2);
         hold on;
+        if(isfield(segData,'H3'))
+          plot(segData.H3.frequencyHz(segData.H3.idxBW),...
+               segData.H3.phase(segData.H3.idxBW).*(180/pi),...
+               '-','Color',settings.colorData3);
+          hold on;
+        end
 
-        if(~isempty(segData.H2.idxBWC2))          
+        if(~isempty(segData.H.idxBWC2))          
           for idxMdl=1:1:length(fittedModelSeries)
             if(~isempty(fittedModelSeries(idxMdl).model))
               plot(fittedModelSeries(idxMdl).model.response.frequencyHz,...
@@ -1501,10 +1608,9 @@ if(settings.processData==1)
             end
           end
           for j=1:1:2
-            plot([segData.H2.bandwidthHzC2(j);...
-                segData.H2.bandwidthHzC2(j)],...
-               [min(segData.H2.phase(segData.H2.idxBW).*(180/pi)),...
-                max(segData.H2.phase(segData.H2.idxBW).*(180/pi))],...
+            plot([segData.H.bandwidthHzC2(j);...
+                segData.H.bandwidthHzC2(j)],...
+               [0,45],...
                '-','Color',lineColors.grey);
             hold on;
           end
@@ -1521,10 +1627,60 @@ if(settings.processData==1)
       end
     
       %%
+      % Plot storage vs loss
+      %%      
+      if(xyDataIsValid==1)   
+
+        idxRow = (idxSeg-1)*4 + 4;
+        subplot('Position',reshape(...
+          subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
+
+        plot(segData.H0.storage(segData.H0.idxBW),...
+           segData.H0.loss(segData.H0.idxBW),...
+           '-','Color',settings.colorData0);
+        hold on;
+        plot(segData.H1.storage(segData.H1.idxBW),...
+           segData.H1.loss(segData.H1.idxBW),...
+           '-','Color',settings.colorData1);
+        hold on;
+        plot(segData.H2.storage(segData.H.idxBW),...
+             segData.H2.loss(segData.H.idxBW),...
+             '-','Color',settings.colorData2);
+        hold on;
+        if(isfield(segData,'H3'))
+          plot(segData.H3.storage(segData.H3.idxBW),...
+               segData.H3.loss(segData.H3.idxBW),...
+               '-','Color',settings.colorData3);
+          hold on;
+        end
+
+        if(~isempty(segData.H.idxBWC2))          
+          for idxMdl=1:1:length(fittedModelSeries)
+            if(~isempty(fittedModelSeries(idxMdl).model))
+              plot(fittedModelSeries(idxMdl).model.response.storage,...
+                 fittedModelSeries(idxMdl).model.response.loss,...
+                 fittedModelSeries(idxMdl).model.lineType,...
+                 'Color', fittedModelSeries(idxMdl).model.color);
+              hold on;  
+            end
+          end
+        end
+        
+        
+        
+        box off;  
+        xlabel('Storage (mm/mN)');
+        ylabel('Loss (mN/(mm/s))');
+    
+        titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
+        title(titleId);
+      end
+
+      %%
       % Plot the coherence-sq response 
       %%      
       if(xyDataIsValid==1)
-        idxRow = (idxSeg-1)*4 + 4;
+        idxRow = (idxSeg-1)*5 + 5;
         subplot('Position',reshape(...
           subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
 
@@ -1541,12 +1697,12 @@ if(settings.processData==1)
           '-','Color',settings.colorData2);
         hold on;
 
-        if(~isempty(segData.H2.idxBWC2))                    
+        if(~isempty(segData.H.idxBWC2))                    
           for j=1:1:2
-            plot([segData.H2.bandwidthHzC2(j);...
-                segData.H2.bandwidthHzC2(j)],...
-               [min(segData.H2.coherenceSq(segData.H2.idxBW)),...
-                max(segData.H2.coherenceSq(segData.H2.idxBW))],...
+            plot([segData.H.bandwidthHzC2(j);...
+                segData.H.bandwidthHzC2(j)],...
+               [min(segData.H.coherenceSq(segData.H.idxBW)),...
+                max(segData.H.coherenceSq(segData.H.idxBW))],...
                '-','Color',lineColors.grey);
             hold on;
           end
