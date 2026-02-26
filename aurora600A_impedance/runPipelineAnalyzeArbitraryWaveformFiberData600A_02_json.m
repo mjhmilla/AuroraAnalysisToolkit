@@ -1180,9 +1180,10 @@ if(settings.processData==1)
             optSettings.objScaling = ...
               [1/sqrt(mean(errGain.^2)) 1/sqrt(mean(errPhase.^2))];
   
-            lb = zeros(size(x0,1),1);
+            lb = [];%zeros(size(x0,1),1);
+            ub = [];
             [xFit, resnorm, residual,exitflag,output] = ...
-              lsqnonlin(errFcn,x0,lb,[],lsqnonlinOptions);
+              lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
           
             %
             % Evaluate the fitted model response
@@ -1308,6 +1309,7 @@ if(settings.processData==1)
       segmentJson.unit.length     = auroraData.Data.Lin.Unit;
       segmentJson.unit.force      = auroraData.Data.Fin.Unit;
       segmentJson.unit.temperature  = 'C';
+      segmentJson.unit.time         = auroraData.Data.Time.Unit;
       segmentJson.channel.length    = 'Lin';
       segmentJson.channel.force     = 'Fin';
       segmentJson.channel.temperature = 'Aux 1';

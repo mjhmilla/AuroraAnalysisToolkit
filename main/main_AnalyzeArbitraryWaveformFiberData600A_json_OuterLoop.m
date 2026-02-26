@@ -43,7 +43,7 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
 % };
 
  experimentsToProcess = {'20260109_impedance_temperature_pilot'};
- skipToTrialWithKeyword = ['larb_06_active_100Lo_20260109_22C'];%['larb_06_active_100Lo_20260109_22C'];%['_passive_100Lo_'];%['_active_070Lo_'];
+ skipToTrialWithKeyword = [];%['larb_06_active_100Lo_20260109_22C'];%['larb_06_active_100Lo_20260109_22C'];%['_passive_100Lo_'];%['_active_070Lo_'];
 
 trialTypeKeywords = {'spring','degradation','impedance_temperature','impedance'};
 trialTypeName     = {'delay','degradation','impedance temperature','impedance'};
@@ -191,16 +191,16 @@ modelMKV3a.settings.parameterMap =[ 3,3;...
 modelMKV3a.settings.defaultParameters=modelMKV3a.parameters;
 modelMKV3a.settings.indexParallelElement = [1,2];
 
-modelM3a.name       = 'Triple Maxwell (P+A)';
-modelM3a.abbreviation= 'M3ap';
+modelM3a.name       = 'Triple Maxwell';
+modelM3a.abbreviation= 'M3';
 modelM3a.specimenTypes= {'fiber'};
 modelM3a.trialTypes   = {'impedance','impedance temperature'};
 modelM3a.activityTypes= {'active'};
 modelM3a.color      = lineColors.purple;
 modelM3a.lineType   = '-';
 modelM3a.parameters    = [1, 0,  1,0.87*2*pi, 1;...
-                          1, 0,  1,21.9*2*pi, 1;...
-                          1, 0,  1,83.8*2*pi, 1];
+                          2, 0,  1,21.9*2*pi, 1;...
+                          3, 0,  1,83.8*2*pi, 1];
 modelM3a.settings.applyParameterMap   = nan;
 modelM3a.settings.parameterMap =[ 1,3;...
                                   1,4;...
