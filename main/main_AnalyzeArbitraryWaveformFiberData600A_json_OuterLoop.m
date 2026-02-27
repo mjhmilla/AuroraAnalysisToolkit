@@ -42,12 +42,23 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
 %   '20251121_degradation_larb_4'...
 % };
 
- experimentsToProcess = {'20260109_impedance_temperature_pilot'};
- skipToTrialWithKeyword = [];%['larb_06_active_100Lo_20260109_22C'];%['larb_06_active_100Lo_20260109_22C'];%['_passive_100Lo_'];%['_active_070Lo_'];
+%  experimentsToProcess = { '20251118_impedance_larb_1',...
+%                           '20251118_impedance_larb_2',...
+%                           '20251120_impedance_larb_3',...
+%                           '20251121_impedance_larb_4',...
+%                           '20251121_impedance_larb_5',...
+%                           '20251128_impedance_larb_6',...
+%                           '20251203_impedance_larb_7'};
+
+ experimentsToProcess = { '20251128_impedance_larb_6'};
+ skipToTrialWithKeyword = ['_passive_055Lo_'];
+ 
+ %{'20260109_impedance_temperature_pilot'};
+ %['larb_06_active_100Lo_20260109_22C'];%['larb_06_active_100Lo_20260109_22C'];%['_passive_100Lo_'];%['_active_070Lo_'];
 
 trialTypeKeywords = {'spring','degradation','impedance_temperature','impedance'};
 trialTypeName     = {'delay','degradation','impedance temperature','impedance'};
-specimenTypeName      = {'spring','fiber','fiber'};
+specimenTypeName      = {'spring','fiber','fiber','fiber'};
 
 
 settings.checkSha256Sum             = 0;
@@ -66,6 +77,8 @@ settings.timeBathChangeMs                       = 1500;
 settings.isometricNoiseFilterCutoffFrequencyHz  = 30;
 settings.coherenceSquaredThreshold              = 0.8;
 settings.forceNoiseThresholdmN                  = 0.025;
+
+settings.prePerburationWindowMs                 = 100;
 
 settings.useManuallySetDaqDelay = 1;
 settings.daqDelayModel          = 'frequency-domain'; 
@@ -213,14 +226,14 @@ modelM3a.settings.indexParallelElement = [];
 %
 % Populate the model series struct
 %
-modelSeries(1)=struct('model',[]);
-modelSeries(1).model = modelM3a;
+modelSeries(5)=struct('model',[]);
+%modelSeries(1).model = modelM3a;
 
-% modelSeries(1).model = modelKV;
-% modelSeries(2).model = modelMKVp;
-% modelSeries(3).model = modelMKVa;
-% modelSeries(4).model = modelMKV2a;
-% modelSeries(5).model = modelM3a;
+modelSeries(1).model = modelKV;
+modelSeries(2).model = modelMKVp;
+modelSeries(3).model = modelMKVa;
+modelSeries(4).model = modelMKV3a;
+modelSeries(5).model = modelM3a;
 
 for i=1:1:length(experimentsToProcess)
     fprintf('\n\n%s\n\n',experimentsToProcess{i});

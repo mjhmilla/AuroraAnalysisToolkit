@@ -672,6 +672,14 @@ if(settings.processData==1)
       timeEnd   = trialJson.segments(idxSeg).duration(2);
       dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
               & auroraData.Data.Time.Values <= timeEnd); 
+      preTimeStart = timeStart-settings.prePerburationWindowMs;
+      preTimeEnd   = timeStart;
+      preDataIndex = [];
+
+      if(preTimeEnd > 0)
+        preDataIndex = find( auroraData.Data.Time.Values >= preTimeStart ...
+                & auroraData.Data.Time.Values <= preTimeEnd); 
+      end
       
       %%
       %Find the wave number
@@ -707,12 +715,23 @@ if(settings.processData==1)
       % Evaluate frequency response   
       %%
       x = auroraData.Data.Lin.Values(dataIndex,1);
-      x = x - mean(x);
+      xMean = mean(x);
+      x = x - xMean;
     
       y = auroraData.Data.Fin.Values(dataIndex,1);
-      y = y-mean(y);
+      yMean = mean(y);
+      y = y-yMean;
       
+      xPre=[];
+      yPre=[];
+      timePre=[];
+      if(~isempty(preDataIndex))
+        timePre = auroraData.Data.Time.Values(preDataIndex,1);
+        xPre = auroraData.Data.Lin.Values(preDataIndex,1);
+        yPre = auroraData.Data.Fin.Values(preDataIndex,1);
+      end
       xyDataIsValid =0;
+
 
 
 
@@ -727,8 +746,15 @@ if(settings.processData==1)
         samples   = length(x);
         timeVec   = [0:(1/(samples-1)):1]' .* (samples/sampleFrequency);
       
-        segData.x = x;
-        segData.y = y;
+        segData.x      = x;
+        segData.y      = y;
+        segData.xMean  = xMean;
+        segData.yMean  = yMean;        
+        
+        segData.timePrior=timePre;
+        segData.xPrior = xPre;
+        segData.yPrior = yPre;
+
         segData.time=timeVec;
         segData.bandwidth = bandwidth;
         segData.sampleFrequency = sampleFrequency;
@@ -1134,15 +1160,19 @@ if(settings.processData==1)
                 if(updatedPassiveParams==0)
                   indexPE = modelSeries(idxMdl).model.settings.indexParallelElement;
                   if(~isempty(indexPE))
-                    modelSeries(idxMdl).model.parameters(indexPE,:)=[1,0,0,0,0];
-                    modelSeries(idxMdl).model.defaultParameters(indexPE,:)=[1,0,0,0,0];
+                    modelSeries(idxMdl).model.parameters(indexPE,:)=...
+                      [1,0,0,0,0].*ones(length(indexPE),5);
+                    modelSeries(idxMdl).model.settings.defaultParameters(indexPE,:)=...
+                      [1,0,0,0,0].*ones(length(indexPE),5);
                   end
                 end
               else
                 indexPE = modelSeries(idxMdl).model.settings.indexParallelElement;
                 if(~isempty(indexPE))
-                  modelSeries(idxMdl).model.parameters(indexPE,:)=[1,0,0,0,0];
-                  modelSeries(idxMdl).model.defaultParameters(indexPE,:)=[1,0,0,0,0];
+                  modelSeries(idxMdl).model.parameters(indexPE,:)=...
+                    [1,0,0,0,0].*ones(length(indexPE),5);
+                  modelSeries(idxMdl).model.settings.defaultParameters(indexPE,:)=...
+                    [1,0,0,0,0].*ones(length(indexPE),5);
                 end
               end
               
@@ -1289,7 +1319,12 @@ if(settings.processData==1)
 
       segmentJson.time  = auroraData.Data.Time.Values(dataIndex,1);
       segmentJson.length  = auroraData.Data.Lin.Values(dataIndex,1);
-      segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);      
+      segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);  
+      segmentJson.lengthMean  = segData.xMean;
+      segmentJson.forceMean   = segData.yMean;
+      segmentJson.nominal.time    = segData.timePrior;
+      segmentJson.nominal.length  = segData.xPrior;
+      segmentJson.nominal.force   = segData.yPrior;
       
       segmentJson.forceReference = ...
         intraSegmentData(1).forceReference;
