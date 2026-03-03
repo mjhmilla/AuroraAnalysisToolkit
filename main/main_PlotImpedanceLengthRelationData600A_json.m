@@ -12,12 +12,18 @@ addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 segIdIso=1;
+segIdPassive=2;
+
 segId = 4; % 0-90 Hz bandwidth, 0.001 Lo perturbation
+%1 0-35 Hz bandwidth, 0.01 Lo perturbation
+%2 0-90 Hz bandwidth, 0.01 Lo perturbation
+%3 0-35 Hz bandwidth, 0.001 Lo perturbation
+%4 0-90 Hz bandwidth, 0.001 Lo perturbation
 hId = 'H';
 boxWidth = 0.1;
 
 
-experimentsToProcess = ...
+experimentsToProcess =  ...
     { '20251118_impedance_larb_1',...
       '20251118_impedance_larb_2',...
       '20251120_impedance_larb_3',...
@@ -25,12 +31,27 @@ experimentsToProcess = ...
       '20251121_impedance_larb_5',...
       '20251128_impedance_larb_6',...
       '20251203_impedance_larb_7'};
-%experimentsToProcess = ...
-%    { '20251128_impedance_larb_6'};
-
 
 
 outputFolder = 'impedance_length_relation_larb';
+
+%
+% The files on this list are at lengths short enough that no
+% trial in the data set (at these lengths) has a noticeable passive
+% force
+%
+maxNormLengthZeroPassiveForce = 0.85;
+
+activeReferenceFiles = {...
+  '_active_055Lo_',...
+  '_active_070Lo_',...
+  '_active_085Lo_'};
+
+passiveReferenceFiles = {...
+  '_passive_055Lo_',...
+  '_passive_070Lo_',...
+  '_passive_085Lo_'};
+
 
 impedanceData(7) = struct('normLengthStr','',...
                           'normLength',0,...
@@ -127,7 +148,7 @@ for i = 1:1:length(experimentsToProcess)
     folderContents = dir(expFolder);
     trialCount = 0;
     dataLoptJson = [];
-    dataFzeroJson = [];
+    dataLoptFzeroJson = [];
     for j=1:1:length(folderContents)
         if(~folderContents(j).isdir ...
             && contains(folderContents(j).name,'.json'))
@@ -136,22 +157,36 @@ for i = 1:1:length(experimentsToProcess)
             if(contains(folderContents(j).name,'_100Lo_'))
               dataStr =fileread(fullfile(expFolder,folderContents(j).name));
               dataLoptJson=jsondecode(dataStr);
-            end
-            if(contains(folderContents(j).name,'_active_055Lo_'))
-              dataStr =fileread(fullfile(expFolder,folderContents(j).name));
-              dataFzeroJson=jsondecode(dataStr);
+
+              if(1 > maxNormLengthZeroPassiveForce)
+                for k=j:-1:1
+                  for z=1:1:length(activeReferenceFiles)
+                    if(contains(folderContents(k).name,activeReferenceFiles{z}) ...
+                        && isempty(dataLoptFzeroJson))
+                      dataStr =fileread(fullfile(expFolder,folderContents(k).name));
+                      dataLoptFzeroJson=jsondecode(dataStr);                    
+                    end
+                  end
+                end
+              else
+                dataLoptFzeroJson = dataLoptJson;
+              end
+
             end
         end
     end
     
-    assert(~isempty(dataLoptJson),'Error: could not find a trial at 100Lo');
+    assert(~isempty(dataLoptJson),...
+        'Error: could not find a trial at 100Lo');
+    assert(~isempty(dataLoptFzeroJson),...
+        'Error: could not find a fzero reference trial at 100Lo');
 
     storageLopt = mean(dataLoptJson(segId).segment.(hId).storage);
     lossLopt    = mean(dataLoptJson(segId).segment.(hId).loss);
     disp('Update to use the data just prior to the perturbation');
-    fzero       = dataLoptJson(segId).segment.forceReference;         
-    fopt        = mean(dataLoptJson(segId).segment.nominal.force)-fzero;
-    lopt        = mean(dataLoptJson(segId).segment.nominal.length);
+    foptFzero   = dataLoptFzeroJson(segIdIso).segment.forceReference;
+    fopt        = mean(dataLoptJson(segIdIso).segment.nominal.force)-foptFzero;   
+    lopt        = mean(dataLoptJson(segIdIso).segment.nominal.length);
 
     
     figure(figImpedanceLengthIndividual);
@@ -202,8 +237,128 @@ for i = 1:1:length(experimentsToProcess)
     fapSeries = zeros(size(lceNSeries));
     fpeSeries = zeros(size(lceNSeries));
     for j=1:1:length(folderContents)
+      if(~folderContents(j).isdir ...
+              && contains(folderContents(j).name,'.json'))
+
+        dataStr =fileread(fullfile(expFolder,folderContents(j).name));
+        dataJson=jsondecode(dataStr);
+
+        idxL = nan;
+        for k=1:1:length(impedanceData)
+          if(contains(folderContents(j).name, impedanceData(k).normLengthStr))
+            idxL=k;
+          end
+        end
+
+        fN = nan;
+
+        if(contains(folderContents(j).name,'active'))
+
+          lceN  = mean(dataJson(segIdIso).segment.nominal.length)./lopt;
+          fzero = dataJson(segIdIso).segment.forceReference;
+
+          %Go get the most appropriate force reference: it should be from
+          %an active trial that is at a short enough length that
+          %there is no passive force.
+          if(lceN > maxNormLengthZeroPassiveForce)
+            dataFzeroJson = [];
+            for k=j:-1:1
+              for z=1:1:length(activeReferenceFiles)
+                if(contains(folderContents(k).name,activeReferenceFiles{z}) ...
+                    && isempty(dataFzeroJson))
+                  dataStr =fileread(fullfile(expFolder,folderContents(k).name));
+                  dataFzeroJson=jsondecode(dataStr); 
+                  fzero = dataFzeroJson(segIdIso).segment.forceReference;
+                end
+              end
+            end
+          end
+
+          
+          fN =(mean(dataJson(segIdIso).segment.nominal.force)-fzero)./fopt;
+        end
+        if(contains(folderContents(j).name,'passive')) 
+          if(isfield(dataJson(segIdIso).segment,'nominal'))
+            
+            fzero = dataJson(segIdPassive).segment.forceReference;            
+            lceN = mean(dataJson(segIdPassive).segment.nominal.length)./lopt;
+
+            %Go get the most appropriate force reference: it should be from
+            %an active trial that is at a short enough length that
+            %there is no passive force.
+            if(lceN > maxNormLengthZeroPassiveForce)
+              dataFzeroJson = [];
+              for k=j:-1:1
+                for z=1:1:length(passiveReferenceFiles)
+                  if(contains(folderContents(k).name,passiveReferenceFiles{z}) ...
+                      && isempty(dataFzeroJson))
+                    dataStr =fileread(fullfile(expFolder,folderContents(k).name));
+                    dataFzeroJson=jsondecode(dataStr); 
+                    fzeroSet = [];
+                    for x=1:1:length(dataFzeroJson)
+                      fzeroSet = [fzeroSet,dataFzeroJson(x).segment.forceReference];
+                    end
+                    fzero = mean(fzeroSet);
+                    
+                  end
+                end
+              end
+            end
+            fN = (dataJson(segIdPassive).segment.forceReference-fzero)./fopt;
+          end
+        end
+
+
+        if(~isempty(fN))
+          if(contains(folderContents(j).name,'active') && ~isnan(fN))
+            fapSeries(idxL)=fN;
+          end
+          if(contains(folderContents(j).name,'passive') && ~isnan(fN))             
+            fpeSeries(idxL)=fN;
+          end
+        end
+      end
+    end
+    flSeries=fapSeries-fpeSeries;
+    lceNSeries = lceNSeries(~isnan(flSeries));
+    fpeSeries = fpeSeries(~isnan(flSeries));
+    fapSeries = fapSeries(~isnan(flSeries));
+    flSeries  = fapSeries-fpeSeries;
+
+    if(~isempty(flSeries))
+      figure(figImpedanceLengthIndividual);
+      subplot('Position',reshape(subPlotPanelIndividual(i,1,:),1,4));    
+        fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
+             [0,0,fliplr(flSeries')],...
+             [1,1,1].*0.75,...
+             'LineStyle','none');
+        hold on;
+        fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
+             [0,0,fliplr(fpeSeries')],...
+             [1,1,1].*0.5,...
+             'LineStyle','none');
+        hold on;
+      subplot('Position',reshape(subPlotPanelIndividual(i,2,:),1,4));  
+        fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
+             [0,0,fliplr(flSeries')],...
+             [1,1,1].*0.75,...
+             'LineStyle','none');
+        hold on;
+        fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
+             [0,0,fliplr(fpeSeries')],...
+             [1,1,1].*0.5,...
+             'LineStyle','none');
+        hold on;        
+    end
+    storageNormSSP    = [];
+    lossNormSSP       = [];
+    idxLengthPassive  = 0;
+
+    for j=1:1:length(folderContents)
         if(~folderContents(j).isdir ...
                 && contains(folderContents(j).name,'.json'))
+  
+            fprintf('\t%s\n',folderContents(j).name);
 
             dataStr =fileread(fullfile(expFolder,folderContents(j).name));
             dataJson=jsondecode(dataStr);
@@ -215,79 +370,21 @@ for i = 1:1:length(experimentsToProcess)
               end
             end
 
-            if(idxL==1)
-              here=1;
-            end
-
-            fN = nan;
-
-            if(contains(folderContents(j).name,'active'))
-              lceN = mean(dataJson(segIdIso).segment.nominal.length)./lopt;
-              fN   = (mean(dataJson(segIdIso).segment.nominal.force)...
-                      -fzero)./fopt;
-            end
-            if(contains(folderContents(j).name,'passive'))     
-              if(isfield(dataJson(segId).segment,'nominal'))
-                lceN = mean(dataJson(segId).segment.nominal.length)./lopt;
-                fN   = (mean(dataJson(segId).segment.nominal.force) ...
-                        -fzero)./fopt;
-              end
-            end
-
-
-
-            if(contains(folderContents(j).name,'active'))
-              fapSeries(idxL)=fN;
-            end
-            if(contains(folderContents(j).name,'passive'))             
-              fpeSeries(idxL)=fN;
-            end
-        end
-    end
-    flSeries=fapSeries-fpeSeries;
-    lceNSeries = lceNSeries(~isnan(flSeries));
-    fpeSeries = fpeSeries(~isnan(flSeries));
-    fapSeries = fapSeries(~isnan(flSeries));
-    flSeries  = fapSeries-fpeSeries;
-
-    figure(figImpedanceLengthIndividual);
-    subplot('Position',reshape(subPlotPanelIndividual(i,1,:),1,4));    
-      fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
-           [0,0,fliplr(flSeries')],...
-           [1,1,1].*0.75,...
-           'LineStyle','none');
-      hold on;
-      fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
-           [0,0,fliplr(fpeSeries')],...
-           [1,1,1].*0.5,...
-           'LineStyle','none');
-      hold on;
-    subplot('Position',reshape(subPlotPanelIndividual(i,2,:),1,4));  
-      fill([lceNSeries(1),lceNSeries(end),fliplr(lceNSeries')],...
-           [0,0,fliplr(flSeries')],...
-           [1,1,1].*0.75,...
-           'LineStyle','none');
-      hold on;
-
-    storageNormSSP = [];
-    lossNormSSP = [];
-    for j=1:1:length(folderContents)
-        if(~folderContents(j).isdir ...
-                && contains(folderContents(j).name,'.json'))
-  
-            fprintf('\t%s\n',folderContents(j).name);
-
-            dataStr =fileread(fullfile(expFolder,folderContents(j).name));
-            dataJson=jsondecode(dataStr);
-
             if(isfield(dataJson(segId).segment, hId))
-              if(~isempty(dataJson(segId).segment.(hId).bandwidthHzC2))
+              if(~isempty(dataJson(segId).segment.(hId).bandwidthHzC2) ...
+                 && ~isempty(dataJson(segId).segment.(hId).idxBWC2) )
   
   
-    
-                nominalLength = mean(dataJson(segId).segment.length)./lopt;  
-                storageNorm   = dataJson(segId).segment.(hId).storage./storageLopt;
-                lossNorm      = dataJson(segId).segment.(hId).loss./lossLopt; 
+                idxBWC2 = dataJson(segId).segment.(hId).idxBWC2;
+
+                nominalLength = ...
+                  mean(dataJson(segId).segment.length(idxBWC2))./lopt;  
+
+                storageNorm   = ...
+                  dataJson(segId).segment.(hId).storage(idxBWC2)./storageLopt;
+
+                lossNorm      = ...
+                  dataJson(segId).segment.(hId).loss(idxBWC2)./lossLopt; 
 
 
                 storageNormSS = getSummaryStatistics(storageNorm);
@@ -302,7 +399,9 @@ for i = 1:1:length(experimentsToProcess)
                   lineColor = [0,0,0];
                   boxColor  = [1,1,1];
 
-                  if(~isempty(storageNormSSP) && ~isempty(lossNormSSP))
+                  if(~isempty(storageNormSSP) ...
+                      && ~isempty(lossNormSSP) ...
+                      && idxL == idxLengthPassive)
                     fieldsToSub = {'y','mean','median','std','min','max'};
                     storageNormSSPlot = storageNormSS;
                     lossNormSSPlot = lossNormSS;
@@ -315,13 +414,15 @@ for i = 1:1:length(experimentsToProcess)
                         = lossNormSS.(fieldsToSub{k}) ...
                          -lossNormSSP.(fieldsToSub{k});
                     end
+
                   else
                     storageNormSSPlot = storageNormSS;
                     lossNormSSPlot = lossNormSS;
                   end
 
                 end
-                if(contains(folderContents(j).name,'passive'))             
+                if(contains(folderContents(j).name,'passive')) 
+                  idxLengthPassive = idxL;
                   lineColor = [1,1,1].*0.25;
                   boxColor  = [1,1,1].*0.75;       
                   storageNormSSP=storageNormSS;
@@ -397,7 +498,7 @@ figImpedanceLengthIndividual=...
                       pageWidthIndividual, ...
                       pageHeightIndividual);
 
-fileName =    ['fig_ImpedanceIndividual'];
+fileName =    ['fig_ImpedanceIndividual_segment_',num2str(segId)];
 
 print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
 
