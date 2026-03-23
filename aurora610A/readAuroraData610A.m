@@ -1,4 +1,4 @@
-function ddfData = readAuroraData610A(fullFilePath)
+function ddfData = readAuroraData610A(fullFilePath,flag_readProtcolArray)
 %%
 % This function will 
 % 1. Read in the sample frequency
@@ -135,6 +135,82 @@ ddfData.TADs = zeros(size(cellArray));
 for i=1:1:length(cellArray)
     ddfData.TADs(i) = str2double(cellArray{i});
 end
+
+if(flag_readProtcolArray==1)
+  while contains(line,'Protocol Array') == 0
+      [line, ltout]= fgets(fid);    
+  end
+
+  ddfData.protocol.time = [];
+  ddfData.protocol.controlFunction = {};
+  ddfData.protocol.channel = {};
+  ddfData.protocol.options = {};
+
+  [line,ltout]=fgets(fid);
+  line=strtrim(line);
+  while(contains(line,'Test Data') == 0)
+
+    if(~isempty(line))
+      dataRow = parseDelimitedStringToCellArray(line,char(9));
+
+      assert(length(dataRow) >= 2 && length(dataRow) <= 4,...
+             'Error: each protocol array entry must have [2,3] entries ');
+      
+      ddfData.protocol.time = ...
+        [ddfData.protocol.time;str2double(dataRow{1})];
+      ddfData.protocol.controlFunction = ...
+        {ddfData.protocol.controlFunction;dataRow{2}};
+      
+      switch length(dataRow)
+        case 2
+          ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;''};
+          ddfData.protocol.options = ...
+              {ddfData.protocol.options;''};
+        case 3 
+          dataRow3 = strtrim(dataRow{3});
+          if(sum(isletter(dataRow3)) ...
+              == (length(dataRow3)-sum(isspace(dataRow3))) )
+            ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;dataRow{3}};
+            ddfData.protocol.options = ...
+              {ddfData.protocol.options;''};
+          else
+            ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;''};
+            ddfData.protocol.options = ...
+              {ddfData.protocol.options;dataRow{3}};
+          end          
+        case 4
+          dataRow3 = strtrim(dataRow{3});
+          if(sum(isletter(dataRow3)) ...
+                ~= (length(dataRow3)-sum(isspace(dataRow3))) )
+            here=1;
+          end
+          assert(sum(isletter(dataRow3)) ...
+                    == (length(dataRow3)-sum(isspace(dataRow3))),...
+                 'Error: 3rd entry is not the channel name');
+          ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;dataRow{3}};
+          ddfData.protocol.options = ...
+            {ddfData.protocol.options;dataRow{4}};          
+        otherwise
+          assert(0, ...
+            ['Error: protocol entry has an invalid number of entries: ',...
+             line]);
+      end
+
+
+    end
+
+    [line,ltout]=fgets(fid);
+    line=strtrim(line);
+
+  end
+  
+
+end
+
 
 
 while contains(line,'Sample') == 0

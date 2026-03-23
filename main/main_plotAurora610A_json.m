@@ -2,6 +2,38 @@ clc;
 close all;
 clear all;
 
+experimentsToProcess = {'20260311_610A_EDL'};
+% 20260311_610A_EDL
+% 20261112_610A_EDL_Passive_0
+% 20261112_610A_EDL_Passive_1
+% 20261112_610A_EDL_Passive_2
+% 20261112_610A_EDL_Passive_3
+fileKeyWord = [];
+
+
+%
+% Script settings
+%
+
+flags.plotOverview            = 0;
+
+  overviewPlotSettings.savePlots            = 1;
+  overviewPlotSettings.readProtocolArray    =  1;
+  overviewPlotSettings.preStimulusPlotTime  = -0.1;
+  overviewPlotSettings.postStimulusPlotTime = 0.3;
+  overviewPlotSettings.stimulusCommandScale = 2.0;
+  overviewPlotSettings.stimulusDataScale    = 0.25;  
+
+flags.plotForceLengthRelations= 1;
+  
+  forceLengthPlotSettings.savePlots         = 1;
+  forceLengthPlotSettings.readProtocolArray = 1;
+  forceLengthPlotSettings.activationTime    = 0.2;
+  forceLengthPlotSettings.deactivationTime  = 0.3;
+
+%
+% Setup project folders
+% 
 rootDir         = getRootProjectDirectory();
 projectFolders  = getProjectFolders(rootDir);
 
@@ -10,31 +42,40 @@ addpath(projectFolders.common);
 addpath(projectFolders.postprocessing);
 addpath(projectFolders.experiments);
 
-experimentsToProcess = {fullfile(projectFolders.data610A,'20260311_610A_EDL')};
-
-settings.readProtocolArray    = 1;
-settings.postTwitchPlotTime   = 0.3;
-settings.postTetanusPlotTime  = 0.3;
 
 
-figureStruct = plotExperimentalDataOverview610A_json(...
-            experimentsToProcess,...
-            settings, ...
-            projectFolders);  
 
-outputPlotDir = fullfile(projectFolders.output610A_plots,...
-                        '20260311_610A_EDL');
-if(~exist(outputPlotDir,'dir'))
-  mkdir(outputPlotDir);
+%
+% Make the output plot folders
+%
+for i=1:1:length(experimentsToProcess)
+  outputPlotDir = fullfile(projectFolders.output610A_plots,...
+                          experimentsToProcess{i});
+  if(~exist(outputPlotDir,'dir'))
+    mkdir(outputPlotDir);
+  end
 end
 
-for i=1:1:length(figureStruct)
-    figureStruct(i).h=configPlotExporter(...
-                          figureStruct(i).h, ...
-                          figureStruct(i).pageWidth,...
-                          figureStruct(i).pageHeight);
+%
+% Basic Plots
+%
 
-  print('-dpdf', fullfile(outputPlotDir,[figureStruct(i).name,'.pdf']));  
-  saveas(figureStruct(i).h,...
-          fullfile(outputPlotDir,[figureStruct(i).name,'.fig']));
+if(flags.plotOverview==1)
+
+  success = plotExperimentalDataOverview610A_json(...
+                    experimentsToProcess,...
+                    fileKeyWord,...
+                    overviewPlotSettings, ...
+                    projectFolders);  
+end
+
+%
+% Force-length relations
+%
+if(flags.plotForceLengthRelations == 1)
+  success = plotExperimentalForceLengthRelations610A_json(...
+                    experimentsToProcess,...
+                    fileKeyWord,...
+                    forceLengthPlotSettings, ...
+                    projectFolders);
 end
