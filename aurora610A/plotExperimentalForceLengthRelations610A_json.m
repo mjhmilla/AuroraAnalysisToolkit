@@ -28,10 +28,10 @@ for idxExp =1:1:length(experimentsToProcess)
   
   
   flag_containsForceLengthData=0;  
-  for idxTrial=1:1:length(expJson.trials)
+  for idxTrial=1:1:length(expJson.measurements)
     trialStr = fileread(fullfile(projectFolders.data610A,...
                                  experimentsToProcess{idxExp},...
-                                 expJson.trials{idxTrial}));
+                                 expJson.measurements{idxTrial}));
 
     trialJson = jsondecode(trialStr);
 
@@ -103,10 +103,10 @@ for idxExp = 1:1:length(experimentsToProcess)
   %
   setOfTrials = [];
 
-  for idxTrial=1:1:length(expJson.trials)
+  for idxTrial=1:1:length(expJson.measurements)
     trialStr = fileread(fullfile(projectFolders.data610A,...
                                  experimentsToProcess{idxExp},...
-                                 expJson.trials{idxTrial}));
+                                 expJson.measurements{idxTrial}));
 
     trialJson = jsondecode(trialStr);
 
@@ -128,11 +128,11 @@ for idxExp = 1:1:length(experimentsToProcess)
 
     idxTrial = setOfTrials(idxSetOfTrials);
 
-    disp(expJson.trials{idxTrial});
+    disp(expJson.measurements{idxTrial});
 
     trialStr = fileread(fullfile(projectFolders.data610A,...
                                  experimentsToProcess{idxExp},...
-                                 expJson.trials{idxTrial}));
+                                 expJson.measurements{idxTrial}));
     trialJson = jsondecode(trialStr);  
     
     
@@ -261,6 +261,11 @@ for idxExp = 1:1:length(experimentsToProcess)
       hold on;
       plotBoxWhiskerData(trialLength,activeForceSS,0.5,...
                           [0,0,1],[0.5,0.5,1]);
+      hold on;
+      text(trialLength, activeForceSS.min,sprintf('%i',idxTrial),...
+           'HorizontalAlignment','center',...
+           'VerticalAlignment','top',...
+           'FontSize',8);
       hold on;
       plotBoxWhiskerData(trialLength,passiveForceSS,0.5,...
                           [1,1,1].*0,[1,1,1].*0.5);
@@ -425,6 +430,9 @@ figure(figureStruct(indexFigExpFl).h);
             'FontSize',8);
       hold on;
 
+      xAxis = xlim;
+      dx = diff(xAxis)*0.1;
+      xlim([xAxis(1)-dx,xAxis(2)+dx]);
 
       
 

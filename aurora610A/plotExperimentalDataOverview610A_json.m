@@ -1,6 +1,6 @@
 function success = plotExperimentalDataOverview610A_json(...
                           experimentsToProcess,...
-                          fileKeyWord,...
+                          keyWordFilter,...
                           settings,...
                           projectFolders)
 
@@ -29,31 +29,63 @@ for idxExp = 1:1:length(experimentsToProcess)
                              [experimentsToProcess{idxExp},'.json']));
   expJson = jsondecode(expStr);
 
-  trialCount = length(expJson.trials);
+  measurementCount = length(expJson.measurements);
 
-  setOfTrials = [];
+  setOfMeasurements = [];
+  trialCount = 0;
+  sequenceCount=0;
   segmentCount=0; 
+  
 
-  for idxTrial=1:1:trialCount
-    flag_validFile=1;
-    if(~isempty(fileKeyWord))
-      if(contains(expJson.trials{idxTrial},fileKeyWord))
-        flag_validFile=1;
-      else
-        flag_validFile=0;
-      end
-    end
-
+  for idxMeas=1:1:measurementCount
+    flag_validFile = applyKeywordFilter(expJson.measurements{idxMeas},...
+                                      keyWordFilter);
 
     if(flag_validFile==1)
-      setOfTrials = [setOfTrials,idxTrial];
-      trialStr = fileread(fullfile(projectFolders.data610A,...
-                                   experimentsToProcess{idxExp},...
-                                   expJson.trials{idxTrial}));
-  
-      trialJson = jsondecode(trialStr);
-  
-      segmentCount = segmentCount+length(trialJson.segments);
+      setOfMeasurements = [setOfMeasurements,idxMeas];
+      if(~contains(expJson.measurements{idxMeas},'.seq'))
+        trialStr = fileread(fullfile(projectFolders.data610A,...
+                                     experimentsToProcess{idxExp},...
+                                     expJson.measurements{idxMeas}));
+    
+        trialJson = jsondecode(trialStr);
+    
+        trialCount = trialCount+1;
+        segmentCount = segmentCount+length(trialJson.segments);
+      else
+        %Open the sequence file and go through its meta data
+        disp(expJson.measurements{idxMeas});
+        seqStr = fileread(fullfile(projectFolders.data610A,...
+                                     experimentsToProcess{idxExp},...
+                                     expJson.measurements{idxMeas}));
+    
+        seqJson = jsondecode(seqStr);
+        sequenceCount=sequenceCount+1;
+        
+        for k=1:1:length(seqJson.sequence.meta_data.files)
+          flag_validFile = applyKeywordFilter(...
+                              seqJson.sequence.meta_data.files{k},...
+                              keyWordFilter);
+          if(flag_validFile==1)
+            seqMetaDataFolder = '';
+            for z=1:1:length(seqJson.sequence.meta_data.folder)
+              seqMetaDataFolder = [seqMetaDataFolder,filesep,...
+                                   seqJson.sequence.meta_data.folder{z}];
+            end
+            seqMetaDataFolder = fullfile(projectFolders.data610A,...
+                                         experimentsToProcess{idxExp},...
+                                         seqMetaDataFolder);
+
+            trialStr = fileread([seqMetaDataFolder,filesep,...
+                                 seqJson.sequence.meta_data.files{k}]);
+
+            trialJson = jsondecode(trialStr);
+        
+            trialCount = trialCount+1;
+            segmentCount = segmentCount+length(trialJson.segments);
+          end
+        end
+      end
     end
   end  
 
@@ -62,7 +94,7 @@ for idxExp = 1:1:length(experimentsToProcess)
   %
 
   numberOfHorizontalPlotColumnsGeneric  = 1;
-  numberOfVerticalPlotRowsGeneric       = length(setOfTrials);
+  numberOfVerticalPlotRowsGeneric       = trialCount;
     
   plotWidth              = ones(1,numberOfHorizontalPlotColumnsGeneric).*15;
   plotHeight             = ones(numberOfVerticalPlotRowsGeneric,1).*6;
@@ -125,13 +157,13 @@ for idxExp = 1:1:length(experimentsToProcess)
   % Plot the trial data
   %
   segmentCount=0;
-  for idxSetOfTrials = 1:1:length(setOfTrials)
+  for idxSetOfMeas = 1:1:length(setOfMeasurements)
 
-    idxTrial = setOfTrials(idxSetOfTrials);
+    idxMeas = setOfMeasurements(idxSetOfMeas);
 
     flag_validFile=1;
-    if(~isempty(fileKeyWord))
-      if(contains(expJson.trials{idxTrial},fileKeyWord))
+    if(~isempty(keyWordFilter.include))
+      if(contains(expJson.measurements{idxMeas},keyWordFilter.include))
         flag_validFile=1;
       else
         flag_validFile=0;
@@ -140,14 +172,14 @@ for idxExp = 1:1:length(experimentsToProcess)
 
     if(flag_validFile==1)
 
-      fprintf('\t%s\n',expJson.trials{idxTrial});
-      if(strcmp(expJson.trials{idxTrial},'17_FFR_0p.json'))
+      fprintf('\t%s\n',expJson.measurements{idxMeas});
+      if(strcmp(expJson.measurements{idxMeas},'17_FFR_0p.json'))
         here=1;
       end
   
       trialStr = fileread(fullfile(projectFolders.data610A,...
                                    experimentsToProcess{idxExp},...
-                                   expJson.trials{idxTrial}));
+                                   expJson.measurements{idxMeas}));
       trialJson = jsondecode(trialStr);  
       
       
@@ -207,7 +239,7 @@ for idxExp = 1:1:length(experimentsToProcess)
       % Plot the trial data
       %
       figure(figureStruct(indexFigTrial).h);
-      subplot('Position',reshape(subPlotPanelTrial(idxSetOfTrials,:),1,4));
+      subplot('Position',reshape(subPlotPanelTrial(idxSetOfMeas,:),1,4));
       
       timeSeries = ddfData610.data.Sample.Values...
                   /ddfData610.Sample_Frequency_Hz;
@@ -287,11 +319,11 @@ for idxExp = 1:1:length(experimentsToProcess)
       xlabel(['Time (',defaultTimeUnit,')']);
         
       box off;
-      titleStr = strrep(expJson.trials{idxTrial},'_',' ');
-      fileNameStr = strrep(expJson.trials{idxTrial},'_','\_');
+      titleStr = strrep(expJson.measurements{idxMeas},'_',' ');
+      fileNameStr = strrep(expJson.measurements{idxMeas},'_','\_');
 
       titleStr = sprintf('(%i) T%i %s',...
-                  idxSetOfTrials,idxTrial, ...
+                  idxSetOfMeas,idxMeas, ...
                   trialJson.segments(idxSeg).type);
 
       title({titleStr,fileNameStr});
@@ -424,10 +456,10 @@ for idxExp = 1:1:length(experimentsToProcess)
         xlabel(['Time (',defaultTimeUnit,')']);
           
         box off;
-        fileNameStr = strrep(expJson.trials{idxTrial},'_','\_');
+        fileNameStr = strrep(expJson.measurements{idxMeas},'_','\_');
   
         titleStr = sprintf('(%i,%i) T%i S%i %s %s',...
-                    idxRow,idxCol,idxTrial,idxSeg, ...
+                    idxRow,idxCol,idxMeas,idxSeg, ...
                     trialJson.segments(idxSeg).type);
         title({titleStr,fileNameStr});      
   
@@ -437,18 +469,18 @@ for idxExp = 1:1:length(experimentsToProcess)
   
   segmentCount=0;
 
-  for idxSetOfTrials = 1:1:length(setOfTrials)
-    idxTrial = setOfTrials(idxSetOfTrials);
+  for idxSetOfMeas = 1:1:length(setOfMeasurements)
+    idxMeas = setOfMeasurements(idxSetOfMeas);
     figure(figureStruct(indexFigTrial).h);
-    subplot('Position',reshape(subPlotPanelTrial(idxSetOfTrials,:),1,4));
+    subplot('Position',reshape(subPlotPanelTrial(idxSetOfMeas,:),1,4));
     yyaxis left;
       ylim(yLeftDataLimits);
     yyaxis right;
       ylim(yRightDataLimits);
     
     flag_validFile=1;
-    if(~isempty(fileKeyWord))
-      if(contains(expJson.trials{idxTrial},fileKeyWord))
+    if(~isempty(keyWordFilter.include))
+      if(contains(expJson.measurements{idxMeas},keyWordFilter.include))
         flag_validFile=1;
       else
         flag_validFile=0;
@@ -458,7 +490,7 @@ for idxExp = 1:1:length(experimentsToProcess)
     if(flag_validFile==1)
       trialStr = fileread(fullfile( projectFolders.data610A,...
                                     experimentsToProcess{idxExp},...
-                                    expJson.trials{idxTrial}));
+                                    expJson.measurements{idxMeas}));
       trialJson = jsondecode(trialStr);  
   
       trialSegment0 = segmentCount;
@@ -493,13 +525,13 @@ for idxExp = 1:1:length(experimentsToProcess)
                             figureStruct(i).pageWidth,...
                             figureStruct(i).pageHeight);
     
-      if(~isempty(fileKeyWord))
+      if(~isempty(keyWordFilter.include))
         print('-dpdf', ...
               fullfile(outputPlotDir,...
-                  [figureStruct(i).name,'keyWord_',fileKeyWord,'.pdf']));  
+                  [figureStruct(i).name,'keyWord_',keyWordFilter.include,'.pdf']));  
         saveas(figureStruct(i).h,...
                 fullfile(outputPlotDir,...
-                  [figureStruct(i).name,'keyWord_',fileKeyWord,'.fig']));
+                  [figureStruct(i).name,'keyWord_',keyWordFilter.include,'.fig']));
       else
         print('-dpdf', ...
               fullfile(outputPlotDir,...

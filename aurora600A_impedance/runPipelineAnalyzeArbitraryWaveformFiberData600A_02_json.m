@@ -91,7 +91,7 @@ modelSettings.coherenceSquaredThreshold = settings.coherenceSquaredThreshold;
 %%
 % folders
 %%
-dataFolder    = fullfile(projectFolders.data_600A,folderName);
+dataFolder    = fullfile(projectFolders.data600A,folderName);
 experimentStr   = fileread(fullfile(dataFolder,[folderName,'.json']));
 experimentJson  = jsondecode(experimentStr);
 
@@ -106,7 +106,7 @@ indexSegmentLarb = 1;
 %%
 % Default setting
 %%
-setOfTrialsDefault = [1:1:length(experimentJson.trials)];
+setOfTrialsDefault = [1:1:length(experimentJson.measurements)];
 setOfTrialsVerified =[];
 
 %%
@@ -125,7 +125,7 @@ lineColors = getPaulTolColourSchemes('bright');
 %%
 
    
-setOfTrialsVerified=verifyDataIntegrityCompletnessOrder(...
+setOfTrialsVerified=verifyDataIntegrityCompletnessOrder600A(...
                       dataFolder,experimentJson,fidLogFile,...
                       settings.checkFileOrder,settings.checkSha256Sum);
 
@@ -143,8 +143,8 @@ for indexSetOfTrials=1:1:length(setOfTrialsVerified)
   %%
   % Read in the meta data
   %%  
-  %fprintf('\t%s\n',experimentJson.trials{i});
-  trialStr = fileread(fullfile(dataFolder,experimentJson.trials{i}));
+  %fprintf('\t%s\n',experimentJson.measurements{i});
+  trialStr = fileread(fullfile(dataFolder,experimentJson.measurements{i}));
   trialJson = jsondecode(trialStr);
 
 
@@ -208,8 +208,8 @@ if(settings.processData==1)
     if(~isempty(fileKeyWord))      
       for idxSoT=1:1:length(setOfTrialsVerified)
         i = setOfTrialsVerified(idxSoT);
-        disp(experimentJson.trials{i});
-        if(contains(experimentJson.trials{i},fileKeyWord))
+        disp(experimentJson.measurements{i});
+        if(contains(experimentJson.measurements{i},fileKeyWord))
           setOfTrials = [setOfTrials; i];
         end
       end
@@ -219,7 +219,7 @@ if(settings.processData==1)
   else
     if(~isempty(fileKeyWord))
       for i=1:1:length(setOfTrialsVerified)
-        if(contains(experimentJson.trials{i},fileKeyWord))
+        if(contains(experimentJson.measurements{i},fileKeyWord))
           setOfTrials = [setOfTrials; i];
         end
       end      
@@ -313,10 +313,10 @@ if(settings.processData==1)
     %%
     % Read in the meta data
     %%   
-    fprintf('\t%s\n',experimentJson.trials{idxTrial});
-    fprintf(fidLogFile,'\t%s\n',experimentJson.trials{idxTrial});
+    fprintf('\t%s\n',experimentJson.measurements{idxTrial});
+    fprintf(fidLogFile,'\t%s\n',experimentJson.measurements{idxTrial});
     
-    trialStr = fileread(fullfile(dataFolder,experimentJson.trials{idxTrial}));
+    trialStr = fileread(fullfile(dataFolder,experimentJson.measurements{idxTrial}));
     trialJson = jsondecode(trialStr);
     
   
@@ -600,7 +600,7 @@ if(settings.processData==1)
     end
 
     ylabel(['Force (',auroraData.Data.Fin.Unit,')']);
-    titleStr = strrep(experimentJson.trials{idxTrial},'_','\_');        
+    titleStr = strrep(experimentJson.measurements{idxTrial},'_','\_');        
     title(titleStr);
     axis tight;
     box off;
@@ -1138,8 +1138,8 @@ if(settings.processData==1)
               && strcmp(modelSeries(idxMdl).model.abbreviation,'MKVap'))
 
               if(settings.trialsInPassiveActivePairs==1)
-                outputJsonDir = fullfile(projectFolders.output_json,folderName);
-                jsonPassiveFileName = ['analysis_',experimentJson.trials{idxTrial-1}];
+                outputJsonDir = fullfile(projectFolders.output610A_json,folderName);
+                jsonPassiveFileName = ['analysis_',experimentJson.measurements{idxTrial-1}];
   
                 passiveExpStr   = fileread(fullfile(outputJsonDir,jsonPassiveFileName));
                 passiveExpJson  = jsondecode(passiveExpStr);
@@ -1307,7 +1307,7 @@ if(settings.processData==1)
         getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
       forceSummary = ...
         getSummaryStatistics(auroraData.Data.Fin.Values(dataIndex,1));
-      if(experimentJson.experiment.temperatureControl)
+      if(experimentJson.experiment.temperature_control)
         temperatureSummary = ...
         getSummaryStatistics(auroraData.Data.Aux1_C.Values(dataIndex,1));
       else
@@ -1875,13 +1875,13 @@ if(settings.processData==1)
     end
   
     
-    outputJsonDir = fullfile(projectFolders.output_json,folderName);
+    outputJsonDir = fullfile(projectFolders.output610A_json,folderName);
     if(~exist(outputJsonDir,'dir'))
       mkdir(outputJsonDir);
     end
     
     setSegmentJsonEncode = jsonencode(setSegmentJson);
-    jsonFileName = ['analysis_',experimentJson.trials{idxTrial}];
+    jsonFileName = ['analysis_',experimentJson.measurements{idxTrial}];
     fidJson = fopen(fullfile(outputJsonDir,jsonFileName),'w');
     fprintf(fidJson,setSegmentJsonEncode);
   
@@ -1894,7 +1894,7 @@ if(settings.processData==1)
   
   fclose(fidLogFile);
   
-  outputPlotDir = fullfile(projectFolders.output_plots,folderName);
+  outputPlotDir = fullfile(projectFolders.output610A_plots,folderName);
   if(~exist(outputPlotDir,'dir'))
     mkdir(outputPlotDir);
   end
