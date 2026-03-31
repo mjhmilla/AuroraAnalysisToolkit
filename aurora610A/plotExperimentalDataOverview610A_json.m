@@ -24,6 +24,9 @@ for idxExp = 1:1:length(experimentsToProcess)
   %
   % Scan through the data and count the number of trials and segments
   %
+  expFolder = fullfile(projectFolders.data610A,...
+                      experimentsToProcess{idxExp});
+
   expStr = fileread(fullfile(projectFolders.data610A,...
                               experimentsToProcess{idxExp},...
                              [experimentsToProcess{idxExp},'.json']));
@@ -35,59 +38,29 @@ for idxExp = 1:1:length(experimentsToProcess)
   trialCount = 0;
   sequenceCount=0;
   segmentCount=0; 
-  
 
-  for idxMeas=1:1:measurementCount
-    flag_validFile = applyKeywordFilter(expJson.measurements{idxMeas},...
+  isLastMeasurement=0;
+  metaDataCache = [];
+
+  while(isLastMeasurement==0)
+    metaDataCache=getNextMeasurement610A(expJson,expFolder,metaDataCache);
+
+    isLastMeasurement = metaDataCache.isLastMeasurement;
+ 
+    flag_validFile = applyKeywordFilter(metaDataCache.metaDataFileName,...
                                       keyWordFilter);
 
-    if(flag_validFile==1)
-      setOfMeasurements = [setOfMeasurements,idxMeas];
-      if(~contains(expJson.measurements{idxMeas},'.seq'))
-        trialStr = fileread(fullfile(projectFolders.data610A,...
-                                     experimentsToProcess{idxExp},...
-                                     expJson.measurements{idxMeas}));
-    
-        trialJson = jsondecode(trialStr);
-    
-        trialCount = trialCount+1;
-        segmentCount = segmentCount+length(trialJson.segments);
-      else
-        %Open the sequence file and go through its meta data
-        disp(expJson.measurements{idxMeas});
-        seqStr = fileread(fullfile(projectFolders.data610A,...
-                                     experimentsToProcess{idxExp},...
-                                     expJson.measurements{idxMeas}));
-    
-        seqJson = jsondecode(seqStr);
-        sequenceCount=sequenceCount+1;
-        
-        for k=1:1:length(seqJson.sequence.meta_data.files)
-          flag_validFile = applyKeywordFilter(...
-                              seqJson.sequence.meta_data.files{k},...
-                              keyWordFilter);
-          if(flag_validFile==1)
-            seqMetaDataFolder = '';
-            for z=1:1:length(seqJson.sequence.meta_data.folder)
-              seqMetaDataFolder = [seqMetaDataFolder,filesep,...
-                                   seqJson.sequence.meta_data.folder{z}];
-            end
-            seqMetaDataFolder = fullfile(projectFolders.data610A,...
-                                         experimentsToProcess{idxExp},...
-                                         seqMetaDataFolder);
-
-            trialStr = fileread([seqMetaDataFolder,filesep,...
-                                 seqJson.sequence.meta_data.files{k}]);
-
-            trialJson = jsondecode(trialStr);
-        
-            trialCount = trialCount+1;
-            segmentCount = segmentCount+length(trialJson.segments);
-          end
-        end
-      end
+    if(flag_validFile)
+      trialCount = trialCount+1;
+      segmentCount = segmentCount ...
+                     + length(metaDataCache.metaDataJson.segments);
     end
-  end  
+
+  end
+
+  totalTrialCount=trialCount;
+  totalSegmentCount=segmentCount;
+
 
   %
   % Configure the plots
@@ -157,39 +130,34 @@ for idxExp = 1:1:length(experimentsToProcess)
   % Plot the trial data
   %
   segmentCount=0;
-  for idxSetOfMeas = 1:1:length(setOfMeasurements)
+  trialCount = 0;
 
-    idxMeas = setOfMeasurements(idxSetOfMeas);
+  isLastMeasurement=0;
+  metaDataCache = [];
 
-    flag_validFile=1;
-    if(~isempty(keyWordFilter.include))
-      if(contains(expJson.measurements{idxMeas},keyWordFilter.include))
-        flag_validFile=1;
-      else
-        flag_validFile=0;
-      end
-    end
+  while(isLastMeasurement==0)
+
+    metaDataCache=getNextMeasurement610A(expJson,expFolder,metaDataCache);
+    isLastMeasurement = metaDataCache.isLastMeasurement;
+
+    idxM = metaDataCache.indexMeasurement;
+    idxS = metaDataCache.indexSequence;
+
+    flag_validFile = applyKeywordFilter(metaDataCache.metaDataFileName,...
+                                  keyWordFilter);
 
     if(flag_validFile==1)
 
-      fprintf('\t%s\n',expJson.measurements{idxMeas});
-      if(strcmp(expJson.measurements{idxMeas},'17_FFR_0p.json'))
-        here=1;
-      end
+      trialCount=trialCount+1;
+
+      fprintf('%i\t%i\t%s\n',...
+          metaDataCache.indexMeasurement,...
+          metaDataCache.indexSequence,...
+          metaDataCache.measurementFileName);
   
-      trialStr = fileread(fullfile(projectFolders.data610A,...
-                                   experimentsToProcess{idxExp},...
-                                   expJson.measurements{idxMeas}));
-      trialJson = jsondecode(trialStr);  
+      trialJson = metaDataCache.metaDataJson;  
       
-      
-      ddfPath = fullfile(projectFolders.data610A,...
-                         experimentsToProcess{idxExp});
-      for i=1:1:length(trialJson.data.file)
-        ddfPath = [ddfPath,filesep,trialJson.data.file{i}];
-      end
-    
-      ddfData610 = readAuroraData610A(ddfPath,...
+      ddfData610 = readAuroraData610A(metaDataCache.dataFilePath,...
                       settings.readProtocolArray);
     
       %Get the default time unit
@@ -239,7 +207,7 @@ for idxExp = 1:1:length(experimentsToProcess)
       % Plot the trial data
       %
       figure(figureStruct(indexFigTrial).h);
-      subplot('Position',reshape(subPlotPanelTrial(idxSetOfMeas,:),1,4));
+      subplot('Position',reshape(subPlotPanelTrial(trialCount,:),1,4));
       
       timeSeries = ddfData610.data.Sample.Values...
                   /ddfData610.Sample_Frequency_Hz;
@@ -271,7 +239,8 @@ for idxExp = 1:1:length(experimentsToProcess)
               timeStim=trialJson.segments(idxSeg).time_s;
           end
           if(~isempty(timeStim))
-              if(strcmp(trialJson.segments(idxSeg).type,'Stimulus-Tetanus'))
+              if(strcmp(trialJson.segments(idxSeg).type,...
+                        'Stimulus-Tetanus'))
                 fill([timeStim(1),timeStim(2),timeStim(2),...
                                   timeStim(1),timeStim(1)],...
                      [0,0,1,1,0].*settings.stimulusCommandScale,...
@@ -319,11 +288,11 @@ for idxExp = 1:1:length(experimentsToProcess)
       xlabel(['Time (',defaultTimeUnit,')']);
         
       box off;
-      titleStr = strrep(expJson.measurements{idxMeas},'_',' ');
-      fileNameStr = strrep(expJson.measurements{idxMeas},'_','\_');
+      titleStr = strrep(expJson.measurements{idxM},'_',' ');
+      fileNameStr = strrep(expJson.measurements{idxM},'_','\_');
 
-      titleStr = sprintf('(%i) T%i %s',...
-                  idxSetOfMeas,idxMeas, ...
+      titleStr = sprintf('(%i,%i) T%i %s',...
+                  idxM,idxS,idxSeg, ...
                   trialJson.segments(idxSeg).type);
 
       title({titleStr,fileNameStr});
@@ -456,10 +425,10 @@ for idxExp = 1:1:length(experimentsToProcess)
         xlabel(['Time (',defaultTimeUnit,')']);
           
         box off;
-        fileNameStr = strrep(expJson.measurements{idxMeas},'_','\_');
+        fileNameStr = strrep(expJson.measurements{idxM},'_','\_');
   
         titleStr = sprintf('(%i,%i) T%i S%i %s %s',...
-                    idxRow,idxCol,idxMeas,idxSeg, ...
+                    idxRow,idxCol,idxM,idxSeg, ...
                     trialJson.segments(idxSeg).type);
         title({titleStr,fileNameStr});      
   
@@ -467,51 +436,32 @@ for idxExp = 1:1:length(experimentsToProcess)
     end
   end
   
-  segmentCount=0;
 
-  for idxSetOfMeas = 1:1:length(setOfMeasurements)
-    idxMeas = setOfMeasurements(idxSetOfMeas);
-    figure(figureStruct(indexFigTrial).h);
-    subplot('Position',reshape(subPlotPanelTrial(idxSetOfMeas,:),1,4));
-    yyaxis left;
-      ylim(yLeftDataLimits);
-    yyaxis right;
-      ylim(yRightDataLimits);
-    
-    flag_validFile=1;
-    if(~isempty(keyWordFilter.include))
-      if(contains(expJson.measurements{idxMeas},keyWordFilter.include))
-        flag_validFile=1;
-      else
-        flag_validFile=0;
-      end
-    end
 
-    if(flag_validFile==1)
-      trialStr = fileread(fullfile( projectFolders.data610A,...
-                                    experimentsToProcess{idxExp},...
-                                    expJson.measurements{idxMeas}));
-      trialJson = jsondecode(trialStr);  
-  
-      trialSegment0 = segmentCount;
-      for idxSeg = 1:1:length(trialJson.segments)
-        segmentCount=segmentCount+1;
-  
-  
+  for trialCount=1:1:totalTrialCount
+      figure(figureStruct(indexFigTrial).h);
+      subplot('Position',reshape(subPlotPanelTrial(trialCount,:),1,4));
+      yyaxis left;
+        ylim(yLeftDataLimits);
+      yyaxis right;
+        ylim(yRightDataLimits);      
+   end
+
+
+   for segmentCount=1:1:totalSegmentCount
+
         [idxRow, idxCol] = getRowAndColumnInGrid(segmentCount, ...
                             figureStruct(indexFigSegment).rows, ...
                             figureStruct(indexFigSegment).cols);
-  
-  
+    
         figure(figureStruct(indexFigSegment).h);
         subplot('Position',reshape(subPlotPanelSegment(idxRow,idxCol,:),1,4));      
         yyaxis left;
           ylim(yLeftDataLimits);
         yyaxis right;
           ylim(yRightDataLimits);      
-      end
     end
-  end
+
 
   if(settings.savePlots==1)
   

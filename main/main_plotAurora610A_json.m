@@ -4,10 +4,10 @@ clear all;
 
 experimentsToProcess = {'20260326_610A_EDL'};
 % 20260311_610A_EDL
-% 20261112_610A_EDL_Passive_0
-% 20261112_610A_EDL_Passive_1
-% 20261112_610A_EDL_Passive_2
-% 20261112_610A_EDL_Passive_3
+% 20260312_610A_EDL_Passive_0
+% 20260312_610A_EDL_Passive_1
+% 20260312_610A_EDL_Passive_2
+% 20260312_610A_EDL_Passive_3
 keyWordFilter.include = {};
 keyWordFilter.exclude = {'sine_wave'};
 
@@ -17,11 +17,11 @@ keyWordFilter.exclude = {'sine_wave'};
 %
 flags.scanData                               = 0;
 
-flags.verifyDataIntegrityCompletness         = 1;
+flags.verifyDataIntegrityCompletness         = 0;
   settingsDataCheck.setSha256Sum   = 0;
   
 
-flags.plotOverview            = 1;
+flags.plotOverview                          = 1;
 
   overviewPlotSettings.savePlots            = 1;
   overviewPlotSettings.readProtocolArray    =  1;
@@ -90,7 +90,6 @@ end
 %
 % Basic Plots
 %
-assert(0,'You are here');
 
 
 if(flags.plotOverview==1)

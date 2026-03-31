@@ -32,6 +32,7 @@ expJson = jsondecode(expStr);
 
 metaDataCache = [];
 isLastMeasurement=0;
+idxMPrevious = 1;
 
 idxFile = 0;
 while(isLastMeasurement == 0)
@@ -60,19 +61,50 @@ while(isLastMeasurement == 0)
         comment = output.comment;
       end
 
+      if(idxM ~= idxMPrevious)
+        fprintf('\n');
+      end
+
       fprintf('%i.\t%s\t%s\t%i\t%s\n',...
         idxFile,...
         comment,...
         expJson.measurements{idxM},...
         idxS,...
         seqMetaDataFile);
+
+      if(idxM ~= idxMPrevious)
+        fprintf(fidLogFile,'\n');
+      end
+
+      fprintf(fidLogFile, '%i.\t%s\t%s\t%i\t%s\n',...
+        idxFile,...
+        comment,...
+        expJson.measurements{idxM},...
+        idxS,...
+        seqMetaDataFile);
+
+
     else
 
+      if(idxM ~= idxMPrevious)
+        fprintf('\n');
+      end
+      
       fprintf('%i.\t%s\t%s\t%i\n',...
         idxFile,...
         'Setting-SHA256',...
         expJson.measurements{idxM},...
         idxS);
+
+      if(idxM ~= idxMPrevious)
+        fprintf(fidLogFile,'\n');
+      end
+      
+      fprintf(fidLogFile,'%i.\t%s\t%s\t%i\n',...
+        idxFile,...
+        'Setting-SHA256',...
+        expJson.measurements{idxM},...
+        idxS);      
 
     end
 
@@ -93,8 +125,10 @@ while(isLastMeasurement == 0)
         fprintf(fidTrial,trialStr);
         fclose(fidTrial);        
       end
+
     end
 
+    idxMPrevious=idxM;
 end
 
 

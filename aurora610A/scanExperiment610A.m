@@ -19,21 +19,20 @@ expFolder = fullfile(projectFolders.data610A,...
 
 idxTrial = 0;
 fprintf('%s\t%s\t%s\t%s\t%s\n',...
-        'File #','Meas. #','Seq. #','Valid','Name');
+        'File ','Meas.','Seq. ','Passes_Filter','Name');
 
 
 fprintf(fidScanLog,'%s\t%s\t%s\t%s\t%s\n',...
-        'File #','Meas. #','Seq. #','Valid','Name');
+        'File ','Meas. ','Seq. ','Passes_Filter','Name');
 
 
 validCount        = 0;
 isLastMeasurement = 0;
 metaDataCache     = [];
-
+idxMPrevious = 0;
 while(isLastMeasurement==0)
 
   idxTrial=idxTrial+1;  
-  
   metaDataCache     = ...
      getNextMeasurement610A(expJson,expFolder,metaDataCache);
   
@@ -49,20 +48,27 @@ while(isLastMeasurement==0)
   else
     validStr = ' ';
   end
-
-
+  
+  if(idxMPrevious ~= metaDataCache.indexMeasurement)
+    fprintf('\n');
+  end
   fprintf('%i\t%i\t%i\t%s\t%s\n',idxTrial,...
     metaDataCache.indexMeasurement, ...
     metaDataCache.indexSequence, ...
     validStr,...
     metaDataFileName);
 
+  if(idxMPrevious ~= metaDataCache.indexMeasurement)
+    fprintf(fidScanLog,'\n');
+  end
 
   fprintf(fidScanLog,'%i\t%i\t%i\t%s\t%s\n',idxTrial,...
     metaDataCache.indexMeasurement, ...
     metaDataCache.indexSequence, ...
     validStr,...
     metaDataFileName);
+
+  idxMPrevious=metaDataCache.indexMeasurement;
 
 end
 metaDataCache =[];
