@@ -46,8 +46,7 @@ if(flag_readHeaderData==1)
     % Read Calibration Parameters
     %%
     [line, ltout]= fgets(fid);
-    
-    
+        
     colNames = parseDelimitedStringToCellArray(line,'  ');
     
     for i=1:1:length(colNames)
@@ -70,10 +69,14 @@ if(flag_readHeaderData==1)
     
     
     [line, ltout]= fgets(fid);
-    while contains(line,'*** Test Protocol Parameters ***') == 0
+    while      contains(line,'*** Test Protocol Parameters ***') == 0 ...
+                &&  contains(line,'*** Arbitrary Waveform Setup ***') == 0
     
         dataRow = parseDelimitedStringToCellArray(line,char(9));
     
+        if(length(dataRow)~=length(colNames))
+            here=1;
+        end
         assert(length(dataRow)==length(colNames),...
             ['Error: in Calibration Parameters: mismatch between the number',...
              ' of column names and units']);
@@ -100,6 +103,60 @@ if(flag_readHeaderData==1)
         end    
     end
     
+    %%
+    % Read Arbitrary Waveform Setup, a block of data from the new Aurora
+    % machine that arrived in summer of 2025
+    %%
+    if(contains(line,'*** Arbitrary Waveform Setup ***'))      
+            
+        colNames = [{'Name'},{'File_Name'},{'Length_Unit'},{'Sampling_Interval'}];
+        columnUnits    = [{'String'},{'String'},{'String'},{'Float'}];
+        for i=1:1:length(colNames)
+            datData.Arbitrary_Waveform_Setup.(colNames{i}).Value = [];
+            datData.Arbitrary_Waveform_Setup.(colNames{i}).Unit  = columnUnits{i};
+        end        
+
+
+        assert(length(colNames)==length(columnUnits),...
+               ['Error: in Arbitrary Waveform Setup: mismatch between the number',...
+               ' of column names and units']);
+
+        [line, ltout]= fgets(fid);
+        while      contains(line,'*** Test Protocol Parameters ***') == 0
+        
+            dataRow = parseDelimitedStringToCellArray(line,char(9));
+        
+            if(length(dataRow)~=length(colNames))
+                here=1;
+            end
+            assert(length(dataRow)==length(colNames),...
+                ['Error: in Arbitrary Waveform Setup: mismatch between the number',...
+                 ' of column names and units']);
+        
+            for j=1:1:length(dataRow)
+                dataValueStr = dataRow{j};
+                dataValue = str2double(dataValueStr);
+        
+                if(isnan(dataValue)==1 && ~contains(columnUnits{j},'Float') )
+                    datData.Arbitrary_Waveform_Setup.(colNames{j}).Value = ...
+                        [datData.Arbitrary_Waveform_Setup.(colNames{j}).Value;...
+                         {dataValueStr}];
+                else
+                    datData.Arbitrary_Waveform_Setup.(colNames{j}).Value = ...
+                        [datData.Arbitrary_Waveform_Setup.(colNames{j}).Value;...
+                         dataValue];             
+                end 
+        
+            end
+        
+            [line, ltout]= fgets(fid);
+            if(line==-1)
+                assert(0, 'Error: incomplete file');
+            end    
+        end        
+
+    end
+
     %%
     % Read Test Protocol Parameters
     %%
@@ -278,13 +335,13 @@ for i=2:1:length(fieldNames)
     fmt = [fmt,'%f'];
 end
 
-[line, ltout]= fgets(fid);
+%[line, ltout]= fgets(fid);
 
-idx = 1;
+%idx = 1;
 
-idxComma    = strfind(line,' ');
-nCols       = length(idxComma)+1;
-
+%idxSpace    = strfind(line,'  ');
+%nCols       = length(idxSpace)+1;
+nCols = length(fieldNames);
 
 tmp = textscan(fid,fmt);
 

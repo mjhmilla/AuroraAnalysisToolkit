@@ -1,0 +1,163 @@
+function figH = addForceLengthImpedancePlot600A(...
+                            figH,...
+                            subPlotPanel,...
+                            subPlotRow,...
+                            subPlotCol,...
+                            lineColors,...
+                            dataX,...
+                            dataY,...
+                            dataYAnnotation,...
+                            dataLegendEntry,...
+                            refRatMuscleDataSeries,...
+                            refRatMuscleNormalizationData,...
+                            typeOfData,...
+                            fiberProperties)
+
+figure(figH);
+subPlotH = subplot('Position', ...
+            reshape(subPlotPanel(subPlotRow,subPlotCol,:),1,4)); 
+
+markerSize = 3;
+
+%Add force length data from this experiment
+if(strcmp(typeOfData,'fl-exp'))
+    yyaxis left;
+    ax = gca;
+    ax.YColor = [0,0,0];    
+
+    plot(dataX(:,1),...
+         dataY(:,1),'sq','Color',[0,0,0],...
+         'MarkerSize',markerSize*2,...
+         'MarkerFaceColor',...
+         [0,0,0],'DisplayName',dataLegendEntry);
+    hold on;
+
+    if(isempty(dataYAnnotation)==0)
+        for i=1:1:length(dataX)
+            text(dataX(i,1),dataY(i,1),...
+                 [' ',dataYAnnotation{i}],...
+                 'FontSize',8,...
+                 'VerticalAlignment','bottom',...
+                 'HorizontalAlignment','left');
+            hold on;
+        end    
+    end
+
+    if(sum(isnan(dataY))==0)
+        yRangeNorm = abs(diff(dataY))/mean(dataY);
+        if(yRangeNorm > 1e-2)
+            yticks((sort(dataY)));
+        end
+    end
+
+    if(sum(isnan(dataX))==0)
+        xRangeNorm = abs(diff(dataX))/mean(dataX);
+        if(xRangeNorm > 1e-2)
+            xticks((sort(dataX)));
+        end
+    end
+    ylim([0,1.1]);
+    box off;
+    hold on;
+
+      
+end
+
+%Add stiffness length data from this experiment
+if(strcmp(typeOfData,'im-exp'))
+    yyaxis right;
+    ax = gca;
+    ax.YColor = lineColors.blue;    
+
+    plot(dataX(:,1),...
+         dataY(:,1),'sq','Color',lineColors.blue,...
+         'MarkerSize',markerSize*2,...
+         'MarkerFaceColor',...
+         lineColors.blue,'DisplayName',dataLegendEntry);
+    hold on;
+
+    if(isempty(dataYAnnotation)==0)
+        for i=1:1:length(dataX)
+            text(dataX(i,1),dataY(i,1),...
+                 [dataYAnnotation{i},' '],...
+                 'FontSize',8,...
+                 'VerticalAlignment','top',...
+                 'HorizontalAlignment','right');
+            hold on;
+        end
+    end
+
+    if(sum(isnan(dataY))==0)
+        yticks((sort(dataY)));
+    end
+    ylabel('Norm. Stiffness ($$k/k_o$$)');
+
+    ylim([0,1.1]);
+    box off;
+    hold on;
+
+end
+
+if(strcmp(typeOfData,'ref-exp'))
+
+    activeForceLengthData = [];
+    
+    for i=1:1:length(refRatMuscleDataSeries.activeForceLengthData)
+      activeForceLengthData = [...
+          activeForceLengthData;...
+          refRatMuscleDataSeries.activeForceLengthData(i).x,...
+          refRatMuscleDataSeries.activeForceLengthData(i).y];
+    end
+    
+    passiveForceLengthData = [];
+    
+    for i=1:1:length(refRatMuscleDataSeries.passiveForceLengthData)
+      passiveForceLengthData = [...
+          passiveForceLengthData;...
+          refRatMuscleDataSeries.passiveForceLengthData(i).x,...
+          refRatMuscleDataSeries.passiveForceLengthData(i).y];
+    end
+    
+    activeForceLengthData(:,1)=...
+      activeForceLengthData(:,1)./...
+      refRatMuscleNormalizationData.optimalSarcomereLength;
+    
+    passiveForceLengthData(:,1)=...
+      passiveForceLengthData(:,1)./...
+      refRatMuscleNormalizationData.optimalSarcomereLength;
+
+
+
+    yyaxis left;
+    ax = gca;
+    ax.YColor = [0,0,0];
+
+    plot(activeForceLengthData(:,1),...
+         activeForceLengthData(:,2),'o','Color',[1,1,1].*0.75,...
+         'MarkerSize',markerSize,...
+         'MarkerFaceColor',[1,1,1].*0.75,...
+         'DisplayName','SW1982: $$f^L$$');
+    hold on;
+    
+%     plot(passiveForceLengthData(:,1),...
+%          passiveForceLengthData(:,2),'x','Color',[1,1,1].*0.5,...
+%          'MarkerSize',markerSize,...
+%          'MarkerFaceColor',[1,1,1],...
+%          'DisplayName','SW1982 (pas)');
+    xlim([0,max(activeForceLengthData(:,1))]);
+    ylim([0,1.1]);
+    box off;
+    hold on;
+
+    legend('Location','northwest');
+    legend box off;
+    
+    if(fiberProperties.normalize==1)
+        xlabel('Norm. Length ($$\ell/\ell_o)$$');
+        ylabel('Norm. Force ($$f/f_0$$)');
+    else
+        xlabel('Length (mm)');
+        ylabel('Force (mN)');
+    end
+    title('Force-Length-Stiffness Relation');
+end

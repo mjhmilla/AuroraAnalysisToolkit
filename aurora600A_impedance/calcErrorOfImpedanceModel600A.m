@@ -1,0 +1,26 @@
+function errorVector = calcErrorOfImpedanceModel600A(...
+                        params,  modelSettings, Href, optSettings)
+
+
+
+modelResponse = calcMaxwellKelvinVoigtNetworkImpedance(...
+                  Href.frequency(Href.idxBWC2),...
+                  params,...
+                  modelSettings);
+
+
+%
+%Evaluate the error
+%
+n=length(Href.frequency(Href.idxBWC2));
+
+errorVector = zeros(2*n,1);
+
+
+errorVector(1:n,1)      =   (Href.gain(Href.idxBWC2) ...
+                            -modelResponse.gain ...
+                            ).*optSettings.objScaling(1,1);
+errorVector((n+1):2*n,1)=   (Href.phase(Href.idxBWC2)...
+                            -modelResponse.phase ...
+                            ).*optSettings.objScaling(1,2);
+    

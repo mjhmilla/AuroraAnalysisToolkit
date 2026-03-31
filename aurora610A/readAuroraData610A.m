@@ -1,4 +1,4 @@
-function ddfData = readAuroraData610A(fullFilePath)
+function ddfData = readAuroraData610A(fullFilePath,flag_readProtcolArray)
 %%
 % This function will 
 % 1. Read in the sample frequency
@@ -136,6 +136,82 @@ for i=1:1:length(cellArray)
     ddfData.TADs(i) = str2double(cellArray{i});
 end
 
+if(flag_readProtcolArray==1)
+  while contains(line,'Protocol Array') == 0
+      [line, ltout]= fgets(fid);    
+  end
+
+  ddfData.protocol.time = [];
+  ddfData.protocol.controlFunction = {};
+  ddfData.protocol.channel = {};
+  ddfData.protocol.options = {};
+
+  [line,ltout]=fgets(fid);
+  line=strtrim(line);
+  while(contains(line,'Test Data') == 0)
+
+    if(~isempty(line))
+      dataRow = parseDelimitedStringToCellArray(line,char(9));
+
+      assert(length(dataRow) >= 2 && length(dataRow) <= 4,...
+             'Error: each protocol array entry must have [2,3] entries ');
+      
+      ddfData.protocol.time = ...
+        [ddfData.protocol.time;str2double(dataRow{1})];
+      ddfData.protocol.controlFunction = ...
+        {ddfData.protocol.controlFunction;dataRow{2}};
+      
+      switch length(dataRow)
+        case 2
+          ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;''};
+          ddfData.protocol.options = ...
+              {ddfData.protocol.options;''};
+        case 3 
+          dataRow3 = strtrim(dataRow{3});
+          if(sum(isletter(dataRow3)) ...
+              == (length(dataRow3)-sum(isspace(dataRow3))) )
+            ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;dataRow{3}};
+            ddfData.protocol.options = ...
+              {ddfData.protocol.options;''};
+          else
+            ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;''};
+            ddfData.protocol.options = ...
+              {ddfData.protocol.options;dataRow{3}};
+          end          
+        case 4
+          dataRow3 = strtrim(dataRow{3});
+          if(sum(isletter(dataRow3)) ...
+                ~= (length(dataRow3)-sum(isspace(dataRow3))) )
+            here=1;
+          end
+          assert(sum(isletter(dataRow3)) ...
+                    == (length(dataRow3)-sum(isspace(dataRow3))),...
+                 'Error: 3rd entry is not the channel name');
+          ddfData.protocol.channel = ...
+              {ddfData.protocol.channel;dataRow{3}};
+          ddfData.protocol.options = ...
+            {ddfData.protocol.options;dataRow{4}};          
+        otherwise
+          assert(0, ...
+            ['Error: protocol entry has an invalid number of entries: ',...
+             line]);
+      end
+
+
+    end
+
+    [line,ltout]=fgets(fid);
+    line=strtrim(line);
+
+  end
+  
+
+end
+
+
 
 while contains(line,'Sample') == 0
     [line, ltout]= fgets(fid);    
@@ -145,34 +221,50 @@ ddfData.data.columnNames = parseDelimitedStringToCellArray(line,char(9));
 
 [line, ltout]= fgets(fid);    
 
-ddfData.data.values = zeros(1000,length(ddfData.data.columnNames));
 
-i=1;
-while line ~= -1
-    cellArray = parseDelimitedStringToCellArray(line,char(9));
+fmt = '%f';
+for i=2:1:length(ddfData.data.columnNames)
+    fmt = [fmt,'\t%f'];
+end
+nCols = length(ddfData.data.columnNames);
 
-    if(length(cellArray)~=length(ddfData.data.columnNames))
-        here=1;
-    end
-    assert(length(cellArray)==length(ddfData.data.columnNames),...
-          ['Error: mismatch between data column size and',...
-           ' the number of column names']);
-    for j=1:1:length(ddfData.data.columnNames)
-        ddfData.data.values(i,j) = str2double(cellArray{j});
-    end
+tmp = textscan(fid,fmt);
 
-    i=i+1;
-    
-    if(i==size(ddfData.data.values,1))
-        ddfData.data.values = [ddfData.data.values; ...
-                                zeros(size(ddfData.data.values))];
-    end
+nRows = length(tmp{1});
 
-    [line, ltout]= fgets(fid);        
+for i=1:1:nCols
+    ddfData.data.(ddfData.data.columnNames{i}).Values = zeros(length(tmp{i}),1);
+    ddfData.data.(ddfData.data.columnNames{i}).Values = tmp{i};
 end
 
-i=i-1;
-ddfData.data.values = ddfData.data.values(1:i,:);
+clear('tmp');
+
+% i=1;
+% while line ~= -1
+%     cellArray = parseDelimitedStringToCellArray(line,char(9));
+% 
+%     if(length(cellArray)~=length(ddfData.data.columnNames))
+%         here=1;
+%     end
+%     assert(length(cellArray)==length(ddfData.data.columnNames),...
+%           ['Error: mismatch between data column size and',...
+%            ' the number of column names']);
+%     for j=1:1:length(ddfData.data.columnNames)
+%         ddfData.data.values(i,j) = str2double(cellArray{j});
+%     end
+% 
+%     i=i+1;
+%     
+%     if(i==size(ddfData.data.values,1))
+%         ddfData.data.values = [ddfData.data.values; ...
+%                                 zeros(size(ddfData.data.values))];
+%     end
+% 
+%     [line, ltout]= fgets(fid);        
+% end
+% 
+% i=i-1;
+% ddfData.data.values = ddfData.data.values(1:i,:);
 
 
 here=1;
