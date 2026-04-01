@@ -8,15 +8,21 @@ experimentsToProcess = {'20260326_610A_EDL'};
 % 20260312_610A_EDL_Passive_1
 % 20260312_610A_EDL_Passive_2
 % 20260312_610A_EDL_Passive_3
-keyWordFilter.include = {};
-keyWordFilter.exclude = {'sine_wave'};
+
+keyWordFilter.metaDataFileName.include = {};
+keyWordFilter.metaDataFileName.exclude = {'sine_wave'};
+keyWordFilter.segment.include = ...
+  {'Stimulus-Twitch',...
+   'Stimulus-Tetanus',...
+   'Sine Wave-Stochastic',...
+   'Step-Stochastic'};
+keyWordFilter.segment.exclude = {};
 
 
 %
 % Script settings
 %
-flags.scanData                               = 0;
-
+flags.scanData                               = 1;
 flags.verifyDataIntegrityCompletness         = 0;
   settingsDataCheck.setSha256Sum   = 0;
   
@@ -24,13 +30,21 @@ flags.verifyDataIntegrityCompletness         = 0;
 flags.plotOverview                          = 1;
 
   overviewPlotSettings.savePlots            = 1;
+  overviewPlotSettings.breakPlotsAtSequences= 1;
+  overviewPlotSettings.breakPlotsAfterTrialCount = 20;
   overviewPlotSettings.readProtocolArray    =  1;
   overviewPlotSettings.preStimulusPlotTime  = -0.1;
   overviewPlotSettings.postStimulusPlotTime = 0.3;
-  overviewPlotSettings.stimulusCommandScale = 2.0;
-  overviewPlotSettings.stimulusDataScale    = 0.25;  
+  overviewPlotSettings.stimulusCommandScale     = 1;
+  overviewPlotSettings.stimulusDataScale        = 0.125;
+  overviewPlotSettings.stimulusVoltageDataScale = (0.5);
+  overviewPlotSettings.stimulusCurrentDataScale = (0.25);
+  
+  overviewPlotSettings.annotateMinMaxTrialForce   = 0;
+  overviewPlotSettings.annotateMinMaxSegmentForce = 1;
 
-flags.plotForceLengthRelations= 0;
+
+flags.plotForceLengthRelations              = 0;
   
   forceLengthPlotSettings.savePlots         = 1;
   forceLengthPlotSettings.readProtocolArray = 1;
@@ -67,9 +81,11 @@ end
 %
 if(flags.scanData==1)
   for idxExp = 1:1:length(experimentsToProcess) 
-    success = scanExperiment610A(experimentsToProcess{idxExp},...
-                                 keyWordFilter,...
-                                 projectFolders);   
+    verbose=1;
+    scanSummary = scanExperiment610A(experimentsToProcess{idxExp},...
+                                     keyWordFilter,...
+                                     projectFolders,...
+                                     verbose);   
   end
 end
 %

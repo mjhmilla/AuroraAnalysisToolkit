@@ -1,22 +1,9 @@
 function metaDataCache = getNextMeasurement610A(...
-                          experimentJson, ...
-                          experimentFolder,...
+                          expJson, ...
+                          expFolder,...
                           metaDataCache)
 
-emptyMetaDataCache = struct('indexMeasurement',0,...
-                            'indexSequence',0,...
-                            'sequenceFileName','',...
-                            'sequenceFilePath','',...
-                            'sequenceJson',[],...
-                            'metaDataJson',[],...
-                            'metaDataFileName','',...
-                            'metaDataFilePath','',...
-                            'dataFileName','',...
-                            'dataFilePath','',...
-                            'dataSha256Sum','',...
-                            'protocolFileName','',...
-                            'protocolFilePath','',...
-                            'isLastMeasurement',0);
+
 
 %
 % Set the indicies
@@ -24,10 +11,31 @@ emptyMetaDataCache = struct('indexMeasurement',0,...
 
 if(isempty(metaDataCache))
 
-  metaDataCache = emptyMetaDataCache;
+metaDataCache = struct('indexMeasurement',0,...
+                        'indexSequence',0,...
+                        'indexTrial',0,...
+                        'sequenceFileName','',...
+                        'sequenceFilePath','',...
+                        'sequenceJson',[],...
+                        'metaDataJson',[],...
+                        'metaDataFileName','',...
+                        'metaDataFilePath','',...
+                        'dataFileName','',...
+                        'dataFilePath','',...
+                        'dataSha256Sum','',...
+                        'protocolFileName','',...
+                        'protocolFilePath','',...
+                        'tags',[],...
+                        'temperature_C',0,...
+                        'referenceState',[],...
+                        'dimensions',[],...
+                        'specimen',[],...
+                        'isLastMeasurement',0);
+
+  metaDataCache.indexTrial=1;
   idxM = 1;
   metaDataCache.indexMeasurement = idxM;
-  if(contains(experimentJson.measurements{1},'.seq'))
+  if(contains(expJson.measurements{1},'.seq'))
     idxM = 1;
     metaDataCache.indexMeasurement = idxM;
     idxS = 1;
@@ -41,8 +49,10 @@ if(isempty(metaDataCache))
 
 else
 
+  metaDataCache.indexTrial=metaDataCache.indexTrial+1;
+  
   if(contains(metaDataCache.measurementFileName,'.seq'))
-    seqFile = fileread(fullfile(experimentFolder,...
+    seqFile = fileread(fullfile(expFolder,...
                        metaDataCache.measurementFileName));
     seqJson = jsondecode(seqFile);    
 
@@ -51,19 +61,19 @@ else
     else
       
       assert(metaDataCache.indexMeasurement ...
-           <= length(experimentJson.measurements),...
+           <= length(expJson.measurements),...
            'Error: Attempting to read beyond last measurement');
 
       metaDataCache.indexMeasurement=metaDataCache.indexMeasurement+1;
       metaDataCache.indexSequence   = 0;      
     end
   else
-    if(metaDataCache.indexMeasurement < length(experimentJson.measurements))
+    if(metaDataCache.indexMeasurement < length(expJson.measurements))
         metaDataCache.indexMeasurement=metaDataCache.indexMeasurement+1;
         metaDataCache.indexSequence   = 0;
     end
     assert(metaDataCache.indexMeasurement ...
-         <= length(experimentJson.measurements),...
+         <= length(expJson.measurements),...
          'Error: Attempting to read beyond last measurement');
   end
 
@@ -76,16 +86,16 @@ end
 idxM = metaDataCache.indexMeasurement;
 idxS = metaDataCache.indexSequence;
 
-if(contains(experimentJson.measurements{idxM},'.seq'))
+if(contains(expJson.measurements{idxM},'.seq'))
 
   if(idxS==0)
     idxS = 1;
     metaDataCache.indexSequence = idxS;
   end
 
-  metaDataCache.sequenceFileName = experimentJson.measurements{idxM};
-  metaDataCache.sequenceFilePath = fullfile(experimentFolder,...
-                                      experimentJson.measurements{idxM});
+  metaDataCache.sequenceFileName = expJson.measurements{idxM};
+  metaDataCache.sequenceFilePath = fullfile(expFolder,...
+                                      expJson.measurements{idxM});
 
 
   seqFile = fileread(metaDataCache.sequenceFilePath);
@@ -105,9 +115,9 @@ if(contains(experimentJson.measurements{idxM},'.seq'))
                   seqJson.sequence.data.folder{i}];
   end
   
-  metaDataCache.measurementFileName = experimentJson.measurements{idxM};
+  metaDataCache.measurementFileName = expJson.measurements{idxM};
   metaDataCache.metaDataFilePath = ...
-    fullfile( experimentFolder, ...
+    fullfile( expFolder, ...
               metaDataFolder, ...
               seqJson.sequence.meta_data.files{idxS});
 
@@ -115,8 +125,9 @@ if(contains(experimentJson.measurements{idxM},'.seq'))
   metaDataStr = fileread(metaDataCache.metaDataFilePath);      
   metaDataCache.metaDataJson = jsondecode(metaDataStr);
 
+
   metaDataCache.dataFileName = seqJson.sequence.data.files{idxS};
-  metaDataCache.dataFilePath = fullfile(experimentFolder, ...
+  metaDataCache.dataFilePath = fullfile(expFolder, ...
                                         dataFolder, ...
                                         seqJson.sequence.data.files{idxS});
 
@@ -138,7 +149,7 @@ if(contains(experimentJson.measurements{idxM},'.seq'))
           seqJson.sequence.protocols.files{idxS};
 
         metaDataCache.protocolFilePath = ...
-          fullfile( experimentFolder,...
+          fullfile( expFolder,...
                     protocolsFolder,...
                     seqJson.sequence.protocols.files{idxS});
       end        
@@ -147,7 +158,7 @@ if(contains(experimentJson.measurements{idxM},'.seq'))
 
   metaDataCache.isLastMeasurement=0;
 
-  if(     idxM == length(experimentJson.measurements) ...
+  if(     idxM == length(expJson.measurements) ...
       &&  idxS == length(seqJson.sequence.meta_data.files))
     metaDataCache.isLastMeasurement=1;
   end
@@ -158,8 +169,8 @@ else
   metaDataCache.sequenceFilePath = '';
   metaDataCache.sequenceJson     = [];
 
-  trialFile = fileread(fullfile(experimentFolder,...
-                        experimentJson.measurements{idxM}));
+  trialFile = fileread(fullfile(expFolder,...
+                        expJson.measurements{idxM}));
   trialJson = jsondecode(trialFile);
   
 
@@ -178,33 +189,85 @@ else
     end 
     metaDataCache.protocolFileName = trialJson.protocol.file{end};
     metaDataCache.protocolFilePath = ...
-      fullfile(experimentFolder,...
+      fullfile(expFolder,...
                protocolPath);      
   else
     metaDataCache.protocolFilePath = [];
   end
 
-  metaDataCache.measurementFileName = experimentJson.measurements{idxM};
-  metaDataCache.metaDataFileName = experimentJson.measurements{idxM};
-  metaDataCache.metaDataFilePath = fullfile(experimentFolder,...
-                                   experimentJson.measurements{idxM});
+  metaDataCache.measurementFileName = expJson.measurements{idxM};
+  metaDataCache.metaDataFileName = expJson.measurements{idxM};
+  metaDataCache.metaDataFilePath = fullfile(expFolder,...
+                                   expJson.measurements{idxM});
     
   metaDataCache.metaDataJson = trialJson;
 
   metaDataCache.dataFileName = trialJson.data.file{end};
-  metaDataCache.dataFilePath = fullfile(experimentFolder, ...
+  metaDataCache.dataFilePath = fullfile(expFolder, ...
                                         dataPath);
 
   metaDataCache.dataSha256Sum= trialJson.data.sha256;    
 
   metaDataCache.isLastMeasurement=0;
 
-  if(length(experimentJson.measurements) == idxM)
+  if(length(expJson.measurements) == idxM)
     metaDataCache.isLastMeasurement=1;
   end
 
 end
 
+%
+% Extract meta data which is sometimes specific to the trial
+%
 
+if(isfield(metaDataCache.metaDataJson.experiment,'tags'))
+  metaDataCache.tags = metaDataCache.metaDataJson.experiment.tags;
+else
+  metaDataCache.tags = {};
+end
+
+if(isfield(expJson.experiment,'manually_measured_temperature_C'))
+  for i=1:1:length(expJson.experiment.manually_measured_temperature_C)
+    for j=1:1:length(expJson.experiment.manually_measured_temperature_C(i))
+      if (abs(idxM-expJson.experiment.manually_measured_temperature_C(i).measurements(j)) < 1e-3) 
+        metaDataCache.temperature_C= ...
+          expJson.experiment.manually_measured_temperature_C(i).range_C;
+      end
+    end
+  end
+else
+  metaDataCache.temperature_C = nan;
+end
+
+if(isfield(expJson.experiment,'mounted_reference_state'))
+  for i=1:1:length(expJson.experiment.mounted_reference_state)
+    for j=1:1:length(expJson.experiment.mounted_reference_state(i))
+      if (abs(idxM-expJson.experiment.mounted_reference_state(i).measurements(j)) < 1e-3) 
+        fieldList = fields(expJson.experiment.mounted_reference_state(i));
+        for k=1:1:length(fieldList)
+          if(~strcmp(fieldList{k},'measurements'))
+            metaDataCache.referenceState.(fieldList{k}) = ...
+              expJson.experiment.mounted_reference_state(i).(fieldList{k});
+          end
+        end
+      end
+    end
+  end  
+else
+  metaDataCache.referenceState = [];
+end
+
+if(isfield(expJson.experiment,'dimensions'))
+  metaDataCache.dimensions = expJson.experiment.dimensions;
+else
+  metaDataCache.dimensions = [];
+end
+
+
+if(isfield(expJson.experiment,'specimen'))
+  metaDataCache.specimen = expJson.experiment.specimen;
+else
+  metaDataCache.specimen = [];
+end
 
 
