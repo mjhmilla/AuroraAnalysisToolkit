@@ -41,7 +41,7 @@ flags.verifyDataIntegrityCompletness         = 0;
   settingsDataCheck.setSha256Sum   = 0;
   
 
-flags.plotOverview                                = 0;
+flags.plotOverview                                = 1;
 
   overviewPlotSettings.savePlots                  = 1;
   overviewPlotSettings.saveFormat                 = {'png'};
