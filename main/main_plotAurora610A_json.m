@@ -2,22 +2,36 @@ clc;
 close all;
 clear all;
 
-experimentsToProcess = {'20260326_610A_EDL'};
+experimentsToProcess = {'20260311_610A_EDL'};
 % 20260311_610A_EDL
 % 20260312_610A_EDL_Passive_0
 % 20260312_610A_EDL_Passive_1
 % 20260312_610A_EDL_Passive_2
 % 20260312_610A_EDL_Passive_3
 
-keyWordFilter.metaDataFileName.include = {};
-keyWordFilter.metaDataFileName.exclude = {'sine_wave'};
-keyWordFilter.segment.include = ...
-  {'Stimulus-Twitch',...
-   'Stimulus-Tetanus',...
-   'Sine Wave-Stochastic',...
-   'Step-Stochastic'};
-keyWordFilter.segment.exclude = {};
 
+
+keyWordFilter.metaDataFileName.include = {};
+keyWordFilter.metaDataFileName.exclude = {};
+keyWordFilter.segment.include = {};
+keyWordFilter.segment.exclude = {};
+keyWordFilter.tags.include = {};
+keyWordFilter.tags.exclude = {};
+
+if(length(experimentsToProcess)==1)
+  switch experimentsToProcess{1}
+    case '20260311_610A_EDL'
+      keyWordFilter.tags.include = ...
+          {'isometric-active-passive-force-length'};
+    case '20260326_610A_EDL'
+      keyWordFilter.metaDataFileName.exclude = {'sine_wave'};
+      keyWordFilter.segment.include = ...
+        {'Stimulus-Twitch',...
+         'Stimulus-Tetanus',...
+         'Sine Wave-Stochastic',...
+         'Step-Stochastic'};
+  end
+end
 
 %
 % Script settings
@@ -27,26 +41,28 @@ flags.verifyDataIntegrityCompletness         = 0;
   settingsDataCheck.setSha256Sum   = 0;
   
 
-flags.plotOverview                          = 1;
+flags.plotOverview                                = 0;
 
-  overviewPlotSettings.savePlots            = 1;
-  overviewPlotSettings.breakPlotsAtSequences= 1;
-  overviewPlotSettings.breakPlotsAfterTrialCount = 20;
-  overviewPlotSettings.readProtocolArray    =  1;
-  overviewPlotSettings.preStimulusPlotTime  = -0.1;
-  overviewPlotSettings.postStimulusPlotTime = 0.3;
-  overviewPlotSettings.stimulusCommandScale     = 1;
-  overviewPlotSettings.stimulusDataScale        = 0.125;
-  overviewPlotSettings.stimulusVoltageDataScale = (0.5);
-  overviewPlotSettings.stimulusCurrentDataScale = (0.25);
+  overviewPlotSettings.savePlots                  = 1;
+  overviewPlotSettings.saveFormat                 = {'png'};
+  overviewPlotSettings.breakPlotsAtSequences      = 1;
+  overviewPlotSettings.breakPlotsAfterTrialCount  = 20;
+  overviewPlotSettings.readProtocolArray          =  1;
+  overviewPlotSettings.preStimulusPlotTime        = -0.1;
+  overviewPlotSettings.postStimulusPlotTime       = 0.3;
+  overviewPlotSettings.stimulusCommandScale       = 1;
+  overviewPlotSettings.stimulusDataScale          = 0.125;
+  overviewPlotSettings.stimulusVoltageDataScale   = (0.5);
+  overviewPlotSettings.stimulusCurrentDataScale   = (0.25);
   
-  overviewPlotSettings.annotateMinMaxTrialForce   = 0;
+  overviewPlotSettings.annotateMinMaxTrialForce   = 1;
   overviewPlotSettings.annotateMinMaxSegmentForce = 1;
 
-
-flags.plotForceLengthRelations              = 0;
-  
+flags.plotForceLengthRelations              = 1;
+  forceLengthPlotSettings.isometricForceLengthTag = ...
+    'isometric-active-passive-force-length';
   forceLengthPlotSettings.savePlots         = 1;
+  forceLengthPlotSettings.saveFormat        = {'png'};  
   forceLengthPlotSettings.readProtocolArray = 1;
   forceLengthPlotSettings.activationTime    = 0.2;
   forceLengthPlotSettings.deactivationTime  = 0.3;
@@ -121,9 +137,13 @@ end
 % Force-length relations
 %
 if(flags.plotForceLengthRelations == 1)
+  keyWordFilterUpd=keyWordFilter;
+  keyWordFilterUpd.tags.include = ...
+    {forceLengthPlotSettings.isometricForceLengthTag};
+
   success = plotExperimentalForceLengthRelations610A_json(...
                     experimentsToProcess,...
-                    keyWordFilter,...
+                    keyWordFilterUpd,...
                     forceLengthPlotSettings, ...
                     projectFolders);
 end

@@ -29,10 +29,13 @@ for idxExp = 1:1:length(experimentsToProcess)
                                    verbose);   
   
 
+  csPaleDark = getPaulTolColourSchemes('paleDark');
+  csVibrant  = getPaulTolColourSchemes('vibrant');
 
-  colors.SV = ([210,105,30]./255).*0.5 + [1,1,1].*0.5;
-  colors.SC = ([165,42,42]./255).*0.5 + [1,1,1].*0.5;
-  colors.F  = [1,0,0];
+  colors.SV = csVibrant.cyan;
+  colors.SC = csVibrant.teal;
+  colors.F  = csVibrant.red;
+  colors.L  = csVibrant.blue;
   
   data.S.ch = 'Sample';
   data.S.settings = [];  
@@ -40,9 +43,9 @@ for idxExp = 1:1:length(experimentsToProcess)
   data.L.settings = [];
   data.F.ch  = 'AI1';
   data.F.settings = [];
-  data.SV.ch  = 'A12';
+  data.SV.ch  = [];
   data.SV.settings = [];
-  data.SC.ch  = 'A13';
+  data.SC.ch  = [];
   data.SC.settings = [];
   data.SS.ch  = 'Stim';
   data.SS.settings = [];
@@ -148,12 +151,12 @@ for idxExp = 1:1:length(experimentsToProcess)
           currentMeasurementId = 0;
           targetTrialCount     = 0;
           targetSegmentCount   = 0;
-          while(found==0 && k <= length(scanSummary.trialId))
+          while(found==0 && k <= length(scanSummary.indexTrial))
             if(currentMeasurementId~=0 ...
-                && scanSummary.measurementId(k) ~= currentMeasurementId)
+                && scanSummary.indexMeasurement(k) ~= currentMeasurementId)
               found=1;
-            elseif((scanSummary.measurementId(k) == currentMeasurementId ...
-                || scanSummary.sequenceId(k) == 0 ...
+            elseif((scanSummary.indexMeasurement(k) == currentMeasurementId ...
+                || scanSummary.indexSequence(k) == 0 ...
                 || currentMeasurementId == 0) ...          
                 && scanSummary.doesFileNamePassFilter(k)==1 ...
                 && scanSummary.numberOfSegmentsPassingFilter(k) > 0)
@@ -161,8 +164,11 @@ for idxExp = 1:1:length(experimentsToProcess)
               targetTrialCount = targetTrialCount+1;
               targetSegmentCount = targetSegmentCount...
                                  + scanSummary.numberOfSegmentsPassingFilter(k);
-              if(scanSummary.sequenceId(k) ~= 0 && currentMeasurementId==0)
-                currentMeasurementId=scanSummary.measurementId(k);
+              if(scanSummary.indexSequence(k) ~= 0 && currentMeasurementId==0)
+                currentMeasurementId=scanSummary.indexMeasurement(k);
+              end
+              if(targetTrialCount==33)
+                here=1;
               end
             end
       
@@ -175,7 +181,7 @@ for idxExp = 1:1:length(experimentsToProcess)
           targetSegmentCount   = 0;
 
           while(targetTrialCount < settings.breakPlotsAfterTrialCount ...
-              && k < length(scanSummary.trialId))
+              && k < length(scanSummary.indexTrial))
 
             if( scanSummary.doesFileNamePassFilter(k)==1 ...
                 && scanSummary.numberOfSegmentsPassingFilter(k) > 0)
@@ -320,7 +326,10 @@ for idxExp = 1:1:length(experimentsToProcess)
     
         yyaxis left;
       
-          plot(timeSeries, ddfData610.data.(data.L.ch).Values);  
+          plot(timeSeries, ...
+               ddfData610.data.(data.L.ch).Values,...
+               '-','Color',colors.L);  
+
           hold on;
           ylabel(['Length (',lengthUnit,')']);
       
@@ -348,7 +357,7 @@ for idxExp = 1:1:length(experimentsToProcess)
                   fill([timeStim(1),timeStim(2),timeStim(2),...
                                     timeStim(1),timeStim(1)],...
                        [0,0,1,1,0].*settings.stimulusCommandScale,...
-                       [1,1,1].*0.9);
+                       [1,1,1].*0.9,'EdgeAlpha',0,'EdgeColor','none');
                   hold on;
   
                   text(timeStim(2),settings.stimulusCommandScale,...
@@ -466,7 +475,12 @@ for idxExp = 1:1:length(experimentsToProcess)
       
           minYValues = zeros(3,1);
           maxYValues = zeros(3,1);
-          chLabel = {'F','SV','SC'};
+          chLabel = {'F'};          
+          if(~isempty(data.F.ch) ...
+              && ~isempty(data.SV.ch) ...
+              && ~isempty(data.SA.ch))
+            chLabel = {'F','SV','SC'};
+          end
           for k=1:1:length(chLabel)
             minYValues(k)=min(ddfData610.data.(data.(chLabel{k}).ch).Values);
             maxYValues(k)=max(ddfData610.data.(data.(chLabel{k}).ch).Values);
@@ -492,8 +506,10 @@ for idxExp = 1:1:length(experimentsToProcess)
         xlabel(['Time (',defaultTimeUnit,')']);
           
         box off;
-        titleStr = strrep(expJson.measurements{idxM},'_',' ');
-        fileNameStr = strrep(expJson.measurements{idxM},'_','\_');
+        
+
+        
+        fileNameStr = strrep(metaDataCache.dataFileName,'_','\_');
   
         titleStr = sprintf('(%i,%i) T%i %s',...
                     idxM,idxS,idxSeg, ...
@@ -542,7 +558,9 @@ for idxExp = 1:1:length(experimentsToProcess)
             yyaxis left;
           
             
-              plot(timeSeries(idxTime), ddfData610.data.(data.L.ch).Values(idxTime));  
+              plot(timeSeries(idxTime), ...
+                ddfData610.data.(data.L.ch).Values(idxTime),...
+                '-','Color',colors.L);  
               hold on;
               ylabel(['Length (',lengthUnit,')']);
           
@@ -678,7 +696,7 @@ for idxExp = 1:1:length(experimentsToProcess)
                   fill([timeStim(1),timeStim(2),timeStim(2),...
                                     timeStim(1),timeStim(1)],...
                        [0,0,1,1,0].*settings.stimulusCommandScale,...
-                       [1,1,1].*0.9);
+                       [1,1,1].*0.9,'EdgeAlpha',0,'EdgeColor','none');
                   hold on;
                   hax = gca;
                   hax.Children = circshift(hax.Children, -1);
@@ -709,7 +727,7 @@ for idxExp = 1:1:length(experimentsToProcess)
             xlabel(['Time (',defaultTimeUnit,')']);
               
             box off;
-            fileNameStr = strrep(expJson.measurements{idxM},'_','\_');
+            fileNameStr = strrep(metaDataCache.dataFileName,'_','\_');
       
             titleStr = sprintf('(%i,%i) T%i S%i %s %s',...
                         idxRow,idxCol,idxM,idxSeg, ...
@@ -753,29 +771,43 @@ for idxExp = 1:1:length(experimentsToProcess)
           
               outputPlotDir = fullfile(projectFolders.output610A_plots,...
                                       experimentsToProcess{idxExp});  
+
+              outputPlotDirOverview = fullfile(outputPlotDir,'overview');
+              if(~exist(outputPlotDirOverview,'dir'))
+                mkdir(outputPlotDirOverview);
+              end
+
               figure(figureStruct(i).h);
               figureStruct(i).h=configPlotExporter(...
                                     figureStruct(i).h, ...
                                     figureStruct(i).pageWidth,...
                                     figureStruct(i).pageHeight);
             
+              fullFilePathNoExt = [];
               if(~isempty(keyWordFilter.metaDataFileName.include))
-                print('-dpdf', ...
-                      fullfile(outputPlotDir,...
-                          [figureStruct(i).name,'keyWord_',...
-                          keyWordFilter.metaDataFileName.include,'.pdf']));  
-                saveas(figureStruct(i).h,...
-                        fullfile(outputPlotDir,...
-                          [figureStruct(i).name,'keyWord_',...
-                          keyWordFilter.metaDataFileName.include,'.fig']));
+                fullFilePathNoExt = ...
+                  fullfile(outputPlotDirOverview,...
+                                [figureStruct(i).name,'keyWord_',...
+                                keyWordFilter.metaDataFileName.include]);
               else
-                print('-dpdf', ...
-                      fullfile(outputPlotDir,...
-                         [figureStruct(i).name,'.pdf']));  
-                saveas(figureStruct(i).h,...
-                        fullfile(outputPlotDir,...
-                          [figureStruct(i).name,'.fig']));
+                fullFilePathNoExt = ...
+                  fullfile(outputPlotDirOverview,...
+                                [figureStruct(i).name]);
               end
+
+              for k=1:1:length(settings.saveFormat)
+                switch settings.saveFormat{k}
+                  case 'pdf'
+                    print('-dpdf',[fullFilePathNoExt,'.pdf']);  
+                  case 'fig'                      
+                    saveas(figureStruct(i).h,[fullFilePathNoExt,'.fig']);
+                  case 'png'
+                    saveas(figureStruct(i).h,[fullFilePathNoExt,'.png']);
+                  otherwise
+                    assert(0,'Error: unrecognized type in settings.saveFormat');
+                end
+              end
+
             end
           end
         
