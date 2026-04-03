@@ -20,10 +20,13 @@ experimentsToProcess = {'20260326_610A_EDL'};
 % 20260312_610A_EDL_Passive_3   - impedance
 % 20260326_610A_EDL             - degradation
 %
-keyWordFilter.metaDataFileName.include = {};
-keyWordFilter.metaDataFileName.exclude = {};
+keyWordFilter.measurement.include = {};
+keyWordFilter.measurement.exclude = {};
 keyWordFilter.segment.include = {};
 keyWordFilter.segment.exclude = {};
+keyWordFilter.metaDataFileName.include = {};
+keyWordFilter.metaDataFileName.exclude = {};
+
 keyWordFilter.tags.include = {};
 keyWordFilter.tags.exclude = {};
 
@@ -162,7 +165,8 @@ if(flags.plotForceDegradation == 1)
 
   if(length(experimentsToProcess)==1)
     if(strcmp(experimentsToProcess(1),'20260326_610A_EDL'))
-        keyWordFilter.metaDataFileName.exclude = ...
+        keyWordFilterUpd.measurement.exclude = {'03_degradation_02_Broken'};
+        keyWordFilterUpd.metaDataFileName.exclude = ...
           {'sine_wave','plateau','temperature','10-','09-'};   
     end
   end

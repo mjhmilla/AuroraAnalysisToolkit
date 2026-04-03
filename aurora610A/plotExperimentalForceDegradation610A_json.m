@@ -15,6 +15,10 @@ figureStruct(1)   = struct('h',[],'name','','pageWidth',0,'pageHeight',0);
 figureStruct(1).h = figure;
 figureStruct(1).name = ['fig_degradation'];
 
+csVibrant = getPaulTolColourSchemes('vibrant');
+lineInfo.colours = [csVibrant.blue;csVibrant.teal];
+lineInfo.measurement = [];
+lineInfo.indexColor  = 1;
 %
 % Count the number of trials and the number of segments
 %
@@ -126,6 +130,8 @@ for idxExp = 1:1:length(experimentsToProcess)
   labelOffset = -0.1;
   measurementStart=0;
 
+  lineInfo.measurement = [];
+  
   for idxSetOfTrials = 1:1:length(setOfTrials)
     if(idxSetOfTrials==1)
       fprintf('\t%s\n',experimentsToProcess{idxExp});
@@ -237,10 +243,24 @@ for idxExp = 1:1:length(experimentsToProcess)
     %
     % Plot the trial data
     %
+    lineColor = [0,0,0];
+    if(isempty(lineInfo.measurement))
+      lineInfo.measurement=idxM;
+    end
+    if(lineInfo.measurement~=idxM)
+      if(lineInfo.indexColor==1)
+        lineInfo.indexColor=2;
+      else
+        lineInfo.indexColor=1;
+      end
+    end
+    lineColorA = lineInfo.colours(lineInfo.indexColor,:);
+    lineColorB = lineColorA.*(0.5) + [0.5,0.5,0.5];
+
     figure(figureStruct(indexFigExpFl).h);
     subplot('Position',reshape(subPlotPanelTrial(idxExp,1,:),1,4));
       plotBoxWhiskerData(activationCount,activeForceSS,0.5,...
-                          [0,0,1],[0.5,0.5,1]);
+                          lineColorA,lineColorB);
       hold on;
       text(activationCount, activeForceSS.median+labelOffset,...
         sprintf('%i',activationCount),...
@@ -345,6 +365,59 @@ for idxExp = 1:1:length(experimentsToProcess)
   %
   % Fit a degradation model to the data
   %
+  setOfMeasurements = unique(degradationSet.indexMeasurement);
+
+  for idxM = 1:1:length(setOfUniqueMeasurements)
+    idxData = find(degradationSet.indexMeasurement ...
+      == setOfUniqueMeasurements(idxM));
+
+    y = degradationSet.force(idxData);
+    a = degradationSet.activationCount(idxData);
+    aMin = min(a)-1;
+    a = a-aMin;
+
+    A = [a ones(size(a))];
+    x = (A'*A)\(A'*y);
+
+    yMdl = A*x;
+    figure(figureStruct(indexFigExpFl).h);
+    subplot('Position',reshape(subPlotPanelTrial(idxExp,1,:),1,4));
+      plot((a+aMin),yMdl,'-','Color',[1,0,0]);
+      hold on;
+
+
+    xTxt=0;
+    yTxt=0;
+    if(rem(idxM,2)==0)
+      xTxt = a(1)+aMin;
+      yTxt = yMdl(1)+6*abs(labelOffset);
+
+    else
+      xTxt = a(1)+aMin;
+      yTxt = yMdl(end)-6*abs(labelOffset);
+      if(yTxt < 2*abs(labelOffset))
+        yTxt=abs(labelOffset)*2;
+      end
+
+    end
+
+    yNorm=x(2);
+
+    text( xTxt, yTxt,...
+          sprintf('y=(%1.3e)a + (%1.3e)',x(1),x(2)),...
+          'HorizontalAlignment','left',...
+          'VerticalAlignment','top',...
+          'FontSize',6);
+    text( xTxt, yTxt-abs(labelOffset),...
+          sprintf('%s=(%1.3e)a + (%1.3e)','$$\tilde{y}$$',...
+                   x(1)/yNorm,x(2)/yNorm),...
+          'HorizontalAlignment','left',...
+          'VerticalAlignment','top',...
+          'FontSize',6);
+    
+    hold on;
+
+  end
 
 end
 
