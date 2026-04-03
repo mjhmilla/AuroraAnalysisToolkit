@@ -2,15 +2,24 @@ clc;
 close all;
 clear all;
 
-experimentsToProcess = {'20260311_610A_EDL'};
-% 20260311_610A_EDL
-% 20260312_610A_EDL_Passive_0
-% 20260312_610A_EDL_Passive_1
-% 20260312_610A_EDL_Passive_2
-% 20260312_610A_EDL_Passive_3
+%To do
+% 1. Degradation
+%  a. Plot
+%  b. Extract a degradation model
+% 2. Update the force length plot to include (optionally) an
+%    adjustment to account for degradation
+% 3. Impedance plots, both for passive and active data
 
+experimentsToProcess = {'20260326_610A_EDL'};
 
-
+%
+% 20260311_610A_EDL             - force-length
+% 20260312_610A_EDL_Passive_0   - impedance
+% 20260312_610A_EDL_Passive_1   - impedance
+% 20260312_610A_EDL_Passive_2   - impedance
+% 20260312_610A_EDL_Passive_3   - impedance
+% 20260326_610A_EDL             - degradation
+%
 keyWordFilter.metaDataFileName.include = {};
 keyWordFilter.metaDataFileName.exclude = {};
 keyWordFilter.segment.include = {};
@@ -18,54 +27,49 @@ keyWordFilter.segment.exclude = {};
 keyWordFilter.tags.include = {};
 keyWordFilter.tags.exclude = {};
 
-if(length(experimentsToProcess)==1)
-  switch experimentsToProcess{1}
-    case '20260311_610A_EDL'
-      keyWordFilter.tags.include = ...
-          {'isometric-active-passive-force-length'};
-    case '20260326_610A_EDL'
-      keyWordFilter.metaDataFileName.exclude = {'sine_wave'};
-      keyWordFilter.segment.include = ...
-        {'Stimulus-Twitch',...
-         'Stimulus-Tetanus',...
-         'Sine Wave-Stochastic',...
-         'Step-Stochastic'};
-  end
-end
-
 %
 % Script settings
 %
 flags.scanData                               = 1;
 flags.verifyDataIntegrityCompletness         = 0;
-  settingsDataCheck.setSha256Sum   = 0;
+flags.plotOverview                           = 0;
+flags.plotForceLengthRelations               = 0;
+flags.plotForceDegradation                   = 1;
+
   
-
-flags.plotOverview                                = 1;
-
-  overviewPlotSettings.savePlots                  = 1;
-  overviewPlotSettings.saveFormat                 = {'png'};
-  overviewPlotSettings.breakPlotsAtSequences      = 1;
-  overviewPlotSettings.breakPlotsAfterTrialCount  = 20;
-  overviewPlotSettings.readProtocolArray          =  1;
-  overviewPlotSettings.preStimulusPlotTime        = -0.1;
-  overviewPlotSettings.postStimulusPlotTime       = 0.3;
-  overviewPlotSettings.stimulusCommandScale       = 1;
-  overviewPlotSettings.stimulusDataScale          = 0.125;
-  overviewPlotSettings.stimulusVoltageDataScale   = (0.5);
-  overviewPlotSettings.stimulusCurrentDataScale   = (0.25);
+  settingsVerify.setSha256Sum   = 0;
   
-  overviewPlotSettings.annotateMinMaxTrialForce   = 1;
-  overviewPlotSettings.annotateMinMaxSegmentForce = 1;
+  settingsPlotOverview.savePlots                  = 1;
+  settingsPlotOverview.saveFormat                 = {'png'};
+  settingsPlotOverview.breakPlotsAtSequences      = 1;
+  settingsPlotOverview.breakPlotsAfterTrialCount  = 20;
+  settingsPlotOverview.readProtocolArray          =  1;
+  settingsPlotOverview.preStimulusPlotTime        = -0.1;
+  settingsPlotOverview.postStimulusPlotTime       = 0.3;
+  settingsPlotOverview.stimulusCommandScale       = 1;
+  settingsPlotOverview.stimulusDataScale          = 0.125;
+  settingsPlotOverview.stimulusVoltageDataScale   = (0.5);
+  settingsPlotOverview.stimulusCurrentDataScale   = (0.25);  
+  settingsPlotOverview.annotateMinMaxTrialForce   = 1;
+  settingsPlotOverview.annotateMinMaxSegmentForce = 1;
 
-flags.plotForceLengthRelations              = 1;
-  forceLengthPlotSettings.isometricForceLengthTag = ...
+  settingsPlotDegradation.degradationTag = ...
+    'degradation';
+  settingsPlotDegradation.savePlots         = 1;
+  settingsPlotDegradation.saveFormat        = {'png'};  
+  settingsPlotDegradation.readProtocolArray = 1;
+  settingsPlotDegradation.activationTime    = 0.2;
+  settingsPlotDegradation.deactivationTime  = 0.3;
+
+  settingsPlotForceLength.isometricForceLengthTag = ...
     'isometric-active-passive-force-length';
-  forceLengthPlotSettings.savePlots         = 1;
-  forceLengthPlotSettings.saveFormat        = {'png'};  
-  forceLengthPlotSettings.readProtocolArray = 1;
-  forceLengthPlotSettings.activationTime    = 0.2;
-  forceLengthPlotSettings.deactivationTime  = 0.3;
+  settingsPlotForceLength.savePlots         = 1;
+  settingsPlotForceLength.saveFormat        = {'png'};  
+  settingsPlotForceLength.readProtocolArray = 1;
+  settingsPlotForceLength.activationTime    = 0.2;
+  settingsPlotForceLength.deactivationTime  = 0.3;
+
+  
 
 %
 % Setup project folders
@@ -113,7 +117,7 @@ if(flags.verifyDataIntegrityCompletness==1)
     setOfVerifiedTrials=...
         verifyExperimentDataIntegrityCompletness610A(...
                 experimentsToProcess{idxExp},...
-                settingsDataCheck,...
+                settingsVerify,...
                 projectFolders);
   end
 end
@@ -125,12 +129,51 @@ end
 
 
 if(flags.plotOverview==1)
+  keyWordFilterUpd=keyWordFilter;
+  if(length(experimentsToProcess)==1)
+    if(strcmp(experimentsToProcess(1),'20260326_610A_EDL'))
+        keyWordFilterUpd.metaDataFileName.exclude = {'sine_wave'};
+        keyWordFilterUpd.segment.include = ...
+          {'Stimulus-Twitch',...
+           'Stimulus-Tetanus',...
+           'Sine Wave-Stochastic',...
+           'Step-Stochastic'};      
+    end
+  end
 
+  verbose=1;
   success = plotExperimentalDataOverview610A_json(...
                     experimentsToProcess,...
-                    keyWordFilter,...
-                    overviewPlotSettings, ...
-                    projectFolders);  
+                    keyWordFilterUpd,...
+                    settingsPlotOverview, ...
+                    projectFolders,...
+                    verbose);  
+end
+
+%
+% Degradation plots
+%
+if(flags.plotForceDegradation == 1)
+
+
+  keyWordFilterUpd=keyWordFilter;
+  keyWordFilterUpd.tags.include = ...
+    {settingsPlotDegradation.degradationTag};
+
+  if(length(experimentsToProcess)==1)
+    if(strcmp(experimentsToProcess(1),'20260326_610A_EDL'))
+        keyWordFilter.metaDataFileName.exclude = ...
+          {'sine_wave','plateau','temperature','10-','09-'};   
+    end
+  end
+
+  verbose=1;  
+  success = plotExperimentalForceDegradation610A_json(...
+                    experimentsToProcess,...
+                    keyWordFilterUpd,...
+                    settingsPlotDegradation, ...
+                    projectFolders,...
+                    verbose);
 end
 
 %
@@ -139,11 +182,13 @@ end
 if(flags.plotForceLengthRelations == 1)
   keyWordFilterUpd=keyWordFilter;
   keyWordFilterUpd.tags.include = ...
-    {forceLengthPlotSettings.isometricForceLengthTag};
+    {settingsPlotForceLength.isometricForceLengthTag};
 
+  verbose=1;  
   success = plotExperimentalForceLengthRelations610A_json(...
                     experimentsToProcess,...
                     keyWordFilterUpd,...
-                    forceLengthPlotSettings, ...
-                    projectFolders);
+                    settingsPlotForceLength, ...
+                    projectFolders,...
+                    verbose);
 end

@@ -1,25 +1,24 @@
-function success = plotExperimentalForceLengthRelations610A_json(...
+function success = plotExperimentalForceDegradation610A_json(...
                           experimentsToProcess,...
                           keyWordFilter,...
                           settings,...
-                          projectFolders,...
+                          projectFolders, ...
                           verbose)
 
 success = 0;
 
-fprintf('\n\nForce-Length Relation Plots\n\n');
+fprintf('\n\nDegradation Data Plots\n\n');
 
 indexFigExpFl   =1;
 
-figureStruct(1) = struct('h',[],'name','','pageWidth',0,'pageHeight',0);
+figureStruct(1)   = struct('h',[],'name','','pageWidth',0,'pageHeight',0);
 figureStruct(1).h = figure;
-
-figureStruct(1).name = ['fig_forceLengthRelations'];
+figureStruct(1).name = ['fig_degradation'];
 
 %
 % Count the number of trials and the number of segments
 %
-forceLengthExperimentCount=0;
+experimentCount=0;
 for idxExp =1:1:length(experimentsToProcess)
   expFolder = fullfile(projectFolders.data610A,...
                        experimentsToProcess{idxExp});
@@ -33,19 +32,19 @@ for idxExp =1:1:length(experimentsToProcess)
                                    verbose);    
  
   if(sum(scanSummary.passesAllFilters) > 0)
-    forceLengthExperimentCount=forceLengthExperimentCount+1;
+    experimentCount=experimentCount+1;
   end
 
 end
 
-if(forceLengthExperimentCount==0)
+if(experimentCount==0)
   return;
 end
 %
-% Experiment force-length plots
+% Degradation plots
 %  
 numberOfHorizontalPlotColumnsGeneric  = 2;
-numberOfVerticalPlotRowsGeneric       = forceLengthExperimentCount;
+numberOfVerticalPlotRowsGeneric       = experimentCount;
 
 
 plotWidth              = ones(1,numberOfHorizontalPlotColumnsGeneric).*6;
@@ -84,6 +83,8 @@ for idxExp = 1:1:length(experimentsToProcess)
                             [experimentsToProcess{idxExp},'.json']));
   expJson = jsondecode(expStr);
 
+  dataInfo = getDataColumnLabelsSettings(expJson);
+  
   verbose=0;
   scanSummary = scanExperiment610A(experimentsToProcess{idxExp},...
                                    keyWordFilter,...
@@ -91,17 +92,40 @@ for idxExp = 1:1:length(experimentsToProcess)
                                    verbose);    
 
   setOfTrials = find(scanSummary.passesAllFilters > 0);
+  setOfUniqueMeasurements = [];
+  for i=1:1:length(scanSummary.indexTrial)
+    if(scanSummary.passesAllFilters(i)==1)
+      if(isempty(setOfUniqueMeasurements))
+        setOfUniqueMeasurements = scanSummary.indexMeasurement(i);
+      else
+        isUnique = 1;
+        for j=1:1:length(setOfUniqueMeasurements)
+          if(setOfUniqueMeasurements(j)==scanSummary.indexMeasurement(i))
+            isUnique=0;
+          end
+        end
+        if(isUnique==1)
+          setOfUniqueMeasurements=[setOfUniqueMeasurements;...
+                                   scanSummary.indexMeasurement(i)];
+        end
+      end
+    end
+  end
    
   %
   % Extract and plot the force-length data
   %
-  meanActiveForceLength.length = [];
-  meanActiveForceLength.force = [];
+
+  degradationSet = ...
+    struct('indexMeasurement',[],'activationCount',[],'force',[]);
 
   %Populate the metaDataStruct
   metaDataCache = getEmptyMetaDataCache610A();
-
   activationCount=0;
+  labelVerticalAlignment = 'top';
+  labelOffset = -0.1;
+  measurementStart=0;
+
   for idxSetOfTrials = 1:1:length(setOfTrials)
     if(idxSetOfTrials==1)
       fprintf('\t%s\n',experimentsToProcess{idxExp});
@@ -114,8 +138,10 @@ for idxExp = 1:1:length(experimentsToProcess)
     idxTrial = setOfTrials(idxSetOfTrials);
     idxM = scanSummary.indexMeasurement(idxTrial);
     idxS = scanSummary.indexSequence(idxTrial);
-    metaDataCache = getMeasurement610A(idxM,idxS,idxTrial,expJson,expFolder,...
+    metaDataCache = getMeasurement610A(idxM,idxS,idxTrial,...
+                                       expJson,expFolder,...
                                        metaDataCache);
+
     assert(metaDataCache.indexTrial == idxTrial ...
            && metaDataCache.indexMeasurement == idxM ...
            && metaDataCache.indexSequence == idxS, ...
@@ -136,7 +162,7 @@ for idxExp = 1:1:length(experimentsToProcess)
     %Get the default time unit
     %
     units = getUnits610A(expJson,trialJson,ddfData610);
-    
+
     %
     % Extract the data to plot
     %
@@ -177,17 +203,17 @@ for idxExp = 1:1:length(experimentsToProcess)
       end
     end
 
-    trialLength = mean(ddfData610.data.AI0.Values);
+    trialLength = mean(ddfData610.data.(dataInfo.L.ch).Values);
 
     activePassiveForceSS = ...
       getSummaryStatistics(...
-                      ddfData610.data.AI1.Values(...
+                      ddfData610.data.(dataInfo.F.ch).Values(...
                         indices.active(1,1):1:indices.active(1,2)));
     passiveForceSS = ...
       getSummaryStatistics(...
-                     [ddfData610.data.AI1.Values(...
+                     [ddfData610.data.(dataInfo.F.ch).Values(...
                         indices.passive(1,1):1:indices.passive(1,2));...
-                      ddfData610.data.AI1.Values(...
+                      ddfData610.data.(dataInfo.F.ch).Values(...
                         indices.passive(2,1):1:indices.passive(2,2))]);
 
     activeForceSS = activePassiveForceSS;
@@ -198,30 +224,41 @@ for idxExp = 1:1:length(experimentsToProcess)
         -passiveForceSS.mean;
     end
 
-    meanActiveForceLength.length = [meanActiveForceLength.length,...
-                                    trialLength];
-    meanActiveForceLength.force = [meanActiveForceLength.force,...
-                                    activeForceSS.median];    
+    degradationSet.indexMeasurement = ...
+      [degradationSet.indexMeasurement; ...
+       idxM];
+    degradationSet.activationCount = ...
+      [degradationSet.activationCount;...
+       activationCount];
+    degradationSet.force = [degradationSet.force;...
+                            activeForceSS.max];    
+
+
     %
     % Plot the trial data
     %
     figure(figureStruct(indexFigExpFl).h);
     subplot('Position',reshape(subPlotPanelTrial(idxExp,1,:),1,4));
-      plotBoxWhiskerData(trialLength,activePassiveForceSS,0.5,...
-                          [1,1,1].*0.5,[1,1,1].*0.75);
-      hold on;
-      plotBoxWhiskerData(trialLength,activeForceSS,0.5,...
+      plotBoxWhiskerData(activationCount,activeForceSS,0.5,...
                           [0,0,1],[0.5,0.5,1]);
       hold on;
-      text(trialLength, activeForceSS.min,sprintf('%i',activationCount),...
+      text(activationCount, activeForceSS.median+labelOffset,...
+        sprintf('%i',activationCount),...
            'HorizontalAlignment','center',...
-           'VerticalAlignment','top',...
-           'FontSize',8);
+           'VerticalAlignment',labelVerticalAlignment,...
+           'FontSize',6);
       hold on;
-      plotBoxWhiskerData(trialLength,passiveForceSS,0.5,...
+      plotBoxWhiskerData(activationCount,passiveForceSS,0.5,...
                           [1,1,1].*0,[1,1,1].*0.5);
       hold on;
     
+      labelOffset=labelOffset*-1;
+      if(strcmp(labelVerticalAlignment,'top'))
+        labelVerticalAlignment='bottom';
+      else
+        labelVerticalAlignment='top';
+      end
+
     if(idxTrial==setOfTrials(end))
       axis tight;
       yAxis = ylim;
@@ -238,7 +275,9 @@ for idxExp = 1:1:length(experimentsToProcess)
 
     if(idxTrial==setOfTrials(1))
       subplot('Position',reshape(subPlotPanelTrial(idxExp,2,:),1,4));
-      plot(timeSeries,ddfData610.data.AI1.Values,'-','Color',[0,0,0]);
+      plot( timeSeries,...
+            ddfData610.data.(dataInfo.F.ch).Values,...
+            '-','Color',[0,0,0]);
       hold on;
       
       axis tight;
@@ -254,7 +293,8 @@ for idxExp = 1:1:length(experimentsToProcess)
 
       idxA = indices.active(1,1);
       idxB = indices.active(1,2);
-      plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),timeSeries(idxA),timeSeries(idxA)],...
+      plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),...
+            timeSeries(idxA),timeSeries(idxA)],...
            [0,0,max(yAxis),max(yAxis),0],...
            '-','Color',[1,0,0]);
       hold on;
@@ -266,7 +306,8 @@ for idxExp = 1:1:length(experimentsToProcess)
       hold on;
       idxA = indices.passive(1,1);
       idxB = indices.passive(1,2);
-      plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),timeSeries(idxA),timeSeries(idxA)],...
+      plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),...
+            timeSeries(idxA),timeSeries(idxA)],...
            [0,0,max(yAxis),max(yAxis),0],...
            '-','Color',[0,0,1]);
       hold on;
@@ -279,7 +320,8 @@ for idxExp = 1:1:length(experimentsToProcess)
 
       idxA = indices.passive(2,1);
       idxB = indices.passive(2,2);
-      plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),timeSeries(idxA),timeSeries(idxA)],...
+      plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),...
+            timeSeries(idxA),timeSeries(idxA)],...
            [0,0,max(yAxis),max(yAxis),0],...
            '-','Color',[0,0,1]);
       box off;
@@ -299,89 +341,11 @@ for idxExp = 1:1:length(experimentsToProcess)
     end
   end
 
+  here=1;
   %
-  % Fit a line to the descending limb
+  % Fit a degradation model to the data
   %
-  [lengthSorted, idxLengthSort] = sort(meanActiveForceLength.length);
-  meanActiveForceLength.length  = lengthSorted;
-  meanActiveForceLength.force   = meanActiveForceLength.force(idxLengthSort);
-  
-  idxD0 = 2;
-  df = inf;
-  while df > 0 
-    idxD0 =idxD0+1;
-    df = meanActiveForceLength.force(idxD0) ...
-        -meanActiveForceLength.force(idxD0-1);  
-  end
-  
-  idxOpt = idxD0-1;
-  
-  idxD1 = length(meanActiveForceLength.force);
-  
-  Av = meanActiveForceLength.length(idxD0:idxD1)';
-  b  = meanActiveForceLength.force(idxD0:idxD1)';
-  A  = [Av,ones(size(Av))];
-  x  = (A'*A)\(A'*b);
-  
-  
-  lopt = meanActiveForceLength.length(idxOpt);
-  lzero = -x(2)/x(1);
-  
-  lfit = [meanActiveForceLength.length(idxD0);lzero];
-  
-  A0 = [lfit(1),1];
-  b0 = A0*x;
-  A1 = [lfit(2),1];
-  b1 = A1*x;
-  
-  ffit = [b0;b1];
-  
-  optimalFiberLength = (lzero-lopt)/0.6;
-  
-  xt = xticks;
-  xt = [xt, round(lzero,1)];
-  xticks(xt);
-  
-  xl = xlim;
-  xlim([min(xt)-0.01,max(xt)+0.01]);
-  
-  yt = yticks;
-  dy = (max(yt)-min(yt))*0.1;
-  
-  figure(figureStruct(indexFigExpFl).h);
-      subplot('Position',reshape(subPlotPanelTrial(idxExp,1,:),1,4));
-        plot(lfit,ffit,'-','Color',[1,0,0]);
-        hold on;
-        plot([1,1].*lopt,[0,1].*(max(meanActiveForceLength.force)+dy),...
-            '-','Color',[1,1,1].*0.5);
-        hold on;
-        text(lopt,max(meanActiveForceLength.force)+2*dy,'$$\ell_{max}$$',...
-            'HorizontalAlignment','center',...
-            'VerticalAlignment','top',...
-            'FontSize',8);
-        hold on;
-        plot([1,1].*lopt,[0,1].*dy,...
-            '-','Color',[1,1,1].*0.5);
-        hold on;      
-        text(lzero,dy*2,'$$\ell_{zero}$$',...
-            'HorizontalAlignment','center',...
-            'VerticalAlignment','top',...
-            'FontSize',8);
-        hold on;
-  
-        hold on;
-        text(min(xt),max(yt),...
-              sprintf('%s\n%s%1.1f %s',...
-              '$$\ell_o = \frac{\ell_{zero}-\ell_{max}}{0.6}$$',...
-              '$$\ell_o = $$',optimalFiberLength,units.length),...
-              'HorizontalAlignment','left',...
-              'VerticalAlignment','top',...
-              'FontSize',8);
-        hold on;
-  
-        xAxis = xlim;
-        dx = diff(xAxis)*0.1;
-        xlim([xAxis(1)-dx,xAxis(2)+dx]);    
+
 end
 
 
@@ -394,13 +358,14 @@ if(settings.savePlots==1)
 
   for i=1:1:length(figureStruct)  
 
+
     outputPlotDir = fullfile(projectFolders.output610A_plots,...
-                            '01_forceLengthRelation');
+                            '00_degradation');
 
     if(~exist(outputPlotDir,'dir'))
       mkdir(outputPlotDir);
     end
-    
+
     figure(figureStruct(i).h);
     figureStruct(i).h=configPlotExporter(...
                           figureStruct(i).h, ...
