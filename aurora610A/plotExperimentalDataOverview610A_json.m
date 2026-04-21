@@ -70,14 +70,14 @@ for idxExp = 1:1:length(experimentsToProcess)
   figureStruct(1).h = figure;
   figureStruct(2).h = figure;
   
-  figureStruct(1).name = ...
-    ['fig_trialTimeSeries_',num2str(countFiguresGenerated)];
-  figureStruct(2).name = ...
-    ['fig_segmentTimeSeries_',num2str(countFiguresGenerated)];
+  figureStruct(1).name = [];%...
+  figureStruct(2).name = [];%...
 
   subPlotPanelTrial = [];
   subPlotPanelSegment = [];
 
+  fprintf('\n\n');
+  
   while(isLastMeasurement==0)
 
 
@@ -100,7 +100,23 @@ for idxExp = 1:1:length(experimentsToProcess)
           metaDataCache.indexMeasurement,...
           metaDataCache.indexSequence,...
           metaDataCache.measurementFileName);
+
+      for i=1:1:length(figureStruct)
+        if(isempty(figureStruct(1).name))
+          switch i
+            case 1
+              figureStruct(1).name = ...
+                ['fig_trialTimeSeries_',num2str(idxM)];              
+            case 2
+              figureStruct(2).name = ...
+                ['fig_segmentTimeSeries_',num2str(idxM)];
+            otherwise
+              assert(0,'Error: figureStruct has more than two entries');
+          end
+        end
+      end
   
+
       %
       % Take care of setting up the next figure
       %
@@ -163,11 +179,11 @@ for idxExp = 1:1:length(experimentsToProcess)
         numberOfHorizontalPlotColumnsGeneric  = 1;
         numberOfVerticalPlotRowsGeneric       = targetTrialCount;
           
-        plotWidth              = ones(1,numberOfHorizontalPlotColumnsGeneric).*15;
-        plotHeight             = ones(numberOfVerticalPlotRowsGeneric,1).*6;
-        plotHorizMarginCm      = 3;
-        plotVertMarginCm       = 2;
-        baseFontSize           = 12;
+        plotWidth        =ones(1,numberOfHorizontalPlotColumnsGeneric).*15;
+        plotHeight       =ones(numberOfVerticalPlotRowsGeneric,1).*6;
+        plotHorizMarginCm=3;
+        plotVertMarginCm =2;
+        baseFontSize     =12;
         
         [subPlotPanelTrial, pageWidthTrial,pageHeightTrial]= ...
           plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
@@ -184,7 +200,7 @@ for idxExp = 1:1:length(experimentsToProcess)
         figureStruct(indexFigTrial).pageHeight=pageHeightTrial;
         
         figureStruct(indexFigTrial).name = ...
-          ['fig_trialTimeSeries_',num2str(countFiguresGenerated)];               
+          ['fig_trialTimeSeries_',num2str(idxM)];               
         %
         % Segment data plot layout
         %  
@@ -217,7 +233,7 @@ for idxExp = 1:1:length(experimentsToProcess)
         figureStruct(indexFigSegment).pageHeight=pageHeightSegment;
 
         figureStruct(indexFigSegment).name = ...
-                  ['fig_segmentTimeSeries_',num2str(countFiguresGenerated)]; 
+                  ['fig_segmentTimeSeries_',num2str(idxM)]; 
 
 
       end
@@ -430,7 +446,6 @@ for idxExp = 1:1:length(experimentsToProcess)
           
         box off;
         
-
         
         fileNameStr = strrep(metaDataCache.dataFileName,'_','\_');
   

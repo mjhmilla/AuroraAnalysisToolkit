@@ -1,9 +1,9 @@
-function success = plotExperimentalForceDegradation610A_json(...
-                          experimentsToProcess,...
-                          keyWordFilter,...
-                          settings,...
-                          projectFolders, ...
-                          verbose)
+function degradationModels = processExperimentalForceDegradation610A_json(...
+                              experimentsToProcess,...
+                              keyWordFilter,...
+                              settings,...
+                              projectFolders, ...
+                              verbose)
 
 success = 0;
 
@@ -19,6 +19,7 @@ csVibrant = getPaulTolColourSchemes('vibrant');
 lineInfo.colours = [csVibrant.blue;csVibrant.teal];
 lineInfo.measurement = [];
 lineInfo.indexColor  = 1;
+
 %
 % Count the number of trials and the number of segments
 %
@@ -38,8 +39,15 @@ for idxExp =1:1:length(experimentsToProcess)
   if(sum(scanSummary.passesAllFilters) > 0)
     experimentCount=experimentCount+1;
   end
-
 end
+
+degradationModels(experimentCount) = struct('experiment',[],'models',[]);
+for idxExp=1:1:experimentCount
+  degradationModels(idxExp).experiment = experimentsToProcess{idxExp};
+  degradationModels(idxExp).models=[];
+end
+
+
 
 if(experimentCount==0)
   return;
@@ -179,6 +187,8 @@ for idxExp = 1:1:length(experimentsToProcess)
     indices.passive=[];
 
     flag_stimulusFound = 0;
+
+
     for idxSeg = 1:1:length(trialJson.segments)
       if(strcmp(trialJson.segments(idxSeg).type,'Stimulus-Tetanus'))
 
@@ -367,9 +377,15 @@ for idxExp = 1:1:length(experimentsToProcess)
   %
   setOfMeasurements = unique(degradationSet.indexMeasurement);
 
+  degradationModel(length(setOfMeasurements)) = ...
+    struct('x',[],'xNorm',[],'rmse',0,'rmseNorm',0,'trials',[]);
+
+
+
   for idxM = 1:1:length(setOfUniqueMeasurements)
     idxData = find(degradationSet.indexMeasurement ...
       == setOfUniqueMeasurements(idxM));
+
 
     y = degradationSet.force(idxData);
     a = degradationSet.activationCount(idxData);
@@ -378,8 +394,18 @@ for idxExp = 1:1:length(experimentsToProcess)
 
     A = [a ones(size(a))];
     x = (A'*A)\(A'*y);
-
     yMdl = A*x;
+
+    xNorm = (A'*A)\(A'*(y/y(1)));
+    yMdlNorm = A*xNorm;
+
+    degradationModel(idxM).x = x;
+    degradationModel(idxM).xNorm = xNorm;
+
+    degradationModel(idxM).rmse     = sqrt(mean((yMdl-y).^2));
+    degradationModel(idxM).rmseNorm = sqrt(mean((yMdlNorm-(y/y(1))).^2));
+    
+    degradationModel(idxM).trials = idxData;
     figure(figureStruct(indexFigExpFl).h);
     subplot('Position',reshape(subPlotPanelTrial(idxExp,1,:),1,4));
       plot((a+aMin),yMdl,'-','Color',[1,0,0]);
@@ -401,7 +427,7 @@ for idxExp = 1:1:length(experimentsToProcess)
 
     end
 
-    yNorm=x(2);
+    yNorm=y(1);
 
     text( xTxt, yTxt,...
           sprintf('y=(%1.3e)a + (%1.3e)',x(1),x(2)),...
@@ -418,6 +444,9 @@ for idxExp = 1:1:length(experimentsToProcess)
     hold on;
 
   end
+
+  degradationModels(idxExp).name   = experimentsToProcess{idxExp};
+  degradationModels(idxExp).models = degradationModel;
 
 end
 

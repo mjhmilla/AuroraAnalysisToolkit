@@ -2,6 +2,7 @@ function success = plotExperimentalForceLengthRelations610A_json(...
                           experimentsToProcess,...
                           keyWordFilter,...
                           settings,...
+                          settingsDegradationModel,...                          
                           projectFolders,...
                           verbose)
 
@@ -102,6 +103,9 @@ for idxExp = 1:1:length(experimentsToProcess)
   metaDataCache = getEmptyMetaDataCache610A();
 
   activationCount=0;
+  
+  degComp = struct('index',-1);
+
   for idxSetOfTrials = 1:1:length(setOfTrials)
     if(idxSetOfTrials==1)
       fprintf('\t%s\n',experimentsToProcess{idxExp});
@@ -116,6 +120,7 @@ for idxExp = 1:1:length(experimentsToProcess)
     idxS = scanSummary.indexSequence(idxTrial);
     metaDataCache = getMeasurement610A(idxM,idxS,idxTrial,expJson,expFolder,...
                                        metaDataCache);
+
     assert(metaDataCache.indexTrial == idxTrial ...
            && metaDataCache.indexMeasurement == idxM ...
            && metaDataCache.indexSequence == idxS, ...
@@ -131,7 +136,18 @@ for idxExp = 1:1:length(experimentsToProcess)
       
     ddfData610 = readAuroraData610A(metaDataCache.dataFilePath,...
                     settings.readProtocolArray);
-  
+
+
+    %
+    % Calculate the degradation compensation
+    % 
+    scaleForceDegComp = 1;
+    if(degComp.index ~= -1)
+      dIndex = idxM-degComp.index;
+      normForceDegradation = [dIndex, 1]*settingsDegradationModel.model.xNorm;
+      scaleForceDegComp = 1/normForceDegradation;
+    end
+
     %
     %Get the default time unit
     %
@@ -190,12 +206,27 @@ for idxExp = 1:1:length(experimentsToProcess)
                       ddfData610.data.AI1.Values(...
                         indices.passive(2,1):1:indices.passive(2,2))]);
 
-    activeForceSS = activePassiveForceSS;
+    activeForceSS        = activePassiveForceSS;
+    activeForceDegCompSS = activePassiveForceSS;
     fieldsToUpdate = {'y','mean','median','min','max'};
     for i=1:1:length(fieldsToUpdate)
       activeForceSS.(fieldsToUpdate{i}) = ...
          activeForceSS.(fieldsToUpdate{i}) ...
         -passiveForceSS.mean;
+      activeForceDegCompSS.(fieldsToUpdate{i}) = ...
+         activeForceDegCompSS.(fieldsToUpdate{i}) ...
+        -passiveForceSS.mean;
+
+      activeForceDegCompSS.(fieldsToUpdate{i}) = ...
+        activeForceDegCompSS.(fieldsToUpdate{i}).*scaleForceDegComp;
+      
+    end
+
+    %
+    % Degradation compensation
+    %
+    if(degComp.index==-1)
+      degComp.index = idxM;      
     end
 
     meanActiveForceLength.length = [meanActiveForceLength.length,...
@@ -210,8 +241,15 @@ for idxExp = 1:1:length(experimentsToProcess)
       plotBoxWhiskerData(trialLength,activePassiveForceSS,0.5,...
                           [1,1,1].*0.5,[1,1,1].*0.75);
       hold on;
+      if(settings.addDegradationCompensationPlot==1)
+        plotBoxWhiskerData(trialLength,activeForceDegCompSS,0.5,...
+                            [1,0,1],([1,0,1].*0.25+[1,1,1].*0.75));
+        hold on;
+      end
       plotBoxWhiskerData(trialLength,activeForceSS,0.5,...
                           [0,0,1],[0.5,0.5,1]);
+
+
       hold on;
       text(trialLength, activeForceSS.min,sprintf('%i',activationCount),...
            'HorizontalAlignment','center',...

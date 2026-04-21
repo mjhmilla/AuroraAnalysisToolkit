@@ -13,6 +13,17 @@ clear all;
 experimentsToProcess = {'20260326_610A_EDL'};
 
 %
+% Setup project folders
+% 
+rootDir         = getRootProjectDirectory();
+projectFolders  = getProjectFolders(rootDir);
+
+addpath(projectFolders.aurora610A);
+addpath(projectFolders.common);
+addpath(projectFolders.postprocessing);
+addpath(projectFolders.experiments);
+
+%
 % 20260311_610A_EDL             - force-length
 % 20260312_610A_EDL_Passive_0   - impedance
 % 20260312_610A_EDL_Passive_1   - impedance
@@ -37,9 +48,12 @@ flags.scanData                               = 1;
 flags.verifyDataIntegrityCompletness         = 0;
 flags.plotOverview                           = 0;
 flags.plotForceLengthRelations               = 0;
-flags.plotForceDegradation                   = 1;
+flags.processForceDegradation                = 0;
+flags.plotImpedance                          = 1;
 
-  
+  activationTime = 0.2;
+  deactivationTime=0.3;
+
   settingsVerify.setSha256Sum   = 0;
   
   settingsPlotOverview.savePlots                  = 1;
@@ -61,30 +75,41 @@ flags.plotForceDegradation                   = 1;
   settingsPlotDegradation.savePlots         = 1;
   settingsPlotDegradation.saveFormat        = {'png'};  
   settingsPlotDegradation.readProtocolArray = 1;
-  settingsPlotDegradation.activationTime    = 0.2;
-  settingsPlotDegradation.deactivationTime  = 0.3;
+  settingsPlotDegradation.activationTime    = activationTime;
+  settingsPlotDegradation.deactivationTime  = deactivationTime;
 
   settingsPlotForceLength.isometricForceLengthTag = ...
     'isometric-active-passive-force-length';
   settingsPlotForceLength.savePlots         = 1;
   settingsPlotForceLength.saveFormat        = {'png'};  
   settingsPlotForceLength.readProtocolArray = 1;
-  settingsPlotForceLength.activationTime    = 0.2;
-  settingsPlotForceLength.deactivationTime  = 0.3;
+  settingsPlotForceLength.activationTime    = activationTime;
+  settingsPlotForceLength.deactivationTime  = deactivationTime;
+  settingsPlotForceLength.addDegradationCompensationPlot =1;
 
-  
+  settingsPlotImpedance.rampImpedanceTag = ...
+    'ramp-impedance';
+  settingsPlotImpedance.savePlots         = 1;
+  settingsPlotImpedance.saveFormat        = {'png'};  
+  settingsPlotImpedance.readProtocolArray = 1;
+  settingsPlotImpedance.minCoherenceSquared           = (2/3);
+  settingsPlotImpedance.minAcceptableBandwidthFraction= (2/3);
 
 %
-% Setup project folders
-% 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
+% Load the degradation model
+%
 
-addpath(projectFolders.aurora610A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
+settingsDegradationModel.jsonFilePath = ...
+  fullfile(projectFolders.output610A_json,'degradation',...
+           '20260326_610A_EDL_degradationModel.json');
+settingsDegradationModel.index = 1;
 
+jsonDegradationModels = ...
+    fileread(settingsDegradationModel.jsonFilePath);
+degradationModels = ...
+    jsondecode(jsonDegradationModels);
+settingsDegradationModel.model = ...
+    degradationModels.models(settingsDegradationModel.index);
 
 
 
@@ -100,7 +125,7 @@ for i=1:1:length(experimentsToProcess)
 end
 
 %
-% Scan through the dataa
+% Scan through the data
 %
 if(flags.scanData==1)
   for idxExp = 1:1:length(experimentsToProcess) 
@@ -156,7 +181,7 @@ end
 %
 % Degradation plots
 %
-if(flags.plotForceDegradation == 1)
+if(flags.processForceDegradation == 1)
 
 
   keyWordFilterUpd=keyWordFilter;
@@ -172,12 +197,24 @@ if(flags.plotForceDegradation == 1)
   end
 
   verbose=1;  
-  success = plotExperimentalForceDegradation610A_json(...
-                    experimentsToProcess,...
-                    keyWordFilterUpd,...
-                    settingsPlotDegradation, ...
-                    projectFolders,...
-                    verbose);
+  degradationModel = processExperimentalForceDegradation610A_json(...
+                        experimentsToProcess,...
+                        keyWordFilterUpd,...
+                        settingsPlotDegradation, ...
+                        projectFolders,...
+                        verbose);
+  
+  jsonFolderName = fullfile(projectFolders.output610A_json,'degradation');
+  for i=1:1:length(degradationModel)
+    degradationModelJson = jsonencode(degradationModel(i));
+    jsonFilePath = fullfile(jsonFolderName,...
+                      [degradationModel(i).name,'_degradationModel.json']);
+    fidJson = fopen(jsonFilePath,'w');
+    fprintf(fidJson,degradationModelJson);
+    fclose(fidJson);    
+  end
+
+  
 end
 
 %
@@ -193,6 +230,28 @@ if(flags.plotForceLengthRelations == 1)
                     experimentsToProcess,...
                     keyWordFilterUpd,...
                     settingsPlotForceLength, ...
+                    settingsDegradationModel, ...
                     projectFolders,...
                     verbose);
+end
+
+%
+% Impedance plots
+%
+if(flags.plotImpedance==1)
+  keyWordFilterUpd=keyWordFilter;
+  keyWordFilterUpd.tags.include = ...
+    {settingsPlotImpedance.rampImpedanceTag};
+  keyWordFilterUpd.segment.include = {'Stochastic'};
+    
+
+  verbose = 1;
+
+  success = plotExperimentalImpedanceOverview610A_json(...
+                            experimentsToProcess,...
+                            keyWordFilterUpd,...
+                            settingsPlotImpedance,...
+                            projectFolders,...
+                            verbose);
+
 end
