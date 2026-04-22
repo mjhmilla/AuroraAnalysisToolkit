@@ -10,7 +10,7 @@ clear all;
 %    adjustment to account for degradation
 % 3. Impedance plots, both for passive and active data
 
-experimentsToProcess = {'20260326_610A_EDL'};
+experimentsToProcess = {'20260305_impedance_elastic_610A'};
 
 %
 % Setup project folders
@@ -87,8 +87,8 @@ flags.plotImpedance                          = 1;
   settingsPlotForceLength.deactivationTime  = deactivationTime;
   settingsPlotForceLength.addDegradationCompensationPlot =1;
 
-  settingsPlotImpedance.rampImpedanceTag = ...
-    'ramp-impedance';
+  settingsPlotImpedance.impedanceTag = ...
+    'impedance';
   settingsPlotImpedance.savePlots         = 1;
   settingsPlotImpedance.saveFormat        = {'png'};  
   settingsPlotImpedance.readProtocolArray = 1;
@@ -241,7 +241,7 @@ end
 if(flags.plotImpedance==1)
   keyWordFilterUpd=keyWordFilter;
   keyWordFilterUpd.tags.include = ...
-    {settingsPlotImpedance.rampImpedanceTag};
+    {settingsPlotImpedance.impedanceTag};
   keyWordFilterUpd.segment.include = {'Stochastic'};
     
 

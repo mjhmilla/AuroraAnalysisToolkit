@@ -95,12 +95,13 @@ for idxExpList = 1:1:length(filteredSetOfExperiments)
       segmentCount=0;
       i=idxT;
       numberOfSegments=0;
-      while(scanSummary.indexMeasurement(i)==idxM ...
-          && i < length(scanSummary.indexMeasurement))
+      while( i <= length(scanSummary.indexMeasurement))
 
-        if(scanSummary.passesAllFilters(i)==1)
-          numberOfSegments    = numberOfSegments...
-            +scanSummary.numberOfSegmentsPassingFilter(i);
+        if(scanSummary.indexMeasurement(i)==idxM)
+          if(scanSummary.passesAllFilters(i)==1)
+            numberOfSegments    = numberOfSegments...
+              +scanSummary.numberOfSegmentsPassingFilter(i);
+          end
         end
         i=i+1;
       end
@@ -167,9 +168,10 @@ for idxExpList = 1:1:length(filteredSetOfExperiments)
         bandwidth = trialJson.segments(idxSeg).meta_data.bandwidth_Hz';
         temperatureTag ='';
 
-        tempRange=getTemperatureRangeInCelsius610A(idxM,...
-                                            expJson,...
-                                            experimentsToProcess{idxExp});
+        tempRange = metaDataCache.temperature_C;
+        %tempRange=getTemperatureRangeInCelsius610A(idxM,...
+        %                                    expJson,...
+        %                                    experimentsToProcess{idxExp});
         for j=1:1:length(tempRange)
           tmpStr = '';
           if(j>1)
@@ -205,6 +207,9 @@ for idxExpList = 1:1:length(filteredSetOfExperiments)
         % Column 1: length and force time-series data
         %
         figure(figureStruct(indexOverview).h);
+        if(segmentCount > size(subPlotPanel,1))
+          here=1;
+        end
         subplot('Position',reshape(subPlotPanel(segmentCount,1,:),1,4));
 
         yyaxis left;        
@@ -352,18 +357,27 @@ for idxExpList = 1:1:length(filteredSetOfExperiments)
         for j=1:1:numberOfSegments
           subplot('Position',reshape(subPlotPanel(j,1,:),1,4));
           yyaxis left;
-          ylim([yAxisLimits(1).min,yAxisLimits(1).max]);
+          if(~isinf(yAxisLimits(1).min) && ~isinf(yAxisLimits(1).max))
+            ylim([yAxisLimits(1).min,yAxisLimits(1).max]);
+          end
           yyaxis right;
-          ylim([yAxisLimits(2).min,yAxisLimits(2).max]);
-
+          if(~isinf(yAxisLimits(2).min) && ~isinf(yAxisLimits(2).max))          
+            ylim([yAxisLimits(2).min,yAxisLimits(2).max]);
+          end
           subplot('Position',reshape(subPlotPanel(j,2,:),1,4));
-          ylim([yAxisLimits(3).min,yAxisLimits(3).max]);
+          if(~isinf(yAxisLimits(3).min) && ~isinf(yAxisLimits(3).max))
+            ylim([yAxisLimits(3).min,yAxisLimits(3).max]);
+          end
 
           subplot('Position',reshape(subPlotPanel(j,3,:),1,4));
-          ylim([yAxisLimits(4).min,yAxisLimits(4).max]);
+          if(~isinf(yAxisLimits(4).min) && ~isinf(yAxisLimits(4).max))          
+            ylim([yAxisLimits(4).min,yAxisLimits(4).max]);
+          end
           
           subplot('Position',reshape(subPlotPanel(j,4,:),1,4));
-          ylim([yAxisLimits(5).min,yAxisLimits(5).max]);
+          if(~isinf(yAxisLimits(5).min) && ~isinf(yAxisLimits(5).max))
+            ylim([yAxisLimits(5).min,yAxisLimits(5).max]);
+          end
           
         end
     
