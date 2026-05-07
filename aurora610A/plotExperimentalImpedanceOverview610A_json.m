@@ -131,7 +131,7 @@ for idxExpList = 1:1:length(filteredSetOfExperiments)
       figureStruct(indexOverview).pageHeight=pageHeight;
       
       figureStruct(indexOverview).name = ...
-        ['fig_impedanceOverivew_',experimentsToProcess{idxExp},'_',num2str(idxM)];
+        ['fig_impedanceOverview_',experimentsToProcess{idxExp},'_',num2str(idxM)];
 
       yAxisLimits(5)=struct('min',inf,'max',-inf);
       for i=1:1:length(yAxisLimits)

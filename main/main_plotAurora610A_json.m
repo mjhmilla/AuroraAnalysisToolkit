@@ -10,7 +10,9 @@ clear all;
 %    adjustment to account for degradation
 % 3. Impedance plots, both for passive and active data
 
-experimentsToProcess = {'20260312_610A_EDL_Passive_0'};
+experimentsToProcess = {'20260506_2_610A_Elastic'};
+%{'20260422_610A_Spring'};
+%{'20260312_610A_EDL_Passive_0'};
 %{'20260305_impedance_elastic_610A'};
 
 %
@@ -45,17 +47,18 @@ keyWordFilter.tags.exclude = {};
 %
 % Script settings
 %
-flags.scanData                               = 1;
+flags.scanData                               = 0;
 flags.verifyDataIntegrityCompletness         = 0;
-flags.plotOverview                           = 1;
+flags.plotOverview                           = 0;
 flags.plotForceLengthRelations               = 0;
 flags.processForceDegradation                = 0;
-flags.plotImpedance                          = 1;
+flags.plotImpedance                          = 0;
+flags.plotImpedanceSinusoidalAnalysis        = 1;
 
   activationTime = 0.2;
   deactivationTime=0.3;
 
-  settingsVerify.setSha256Sum   = 0;
+  settingsVerify.setSha256Sum   = 1;
   
   settingsPlotOverview.savePlots                  = 1;
   settingsPlotOverview.saveFormat                 = {'png'};
@@ -70,7 +73,9 @@ flags.plotImpedance                          = 1;
   settingsPlotOverview.stimulusCurrentDataScale   = (0.25);  
   settingsPlotOverview.annotateMinMaxTrialForce   = 1;
   settingsPlotOverview.annotateMinMaxSegmentForce = 1;
-
+  settingsPlotOverview.iterativeOffset = (11.6235-11.6185)/14;
+  settingsPlotOverview.useTightAxis    = 1;
+  
   settingsPlotDegradation.degradationTag = ...
     'degradation';
   settingsPlotDegradation.savePlots         = 1;
@@ -95,6 +100,15 @@ flags.plotImpedance                          = 1;
   settingsPlotImpedance.readProtocolArray = 1;
   settingsPlotImpedance.minCoherenceSquared           = (2/3);
   settingsPlotImpedance.minAcceptableBandwidthFraction= (2/3);
+
+  settingsPlotImpedanceCalibration.impedanceSinusoidalTag = ...
+    'impedanceSinusoid';
+  settingsPlotImpedanceCalibration.impedanceMotorTag = ...
+    'impedanceMotor';  
+  settingsPlotImpedanceCalibration.savePlots         = 1;
+  settingsPlotImpedanceCalibration.saveFormat        = {'png'};  
+  settingsPlotImpedanceCalibration.readProtocolArray = 1;
+
 
 %
 % Load the degradation model
@@ -255,4 +269,29 @@ if(flags.plotImpedance==1)
                             projectFolders,...
                             verbose);
 
+end
+
+%
+% Impedance sinusoidal analysis
+%
+if(flags.plotImpedanceSinusoidalAnalysis==1)
+  keyWordFilterSinusoidal=keyWordFilter;
+  keyWordFilterSinusoidal.tags.include = ...
+    {settingsPlotImpedanceCalibration.impedanceSinusoidalTag};
+  keyWordFilterSinusoidal.segment.include = {'Wave'};
+
+  keyWordFilterMotor=keyWordFilter;
+  keyWordFilterMotor.tags.include = ...
+    {settingsPlotImpedanceCalibration.impedanceMotorTag};
+  keyWordFilterMotor.segment.include = {'Stochastic'};  
+
+  verbose = 1;
+
+  success = plotExperimentalImpedanceCalibrationOverview610A_json(...
+                            experimentsToProcess,...
+                            keyWordFilterSinusoidal,...
+                            keyWordFilterMotor,...
+                            settingsPlotImpedanceCalibration,...
+                            projectFolders,...
+                            verbose);
 end

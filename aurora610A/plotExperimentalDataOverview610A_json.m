@@ -366,7 +366,7 @@ for idxExp = 1:1:length(experimentsToProcess)
             hold on;
           end
   
-          if(~isempty(dataInfo.SS.ch))
+          if(~isempty(dataInfo.SS.settings))
             plot(timeSeries, ...
                 ddfData610.data.(dataInfo.SS.ch).Values...
                 .*settings.stimulusDataScale,...
@@ -473,8 +473,10 @@ for idxExp = 1:1:length(experimentsToProcess)
             figure(figureStruct(indexFigSegment).h);
             subplot('Position',reshape(subPlotPanelSegment(idxRow,idxCol,:),1,4));
       
-              startTime = trialJson.segments(idxSeg).time_s(1);
-              endTime = trialJson.segments(idxSeg).time_s(2);
+              startTime = trialJson.segments(idxSeg).time_s(1) ...
+                         + settings.iterativeOffset*(idxSeg-1);
+              endTime = trialJson.segments(idxSeg).time_s(2) ...
+                        + settings.iterativeOffset*(idxSeg-1);
       
               if(strcmp(trialJson.segments(idxSeg).type,'Stimulus-Tetanus') ...
                  || strcmp(trialJson.segments(idxSeg).type,'Stimulus-Twitch') )
@@ -508,11 +510,12 @@ for idxExp = 1:1:length(experimentsToProcess)
               %
               yyaxis right;
                 if(~isempty(dataInfo.SV.ch))
+                  dataY=ddfData610.data.(dataInfo.SV.ch).Values(idxTime)...
+                      .*settings.stimulusVoltageDataScale;
                   plot(timeSeries(idxTime), ...
-                      ddfData610.data.(dataInfo.SV.ch).Values(idxTime)...
-                      .*settings.stimulusVoltageDataScale,...
+                      dataY,...
                        '-','Color',colors.SV);   
-                  hold on;
+                  hold on;                  
                   idxMid = round(length(timeSeries(idxTime))*0.5);
                   [maxV,idxMaxV]=max(ddfData610.data.(dataInfo.SV.ch).Values(idxTime));
                   text(timeSeries(idxTime(end)),...
@@ -524,14 +527,21 @@ for idxExp = 1:1:length(experimentsToProcess)
                        'HorizontalAlignment','right',...
                        'VerticalAlignment','bottom',...
                        'Color',colors.SV);
-                  hold on;                
+                  hold on;  
+                  if(settings.useTightAxis==0)
+                    ylim([min(dataY),max(dataY)]);
+                  end                  
                 end
                 if(~isempty(dataInfo.SC.ch))
+                  dataY = ddfData610.data.(dataInfo.SC.ch).Values(idxTime)...
+                      .*settings.stimulusCurrentDataScale;
                   plot(timeSeries(idxTime), ...
-                      ddfData610.data.(dataInfo.SC.ch).Values(idxTime)...
-                      .*settings.stimulusCurrentDataScale,...
+                       dataY,...
                        '-','Color',colors.SC);    
                   hold on;
+                  if(settings.useTightAxis==0)
+                    axis tight;
+                  end
                   idxMid = round(length(timeSeries(idxTime))*0.5);
                   [maxA,idxMaxA]=...
                     max(ddfData610.data.(dataInfo.SC.ch).Values(idxTime));
@@ -544,21 +554,32 @@ for idxExp = 1:1:length(experimentsToProcess)
                        'HorizontalAlignment','right',...
                        'VerticalAlignment','bottom',...
                        'Color',colors.SC);
-                  hold on;                 
+                  hold on; 
+                  if(settings.useTightAxis==0)
+                    ylim([min(dataY),max(dataY)]);
+                  end
                 end
   
-                if(~isempty(dataInfo.SS.ch))
+                if(~isempty(dataInfo.SS.settings))
+                  dataY = ddfData610.data.(dataInfo.SS.ch).Values(idxTime)...
+                            .*settings.stimulusDataScale;
                   plot(timeSeries(idxTime), ...
-                      ddfData610.data.(dataInfo.SS.ch).Values(idxTime)...
-                      .*settings.stimulusDataScale,...
+                        dataY,...
                        '-','Color',[1,1,1].*0.5);    
-                  hold on;
+                  hold on;   
+                  if(settings.useTightAxis==0)
+                    ylim([min(dataY),max(dataY)]);
+                  end               
                 end
       
+                dataY = ddfData610.data.(dataInfo.F.ch).Values(idxTime); 
                 plot(timeSeries(idxTime), ...
-                  ddfData610.data.(dataInfo.F.ch).Values(idxTime),'-',...
+                  dataY,'-',...
                   'Color',colors.F);
                 hold on;
+                if(settings.useTightAxis==0)
+                  ylim([min(dataY),max(dataY)]);
+                end                
   
                 if(settings.annotateMinMaxSegmentForce==1)
                   [maxF, idxMax] = max(ddfData610.data.(dataInfo.F.ch).Values(idxTime));
@@ -686,10 +707,17 @@ for idxExp = 1:1:length(experimentsToProcess)
           for i=1:1:targetTrialCount
             figure(figureStruct(indexFigTrial).h);
             subplot('Position',reshape(subPlotPanelTrial(i,:),1,4));
-            yyaxis left;
-              ylim(yLeftDataLimits);
-            yyaxis right;
-              ylim(yRightDataLimits);      
+            if(settings.useTightAxis==0)
+              yyaxis left;
+                ylim(yLeftDataLimits);
+              yyaxis right;
+                ylim(yRightDataLimits);   
+            else
+              yyaxis left;
+                axis tight;
+              yyaxis right;
+                axis tight;              
+            end
           end
         
         
@@ -701,10 +729,17 @@ for idxExp = 1:1:length(experimentsToProcess)
           
               figure(figureStruct(indexFigSegment).h);
               subplot('Position',reshape(subPlotPanelSegment(idxRow,idxCol,:),1,4));      
-              yyaxis left;
-                ylim(yLeftDataLimits);
-              yyaxis right;
-                ylim(yRightDataLimits);      
+              if(settings.useTightAxis==0)
+                yyaxis left;
+                  ylim(yLeftDataLimits);
+                yyaxis right;
+                  ylim(yRightDataLimits); 
+              else
+                yyaxis left;
+                  axis tight;
+                yyaxis right;
+                  axis tight
+              end
           end
                 
           if(settings.savePlots==1)          
