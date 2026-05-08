@@ -171,15 +171,18 @@ for idxExpList = 1:1:length(filteredSetOfExperiments)
 
       if(isSegmentValid==1)
         segmentCount = segmentCount + 1;   
-        offsetTime = (idxSeg-1)*(0.0037/9);
         period = (1/trialJson.segments(idxSeg).meta_data.frequency_Hz);
 
-        time0 = trialJson.segments(idxSeg).time_s(1);
-        time1 = (trialJson.segments(idxSeg).time_s(2)+offsetTime);
+        timePadding = 0.12;
+        if(contains(trialJson.segments(idxSeg).type,'Wave'))
+          if(isfield(trialJson.segments(idxSeg).meta_data,'frequency_Hz'))
+            frequencyHz = trialJson.segments(idxSeg).meta_data.frequency_Hz;
+            timePadding = max((0.25/frequencyHz),timePadding);
+          end
+        end        
+        time0 = trialJson.segments(idxSeg).time_s(1)-timePadding;
+        time1 = (trialJson.segments(idxSeg).time_s(2)+timePadding);
 
-        timePadding=min(0.025, (period));
-        time0 = time0-timePadding;
-        time1 = time1+timePadding;
         timeRange = time1-time0;
 
         indicesSeg = ...

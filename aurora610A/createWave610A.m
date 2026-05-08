@@ -18,7 +18,6 @@ switch params.type
     waveSample(timeSample <= timeOffset) = meanValue;
     waveSample(timeSample >= (cycles*period+timeOffset)) = meanValue;
   case 'Ramp Wave'
-    assert(abs(cycles-1)<(eps*100));
 
     rampTime =[0;(0.125);(0.375);(0.625);(0.875);(1)];
     rampTime = rampTime .* period;
@@ -43,7 +42,6 @@ switch params.type
     waveSample=interp1(rampTime,rampValue,timeSample);
 
   case 'Step Wave'
-    assert(abs(cycles-1)<(eps*100));
     stepTime =[0;0.005;0.495;0.505;0.995;1];
     stepTime = stepTime .* period;
 

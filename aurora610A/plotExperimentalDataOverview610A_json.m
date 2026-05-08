@@ -265,7 +265,10 @@ for idxExp = 1:1:length(experimentsToProcess)
       
           plot(timeSeries, ...
                ddfData610.data.(dataInfo.L.ch).Values,...
-               '-','Color',colors.L);  
+               '-','Color',colors.L);
+          %plot(timeSeries, ...
+          %     ddfData610.data.(dataInfo.LCmd.ch).Values,...
+          %     '--','Color',(colors.L.*0.5+[1,1,1].*0.5));
 
           hold on;
           ylabel(['Length (',units.length,')']);
@@ -377,6 +380,9 @@ for idxExp = 1:1:length(experimentsToProcess)
           plot(timeSeries, ddfData610.data.(dataInfo.F.ch).Values,'-',...
             'Color',colors.F);
           hold on;
+          %plot(timeSeries, ddfData610.data.(dataInfo.FCmd.ch).Values,'--',...
+          %  'Color',(colors.F.*0.5+[1,1,1].*0.5));
+          %hold on;
   
           if(settings.annotateMinMaxTrialForce==1)
             [maxF, idxMax] = max(ddfData610.data.(dataInfo.F.ch).Values);
@@ -473,10 +479,16 @@ for idxExp = 1:1:length(experimentsToProcess)
             figure(figureStruct(indexFigSegment).h);
             subplot('Position',reshape(subPlotPanelSegment(idxRow,idxCol,:),1,4));
       
-              startTime = trialJson.segments(idxSeg).time_s(1) ...
-                         + settings.iterativeOffset*(idxSeg-1);
-              endTime = trialJson.segments(idxSeg).time_s(2) ...
-                        + settings.iterativeOffset*(idxSeg-1);
+              dT = 0.12;
+              if(contains(trialJson.segments(idxSeg).type,'Wave'))
+                if(isfield(trialJson.segments(idxSeg).meta_data,'frequency_Hz'))
+                  frequencyHz = trialJson.segments(idxSeg).meta_data.frequency_Hz;
+                  dT = max((0.25/frequencyHz),dT);
+                end
+              end
+
+              startTime = trialJson.segments(idxSeg).time_s(1)-dT;
+              endTime = trialJson.segments(idxSeg).time_s(2)+dT;
       
               if(strcmp(trialJson.segments(idxSeg).type,'Stimulus-Tetanus') ...
                  || strcmp(trialJson.segments(idxSeg).type,'Stimulus-Twitch') )

@@ -10,7 +10,7 @@ clear all;
 %    adjustment to account for degradation
 % 3. Impedance plots, both for passive and active data
 
-experimentsToProcess = {'20260506_2_610A_Elastic'};
+experimentsToProcess = {'20260508_610A_Spring'};
 %{'20260422_610A_Spring'};
 %{'20260312_610A_EDL_Passive_0'};
 %{'20260305_impedance_elastic_610A'};
@@ -47,12 +47,12 @@ keyWordFilter.tags.exclude = {};
 %
 % Script settings
 %
-flags.scanData                               = 0;
-flags.verifyDataIntegrityCompletness         = 0;
-flags.plotOverview                           = 0;
+flags.scanData                               = 1;
+flags.verifyDataIntegrityCompletness         = 1;
+flags.plotOverview                           = 1;
 flags.plotForceLengthRelations               = 0;
 flags.processForceDegradation                = 0;
-flags.plotImpedance                          = 0;
+flags.plotImpedance                          = 1;
 flags.plotImpedanceSinusoidalAnalysis        = 1;
 
   activationTime = 0.2;
