@@ -157,7 +157,7 @@ end
 if(isfield(expJson.experiment,'manually_measured_temperature_C'))
   if(isfield(expJson.experiment.manually_measured_temperature_C,'range_C'))
     for i=1:1:length(expJson.experiment.manually_measured_temperature_C)    
-      for j=1:1:length(expJson.experiment.manually_measured_temperature_C(i))
+      for j=1:1:length(expJson.experiment.manually_measured_temperature_C(i).measurements)
         if (abs(idxM-expJson.experiment.manually_measured_temperature_C(i).measurements(j)) < 1e-3) 
           metaDataCache.temperature_C= ...
             expJson.experiment.manually_measured_temperature_C(i).range_C;

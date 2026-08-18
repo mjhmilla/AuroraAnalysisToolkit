@@ -22,6 +22,14 @@ box = [ x+boxWidth*0.5, y25;...
         x-boxWidth*0.5, y25;... 
         x+boxWidth*0.5, y25];
 
+plot(x,ySummaryStatistics.min,'x','Color',lineColor,'MarkerSize',3);
+hold on;
+
+plot(x,ySummaryStatistics.max,'o',...
+    'Color',lineColor,'MarkerFacecolor',lineColor,'MarkerSize',3);
+hold on;
+
+
 plot([x;x],[y05;y95],'-','Color',lineColor);
 hold on;
 

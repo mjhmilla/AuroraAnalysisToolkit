@@ -55,7 +55,7 @@ end
 %
 % Degradation plots
 %  
-numberOfHorizontalPlotColumnsGeneric  = 2;
+numberOfHorizontalPlotColumnsGeneric  = 3;
 numberOfVerticalPlotRowsGeneric       = experimentCount;
 
 
@@ -140,6 +140,8 @@ for idxExp = 1:1:length(experimentsToProcess)
 
   lineInfo.measurement = [];
   
+  previousSequenceFileName = '';
+
   for idxSetOfTrials = 1:1:length(setOfTrials)
     if(idxSetOfTrials==1)
       fprintf('\t%s\n',experimentsToProcess{idxExp});
@@ -152,9 +154,16 @@ for idxExp = 1:1:length(experimentsToProcess)
     idxTrial = setOfTrials(idxSetOfTrials);
     idxM = scanSummary.indexMeasurement(idxTrial);
     idxS = scanSummary.indexSequence(idxTrial);
+    if(idxTrial==setOfTrials(end))
+      here=1;
+    end
     metaDataCache = getMeasurement610A(idxM,idxS,idxTrial,...
                                        expJson,expFolder,...
                                        metaDataCache);
+    flag_newSequence=0;
+    if(strcmp(previousSequenceFileName,metaDataCache.sequenceFileName)==0)
+      flag_newSequence=1;
+    end
 
     assert(metaDataCache.indexTrial == idxTrial ...
            && metaDataCache.indexMeasurement == idxM ...
@@ -195,8 +204,7 @@ for idxExp = 1:1:length(experimentsToProcess)
         assert(flag_stimulusFound==0,...
           'Error: only one stimulus should be present in this trial');
         flag_stimulusFound = 1;
-        timeA0 =  trialJson.segments(idxSeg).time_s(1) ...
-                + settings.activationTime;
+        timeA0 =  trialJson.segments(idxSeg).time_s(1)+settings.activationTime*0.5;
         timeA1 = trialJson.segments(idxSeg).time_s(2);
 
         idxA0 = find(timeSeries >= timeA0,1,'first');
@@ -278,9 +286,9 @@ for idxExp = 1:1:length(experimentsToProcess)
            'VerticalAlignment',labelVerticalAlignment,...
            'FontSize',6);
       hold on;
-      plotBoxWhiskerData(activationCount,passiveForceSS,0.5,...
-                          [1,1,1].*0,[1,1,1].*0.5);
-      hold on;
+      %plotBoxWhiskerData(activationCount,passiveForceSS,0.5,...
+      %                    [1,1,1].*0,[1,1,1].*0.5);
+      %hold on;
     
       labelOffset=labelOffset*-1;
       if(strcmp(labelVerticalAlignment,'top'))
@@ -294,33 +302,66 @@ for idxExp = 1:1:length(experimentsToProcess)
       yAxis = ylim;
       ylim([0,max(yAxis)]);
       box off;
-      xlabel(['Length (',units.length,')']);
+      xlabel(['Stimulus Count']);
       ylabel(['Force (',units.force,')']);
 
       titleStr = strrep(experimentsToProcess{idxExp},'_','\_');
-      title({'Force-Length-Relation', titleStr});
+      title({sprintf('Active-Force-Degradation (%1.1f C)',...
+                      metaDataCache.temperature_C(1)),...
+                      titleStr});
       box off;
     end
     
 
-    if(idxTrial==setOfTrials(1))
-      subplot('Position',reshape(subPlotPanelTrial(idxExp,2,:),1,4));
-      plot( timeSeries,...
-            ddfData610.data.(dataInfo.F.ch).Values,...
-            '-','Color',[0,0,0]);
-      hold on;
-      
-      axis tight;
-      yAxis = ylim;
-      ylim([0,max(yAxis)]);
-      yAxis = ylim;
+    %if(idxTrial==setOfTrials(1))
+    subplot('Position',reshape(subPlotPanelTrial(idxExp,2,:),1,4));
 
+    nTrial = (idxSetOfTrials-1)/(length(setOfTrials)-1);
+    lineColor = [0.75, 0.75, 0.75];
+
+    if(flag_newSequence==1)
+      lineColor = [0,0,0];      
+    end
+
+    plot( timeSeries,...
+          ddfData610.data.(dataInfo.F.ch).Values,...
+          '-','Color',lineColor);
+    hold on;
+    [maxFVal,idxMaxF] = max(ddfData610.data.(dataInfo.F.ch).Values);
+    plot( timeSeries(idxMaxF),...
+          ddfData610.data.(dataInfo.F.ch).Values(idxMaxF),...
+          'o','Color',lineColor,'MarkerFaceColor',lineColor);
+    hold on;
+
+    setOfRiseTimes = [0.95,0.975,1];
+    setOfRiseIndices = zeros(size(setOfRiseTimes));
+    setOfRiseMarkers = {'x','s','o'};
+    setOfRiseFaceColors = [1,1,1;1,1,1;lineColor];
+
+    for idxRT = 1:1:length(setOfRiseTimes)
+      setOfRiseIndices(idxRT) = ...
+        find(ddfData610.data.(dataInfo.F.ch).Values ...
+             >= maxFVal*setOfRiseTimes(idxRT),1,"first");
+      plot( timeSeries(setOfRiseIndices(idxRT)),...
+            ddfData610.data.(dataInfo.F.ch).Values(setOfRiseIndices(idxRT)),...
+            setOfRiseMarkers{idxRT},'Color',lineColor,...
+            'MarkerFaceColor',setOfRiseFaceColors(idxRT,:));
+      hold on;
+    end    
+
+    axis tight;
+    yAxis = ylim;
+    ylim([0,max(yAxis)]);
+    yAxis = ylim;
+
+
+    if(flag_newSequence == 1)
       text(0,max(yAxis),sprintf('%1.1f %s',trialLength, units.length),...
            'HorizontalAlignment','left',...
            'VerticalAlignment','top',...
            'FontSize',10);
       hold on;
-
+      
       idxA = indices.active(1,1);
       idxB = indices.active(1,2);
       plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),...
@@ -347,7 +388,7 @@ for idxExp = 1:1:length(experimentsToProcess)
           'FontSize',6,...
           'Color',[0,0,1]);
       hold on;
-
+  
       idxA = indices.passive(2,1);
       idxB = indices.passive(2,2);
       plot([timeSeries(idxA),timeSeries(idxB),timeSeries(idxB),...
@@ -361,13 +402,57 @@ for idxExp = 1:1:length(experimentsToProcess)
           'FontSize',6,...
           'Color',[0,0,1]);
       hold on;
+    end
+    xlabel(['Time (',units.time,')']);
+    ylabel(['Force (',units.force,')']);
 
-      xlabel(['Time (',units.time,')']);
-      ylabel(['Force (',units.force,')']);
+    titleStr = strrep(experimentsToProcess{idxExp},'_','\_');
+    title({'Time Series', titleStr});
 
-      titleStr = strrep(experimentsToProcess{idxExp},'_','\_');
-      title({'Time Series', titleStr});
-      
+    previousSequenceFileName=metaDataCache.sequenceFileName;
+    %end
+
+    subplot('Position',reshape(subPlotPanelTrial(idxExp,3,:),1,4));
+    
+    assert(strcmp(metaDataCache.metaDataJson.segments.type,'Stimulus-Tetanus'));
+    timeStimulus = metaDataCache.metaDataJson.segments.time_s(1);
+
+
+
+    scaleTime = 1000;
+    timeUnit = 'ms';
+    assert(strcmp(units.time,'s'));
+
+    for idxRT = 1:1:length(setOfRiseTimes)
+  
+      timeToRise = timeSeries(setOfRiseIndices(idxRT)) ...
+                  -timeStimulus;
+
+      hVis= 'off';
+      if(idxTrial == setOfTrials(1))
+        hVis = 'on';
+      end
+
+      plot( activationCount,...
+            timeToRise.*scaleTime,...
+            setOfRiseMarkers{idxRT},'Color',lineColor,...
+            'MarkerFaceColor',setOfRiseFaceColors(idxRT,:),...
+            'DisplayName',sprintf('%1.1f%s',setOfRiseTimes(idxRT)*100,'\%'),...
+            'HandleVisibility',hVis);
+      hold on;
+
+    end
+
+
+
+    if(idxTrial == setOfTrials(end))
+      legend('Location','SouthEast');
+      yLimVal = ylim;
+      ylim([0,max(yLimVal)]);
+      xlabel(['Stimulus Count']);
+      ylabel(['Time (',timeUnit,')']);
+      title('Contraction Time Constants');
+      box off;
     end
   end
 
@@ -414,31 +499,44 @@ for idxExp = 1:1:length(experimentsToProcess)
 
     xTxt=0;
     yTxt=0;
+    hAlign = '';
+    vAlign = '';
+    xLimVal=xlim;
+    yLimVal=ylim;
+    
     if(rem(idxM,2)==0)
-      xTxt = a(1)+aMin;
-      yTxt = yMdl(1)+6*abs(labelOffset);
-
+      xTxt = xLimVal(2);
+      yTxt = yLimVal(2);
+      hAlign = 'right';
+      vAlign = 'top';
+      
     else
-      xTxt = a(1)+aMin;
-      yTxt = yMdl(end)-6*abs(labelOffset);
-      if(yTxt < 2*abs(labelOffset))
-        yTxt=abs(labelOffset)*2;
-      end
+      xTxt = xLimVal(1);
+      yTxt = yLimVal(1)+abs(labelOffset);
+      hAlign = 'left';
+      vAlign = 'bottom';
 
+%      xTxt = a(1)+aMin;
+
+%       yTxt = yMdl(end)-6*abs(labelOffset);
+%       if(yTxt < 2*abs(labelOffset))
+%         yTxt=abs(labelOffset)*2;
+%       end
+%      vAlign = 'top';
     end
 
     yNorm=y(1);
 
     text( xTxt, yTxt,...
           sprintf('y=(%1.3e)a + (%1.3e)',x(1),x(2)),...
-          'HorizontalAlignment','left',...
-          'VerticalAlignment','top',...
+          'HorizontalAlignment',hAlign,...
+          'VerticalAlignment',vAlign,...
           'FontSize',6);
     text( xTxt, yTxt-abs(labelOffset),...
           sprintf('%s=(%1.3e)a + (%1.3e)','$$\tilde{y}$$',...
                    x(1)/yNorm,x(2)/yNorm),...
-          'HorizontalAlignment','left',...
-          'VerticalAlignment','top',...
+          'HorizontalAlignment',hAlign,...
+          'VerticalAlignment',vAlign,...
           'FontSize',6);
     
     hold on;
@@ -479,12 +577,17 @@ if(settings.savePlots==1)
       fullFilePathNoExt = ...
         fullfile(outputPlotDir,...
                       [figureStruct(i).name,'keyWord_',...
-                      keyWordFilter.metaDataFileName.include]);
+                      keyWordFilter.metaDataFileName.include,...
+                      '_',experimentsToProcess{idxExp}]);
     else
       fullFilePathNoExt = ...
         fullfile(outputPlotDir,...
-                      [figureStruct(i).name]);
+                      [figureStruct(i).name,...
+                       '_',experimentsToProcess{idxExp}]);
     end
+
+    temperatureStr = sprintf('_%iC',round(metaDataCache.temperature_C(1)));
+    fullFilePathNoExt = [fullFilePathNoExt,temperatureStr];
 
     for k=1:1:length(settings.saveFormat)
       switch settings.saveFormat{k}

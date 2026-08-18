@@ -10,7 +10,7 @@ clear all;
 %    adjustment to account for degradation
 % 3. Impedance plots, both for passive and active data
 
-experimentsToProcess = {'20260508_610A_Spring'};
+experimentsToProcess = {'20260326_610A_EDL'};
 %{'20260422_610A_Spring'};
 %{'20260312_610A_EDL_Passive_0'};
 %{'20260305_impedance_elastic_610A'};
@@ -48,17 +48,17 @@ keyWordFilter.tags.exclude = {};
 % Script settings
 %
 flags.scanData                               = 1;
-flags.verifyDataIntegrityCompletness         = 1;
-flags.plotOverview                           = 1;
+flags.verifyDataIntegrityCompletness         = 0;
+flags.plotOverview                           = 0;
 flags.plotForceLengthRelations               = 0;
-flags.processForceDegradation                = 0;
-flags.plotImpedance                          = 1;
-flags.plotImpedanceSinusoidalAnalysis        = 1;
+flags.processForceDegradation                = 1;
+flags.plotImpedance                          = 0;
+flags.plotImpedanceSinusoidalAnalysis        = 0;
 
-  activationTime = 0.2;
-  deactivationTime=0.3;
+  activationTime = 0.1;
+  deactivationTime=activationTime*2;
 
-  settingsVerify.setSha256Sum   = 1;
+  settingsVerify.setSha256Sum   = 0;
   
   settingsPlotOverview.savePlots                  = 1;
   settingsPlotOverview.saveFormat                 = {'png'};
@@ -79,7 +79,7 @@ flags.plotImpedanceSinusoidalAnalysis        = 1;
   settingsPlotDegradation.degradationTag = ...
     'degradation';
   settingsPlotDegradation.savePlots         = 1;
-  settingsPlotDegradation.saveFormat        = {'png'};  
+  settingsPlotDegradation.saveFormat        = {'pdf','fig'};  
   settingsPlotDegradation.readProtocolArray = 1;
   settingsPlotDegradation.activationTime    = activationTime;
   settingsPlotDegradation.deactivationTime  = deactivationTime;

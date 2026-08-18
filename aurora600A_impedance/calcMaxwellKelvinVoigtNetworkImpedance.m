@@ -1,8 +1,8 @@
 function response = calcMaxwellKelvinVoigtNetworkImpedance(...
                                     omega,paramsIn,settings)
 
-
-params = getMaxwellKelvinVoigtNetworkParameters(paramsIn, settings);
+[componentImpedanceParams, modelParams] = ...
+  getMaxwellKelvinVoigtNetworkParameters(paramsIn, settings);
 
 z = complex(0,0);
 ziInv = complex(0,0);
@@ -10,18 +10,18 @@ ziInv = complex(0,0);
 lastBranch=nan;
 
 
-for i=1:1:size(params,1)
+for i=1:1:size(componentImpedanceParams,1)
     
-    branchNo = params(i,1);
+    branchNo = componentImpedanceParams(i,1);
 
     if(isnan(lastBranch))
         lastBranch = branchNo;
     end
     
-    A = params(i,2);
-    B = params(i,3);
-    C = params(i,4);
-    D = params(i,5);
+    A = componentImpedanceParams(i,2);
+    B = componentImpedanceParams(i,3);
+    C = componentImpedanceParams(i,4);
+    D = componentImpedanceParams(i,5);
 
     if(abs(A)<eps && abs(B)<eps && abs(C)<eps && abs(D)<eps)
         zj = 0;
@@ -35,7 +35,7 @@ for i=1:1:size(params,1)
     end
     
     if(lastBranch == branchNo)
-        if(i==size(params,1))
+        if(i==size(componentImpedanceParams,1))
             ziInv = ziInv + 1./zj;
             zi = 1./ziInv;
             z = z + zi;
@@ -46,7 +46,7 @@ for i=1:1:size(params,1)
         %If were on a new branch, then add the impedance of the last 
         %branch to the total impedance z. Start accumulating the admittance
         %starting with zj.       
-        if(i==size(params,1))
+        if(i==size(componentImpedanceParams,1))
             zi      = 1./ziInv;
             z       = z + zi + zj;  
         else

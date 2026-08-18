@@ -12,7 +12,7 @@ assert(strcmp(settings.daqDelayModel,'frequency-domain'),...
      ['Error: the DAQ delay can only be compensated',...
     ' in the frequency-domain using this implementation']);
 
-flag_readHeader     = 1;
+flag_readHeader       = 1;
 flag_checkSha256Sum   = 1; %Might not work on Windows
 
 setOfSpecimenTypes = {'spring','fiber'};
@@ -27,7 +27,8 @@ assert(foundSpecimenType,...
       ' keywords: spring or fiber']);
 
 
-setOfTrialTypes = {'delay','degradation','impedance','impedance temperature'};
+setOfTrialTypes = {'delay','degradation','impedance',...
+                   'impedance temperature','impedance calibration'};
 foundTrialType=0;
 for i=1:1:length(setOfTrialTypes)
   if(strcmp(setOfTrialTypes{i},trialType))
@@ -81,24 +82,24 @@ keyword.controlFunction= 'Length-Arb';
 %
 %
 %%
-modelSettings.daqDelayModel       = settings.daqDelayModel;
-modelSettings.zeroPhaseResponseSlope  = 1;
-modelSettings.useManuallySetDaqDelay  = settings.useManuallySetDaqDelay;
+modelSettings.daqDelayModel             = settings.daqDelayModel;
+modelSettings.zeroPhaseResponseSlope    = 1;
+modelSettings.useManuallySetDaqDelay    = settings.useManuallySetDaqDelay;
 modelSettings.coherenceSquaredThreshold = settings.coherenceSquaredThreshold;
-
 
 
 %%
 % folders
 %%
-dataFolder    = fullfile(projectFolders.data600A,folderName);
+dataFolder      = fullfile(projectFolders.data600A,folderName);
 experimentStr   = fileread(fullfile(dataFolder,[folderName,'.json']));
 experimentJson  = jsondecode(experimentStr);
 
 fidLogFile = fopen(fullfile(dataFolder,...
   'log_runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json.txt'),'w');
 
-currentDateTime=datestr(now, 'dd/mm/yy-HH:MM:SS');
+currentDateTime  = datestr(now, 'dd/mm/yy-HH:MM:SS');
+
 fprintf(fidLogFile,'%s\n',currentDateTime);
 fprintf('%s\n',currentDateTime);
 
@@ -145,6 +146,9 @@ for indexSetOfTrials=1:1:length(setOfTrialsVerified)
   %%  
   %fprintf('\t%s\n',experimentJson.measurements{i});
   trialStr = fileread(fullfile(dataFolder,experimentJson.measurements{i}));
+  if(exist('trialJson','var'))
+    clear('trialJson');
+  end
   trialJson = jsondecode(trialStr);
 
 
@@ -234,7 +238,7 @@ if(settings.processData==1)
   % Plot the segment data
   %  
   numberOfHorizontalPlotColumnsGeneric  = length(setOfTrials);
-  numberOfVerticalPlotRowsGeneric     = 7*totalNumberOfSegmentsToPlot;
+  numberOfVerticalPlotRowsGeneric       = 7*totalNumberOfSegmentsToPlot;
   % 1. Time domain
   % 2. gain
   % 3. phase
@@ -701,7 +705,7 @@ if(settings.processData==1)
       end
       assert(strcmp('Larb-Stochastic',segmentType),...
         ['Error: expected Larb-Stochastic at segment ',num2str(idxSeg)]);
-      
+
       bandwidth = trialJson.segments(idxSeg).meta_data.bandwidth_Hz';
       amplitude = trialJson.segments(idxSeg).meta_data.amplitude_Lo;
       
@@ -797,11 +801,15 @@ if(settings.processData==1)
 
         for idxMdl = 1:1:length(modelSeries)
           modelSeries(idxMdl).model.settings.applyParameterMap=0;
-          modelResponse = ...
-            calcMaxwellKelvinVoigtNetworkImpedance(...
-              segData.H0.frequency(segData.H0.idxBWC2),...
-              modelSeries(idxMdl).model.parameters,...
-              modelSeries(idxMdl).model.settings);
+          modelResponse =[];
+
+          if(~isempty(segData.H0.idxBWC2))
+            modelResponse = ...
+              calcMaxwellKelvinVoigtNetworkImpedance(...
+                segData.H0.frequency(segData.H0.idxBWC2),...
+                modelSeries(idxMdl).model.parameters,...
+                modelSeries(idxMdl).model.settings);
+          end
         end
 
         %%
@@ -848,19 +856,19 @@ if(settings.processData==1)
                  & H.frequencyHz <= segData.bandwidth_Hz(1,2));
 
           delay = calcPhaseDelayOfThinElasticRod(...
-                H.frequencyHz(idxFit),...
-                H.gain(idxFit),...
-                H.phase(idxFit),...
-                auroraData.Data.Lin.Values(dataIndex,1),...
-                experimentJson,...
-                mm2m);
+                      H.frequencyHz(idxFit),...
+                      H.gain(idxFit),...
+                      H.phase(idxFit),...
+                      auroraData.Data.Lin.Values(dataIndex,1),...
+                      experimentJson,...
+                      mm2m);
 
           if(~isnan(delay))
             timeDelayedVec  = segData.time + delay;
-            y01    = interp1(   segData.time, ...
-                        segData.y,...
-                        timeDelayedVec,...
-                        'linear','extrap');
+            y01    = interp1( segData.time, ...
+                              segData.y,...
+                              timeDelayedVec,...
+                              'linear','extrap');
             
             H = evaluateGainPhaseCoherenceSq(  ...
                     timeDelayedVec,...
@@ -962,7 +970,7 @@ if(settings.processData==1)
         n = length(segData.H1.x);
         omega = delayModel.daqFilterFrequencyHz*2*pi;
         frequencyHz = [0:(1/(n)): (1-(1/n)) ]'...
-                .* (sampleFrequency);
+                        .* (sampleFrequency);
         frequency=frequencyHz.*(2*pi);
         lpfInv = ((omega + complex(0,1).*frequency)./omega);
         yUpd = ifft(lpfInv.*fft(segData.H1.y),...
@@ -1060,6 +1068,8 @@ if(settings.processData==1)
             segData.H = segData.H2;
           case 'impedance temperature'
             segData.H = segData.H3;
+          case 'impedance calibration'
+            segData.H = segData.H2;
           otherwise
             assert(0,'Error: invalid trialType');
         end
@@ -1071,8 +1081,8 @@ if(settings.processData==1)
       
         lsqnonlinOptions =...
           optimoptions('lsqnonlin','MaxFunctionEvaluations',2000,...
-                 'MaxIterations',2000,...
-                 'Display','none');
+                       'MaxIterations',2000,...
+                       'Display','none');
 
         optSettings.objScaling = [1,1]; %gain and phase error
         
@@ -1138,7 +1148,7 @@ if(settings.processData==1)
               && strcmp(modelSeries(idxMdl).model.abbreviation,'MKVap'))
 
               if(settings.trialsInPassiveActivePairs==1)
-                outputJsonDir = fullfile(projectFolders.output610A_json,folderName);
+                outputJsonDir = fullfile(projectFolders.output600A_json,folderName);
                 jsonPassiveFileName = ['analysis_',experimentJson.measurements{idxTrial-1}];
   
                 passiveExpStr   = fileread(fullfile(outputJsonDir,jsonPassiveFileName));
@@ -1190,11 +1200,11 @@ if(settings.processData==1)
             end
 
 
-            x0 = zeros(length(modelSeries(idxMdl).model.settings.parameterMap),1);
+            x0 = zeros(size(modelSeries(idxMdl).model.settings.parameterMap,1),1);
             for i=1:1:length(x0)
               
               row   = modelSeries(idxMdl).model.settings.parameterMap(i,1);
-              col   = modelSeries(idxMdl).model.settings.parameterMap(i,2);
+              col   = modelSeries(idxMdl).model.settings.parameterMap(i,3);
   
               assert(col > 1, ['Error: the first column in ',...
                       'model.settings.parameterMap is reserved',...
@@ -1218,20 +1228,26 @@ if(settings.processData==1)
             optSettings.objScaling = ...
               [1/sqrt(mean(errGain.^2)) 1/sqrt(mean(errPhase.^2))];
   
-            lb = [];%zeros(size(x0,1),1);
-            ub = [];
+            lb = modelSeries(idxMdl).model.settings.parameterBounds(:,1);
+            ub = modelSeries(idxMdl).model.settings.parameterBounds(:,2);
             [xFit, resnorm, residual,exitflag,output] = ...
               lsqnonlin(errFcn,x0,lb,ub,lsqnonlinOptions);
-          
+
+            [componentImpedanceParams, modelParams] = ...
+              getMaxwellKelvinVoigtNetworkParameters(xFit,...
+                modelSeries(idxMdl).model.settings);
+            
             %
             % Evaluate the fitted model response
             %
   
-            fittedModelSeries(idxMdl).model.parameters = ...
-              getMaxwellKelvinVoigtNetworkParameters(...
-                xFit,...
-                modelSeries(idxMdl).model.settings);
-          
+
+            fittedModelSeries(idxMdl).model.componentImpedance ...
+              = componentImpedanceParams;
+
+            fittedModelSeries(idxMdl).model.parameters ...
+              = modelParams;
+            
             fittedModelSeries(idxMdl).model.response ...
               = calcMaxwellKelvinVoigtNetworkImpedance(...
                   segData.H.frequency(segData.H.idxBWC2),...
@@ -1875,7 +1891,7 @@ if(settings.processData==1)
     end
   
     
-    outputJsonDir = fullfile(projectFolders.output610A_json,folderName);
+    outputJsonDir = fullfile(projectFolders.output600A_json,folderName);
     if(~exist(outputJsonDir,'dir'))
       mkdir(outputJsonDir);
     end
@@ -1894,7 +1910,7 @@ if(settings.processData==1)
   
   fclose(fidLogFile);
   
-  outputPlotDir = fullfile(projectFolders.output610A_plots,folderName);
+  outputPlotDir = fullfile(projectFolders.output600A_plots,folderName);
   if(~exist(outputPlotDir,'dir'))
     mkdir(outputPlotDir);
   end

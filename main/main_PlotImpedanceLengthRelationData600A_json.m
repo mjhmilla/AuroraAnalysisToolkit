@@ -141,7 +141,7 @@ freqSample = [];
 
 
 for i = 1:1:length(experimentsToProcess)
-    expFolder = fullfile(projectFolders.output,'json',...
+    expFolder = fullfile(projectFolders.output600A_json,...
                          experimentsToProcess{i});
     fprintf('%s\n',expFolder);
 
@@ -488,7 +488,7 @@ subplot('Position',reshape(subPlotPanelGroup(1,1,:),1,4));
 subplot('Position',reshape(subPlotPanelGroup(1,2,:),1,4));
 
     
-outputPlotDir = fullfile(projectFolders.output_plots,outputFolder);
+outputPlotDir = fullfile(projectFolders.output600A_plots,outputFolder);
 if(~exist(outputPlotDir))
     mkdir(outputPlotDir);
 end

@@ -1,4 +1,4 @@
-function ddfData = readAuroraData610A(fullFilePath,flag_readProtcolArray)
+function ddfData = readAuroraData610A(fullFilePath,flag_readProtocolArray)
 %%
 % This function will 
 % 1. Read in the sample frequency
@@ -136,7 +136,7 @@ for i=1:1:length(cellArray)
     ddfData.TADs(i) = str2double(cellArray{i});
 end
 
-if(flag_readProtcolArray==1)
+if(flag_readProtocolArray==1)
   while contains(line,'Protocol Array') == 0
       [line, ltout]= fgets(fid);    
   end
