@@ -5,7 +5,7 @@ function success=plotBoxWhiskerData(x,ySummaryStatistics, ...
 p = [0.01,0.05,0.25,0.5,0.75,0.95,0.99];
 
 for i=1:1:length(p)
-  assert(abs(ySummaryStatistics.x(1,i)-p(1,i))<sqrt(eps),...
+  assert(abs(ySummaryStatistics.x(i)-p(i))<sqrt(eps),...
              'Error: ySummaryStatistics.x has changed');
 end
 
@@ -22,12 +22,12 @@ box = [ x+boxWidth*0.5, y25;...
         x-boxWidth*0.5, y25;... 
         x+boxWidth*0.5, y25];
 
-plot(x,ySummaryStatistics.min,'x','Color',lineColor,'MarkerSize',3);
-hold on;
-
-plot(x,ySummaryStatistics.max,'o',...
-    'Color',lineColor,'MarkerFacecolor',lineColor,'MarkerSize',3);
-hold on;
+% plot(x,ySummaryStatistics.min,'x','Color',lineColor,'MarkerSize',3);
+% hold on;
+% 
+% plot(x,ySummaryStatistics.max,'o',...
+%     'Color',lineColor,'MarkerFacecolor',lineColor,'MarkerSize',3);
+% hold on;
 
 
 plot([x;x],[y05;y95],'-','Color',lineColor);

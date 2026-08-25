@@ -59,8 +59,8 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.idxBWC2       = [];
     frequencyResponse.bandwidthHzC2 = [];
 
-    if(~isempty(idxFirst) && ~isempty(idxLast))
-
+    if(~isempty(idxFirst) && ~isempty(idxLast))      
+      
       freqFirst = freqHz(frequencyResponse.idxBW(idxFirst));
       freqLast = freqHz(frequencyResponse.idxBW(idxLast));  
       bandwidthFraction = ...

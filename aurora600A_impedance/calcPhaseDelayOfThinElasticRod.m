@@ -29,6 +29,20 @@ if(strcmp(experimentJson.experiment.specimen,'Spring'))
     k = springK;
     m = wireM;
     l = springL;
+elseif(strcmp(experimentJson.experiment.material,'nitrile'))
+   
+    %Set k to be the average of the data available
+    k = mean(gain);
+
+    nitrileL = experimentJson.experiment.length_mm * mm2m;
+    nitrileW = experimentJson.experiment.width_mm * mm2m;
+    nitrileH = experimentJson.experiment.height_mm * mm2m;
+    nitrileV = nitrileL*nitrileW*nitrileH;
+    nitrileM = nitrileV*experimentJson.experiment.rho_kg_m3;
+
+    m=nitrileM;
+    l=nitrileL;
+
 elseif(strcmp(experimentJson.experiment.material,'muscle'))
     %Smooth out the gain signal
     df = min(diff(frequencyHz));
