@@ -1,20 +1,35 @@
-function figH = plotCalibrationData600A_Pres(...
+function figH = plotCalibrationData600A(...
                       figH,...
                       calibrationExperiment, ...
                       calibrationTrial, ...
                       projectFolders,...
+                      flag_0Presentation_1Publication,...
                       flag_savePlot)
 
 
   numberOfHorizontalPlotColumnsGeneric  = 1;
   numberOfVerticalPlotRowsGeneric       = 2;
 
-  plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*3.75;
-  plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*3;
-  plotHorizMarginCm         = 3;
-  plotVertMarginCm          = 1;
-  baseFontSize              = 8;
+
   
+  switch flag_0Presentation_1Publication
+    case 0
+      plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*3.75;
+      plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*3;
+      plotHorizMarginCm         = 3;
+      plotVertMarginCm          = 1;
+      baseFontSize              = 8;
+    case 1
+      plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
+      plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5;
+      plotHorizMarginCm         = 2;
+      plotVertMarginCm          = 2;
+      baseFontSize              = 8;
+    otherwise
+      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');
+  end
+
+
   [subPlotPanelCal, pageWidthCal,pageHeightCal]= ...
     plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
               numberOfVerticalPlotRowsGeneric,...
@@ -116,7 +131,18 @@ if(flag_savePlot==1)
   
   figH=configPlotExporter(figH, ...
             pageWidthCal, pageHeightCal);
-  fileName =  ['fig_',calibrationExperiment{1},'_pres'];
+
+  fileName =  ['fig_',calibrationExperiment{1}];
+  
+  switch flag_0Presentation_1Publication
+    case 0
+      fileName =  [fileName,'_pres'];
+    case 1
+      fileName =  [fileName,'_pub'];      
+    otherwise
+      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+  end
+
   print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));  
 end

@@ -1,4 +1,4 @@
-function figH = plotFrequencyResponse600A_Pres(...
+function figH = plotFrequencyResponse600A(...
                       figH,...
                       experimentName, ...
                       trialNames, ...
@@ -8,17 +8,31 @@ function figH = plotFrequencyResponse600A_Pres(...
                       trialColors,...                      
                       projectFolders,...
                       flag_storageLoss0_stiffnessDamping1_titles,...
+                      flag_0Presentation_1Publication,...
                       flag_savePlot)
 
 
 numberOfHorizontalPlotColumnsGeneric  = 3;
 numberOfVerticalPlotRowsGeneric       = 2;
 
-plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*3;
-plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*2.25;
-plotHorizMarginCm         = 1;
-plotVertMarginCm          = 1.25;
-baseFontSize              = 6;
+switch flag_0Presentation_1Publication,...
+  case 0
+    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*3;
+    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*2.25;
+    plotHorizMarginCm         = 1;
+    plotVertMarginCm          = 1.25;
+    baseFontSize              = 6;
+
+  case 1
+    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*4;
+    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*4;
+    plotHorizMarginCm         = 2;
+    plotVertMarginCm          = 2;
+    baseFontSize              = 8;
+
+  otherwise
+    assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');
+end
 
 [subPlotPanelZ, pageWidthZ,pageHeightZ]= ...
   plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
@@ -193,10 +207,10 @@ for idxTrial=1:1:length(trialNames)
           xySeries(idx).yLLim=[0,3.5]+[-1,1].*sqrt(eps);
   
           if(flag_storageLoss0_stiffnessDamping1_titles==1)
-            xySeries(idx).yLLabel='Loss (mN/mm)';     
+            xySeries(idx).yLLabel='Damping (mN/mm)';     
             xySeries(idx).idxData=...
               [jsonData(segId).segment.H.idxBWC2(1):1:jsonData(segId).segment.H.idxBWC2(2)];
-            xySeries(idx).title={'F. Damping  ($$\beta = G \cos \theta$$)'};
+            xySeries(idx).title={'F. Damping  ($$\beta = G \sin \theta$$)'};
           end
   
   
@@ -351,11 +365,19 @@ if(flag_savePlot==1)
             pageWidthZ, pageHeightZ);
   fileName =  ['fig_',experimentName{1}];
   if(flag_storageLoss0_stiffnessDamping1_titles==0)
-    fileName=[fileName,'_stiffnessDamping'];
+    fileName=[fileName,'_storageLoss'];    
   else
-    fileName=[fileName,'_storageLoss'];
+    fileName=[fileName,'_stiffnessDamping'];
   end
-  fileName =  [fileName,'_pres'];
+
+  switch flag_0Presentation_1Publication
+    case 0
+      fileName =  [fileName,'_pres'];
+    case 1
+      fileName =  [fileName,'_pub'];      
+    otherwise
+      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+  end
 
   print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));  
