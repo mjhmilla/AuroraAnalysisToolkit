@@ -55,24 +55,54 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
                     >= coherenceSquaredThreshold,1,'first');
     idxLast =  find(coherenceSq(frequencyResponse.idxBW) ...
                     >= coherenceSquaredThreshold,1,'last');
-
+    
     frequencyResponse.idxBWC2       = [];
     frequencyResponse.bandwidthHzC2 = [];
 
-    if(~isempty(idxFirst) && ~isempty(idxLast))      
-      
-      freqFirst = freqHz(frequencyResponse.idxBW(idxFirst));
-      freqLast = freqHz(frequencyResponse.idxBW(idxLast));  
-      bandwidthFraction = ...
-        (freqLast-freqFirst)/(max(bandwidth)-min(bandwidth));
+    if(~isempty(idxFirst) && ~isempty(idxLast))
+      %Go to the middle of the interval and grow the interval until the
+      %first points are found that do not meet the threshold;
 
-      if(bandwidthFraction >= minAcceptableBandwidthFraction)
-        frequencyResponse.idxBWC2 = ...
-            [   frequencyResponse.idxBW(idxFirst):1: ...
-                frequencyResponse.idxBW(idxLast)]';
-        frequencyResponse.bandwidthHzC2= ...
-            [   freqHz(frequencyResponse.idxBWC2(1,1)),...
-                 freqHz(frequencyResponse.idxBWC2(end,1))];           
+      idxMid = round(0.5*(idxFirst+idxLast));
+      idxFirstUpd=nan;
+      for i=idxMid:-1:idxFirst
+        if(isnan(idxFirstUpd) ...
+            && coherenceSq(frequencyResponse.idxBW(i))<coherenceSquaredThreshold )
+          idxFirstUpd=i;
+        end
+      end
+      if(~isnan(idxFirstUpd))
+        idxFirst=idxFirstUpd;
+      end
+      idxLastUpd=nan;
+      for i=idxMid:1:idxLast
+        if(isnan(idxLastUpd) ...
+            && coherenceSq(frequencyResponse.idxBW(i))<coherenceSquaredThreshold )
+          idxLastUpd=i;
+        end
+      end
+      if(~isnan(idxLastUpd))
+        idxLast=idxLastUpd;
+      end
+    end
+
+    if(~isempty(idxFirst) && ~isempty(idxLast))      
+
+      if(idxLast-idxFirst > 0)
+           
+        freqFirst = freqHz(frequencyResponse.idxBW(idxFirst));
+        freqLast = freqHz(frequencyResponse.idxBW(idxLast));  
+        bandwidthFraction = ...
+          (freqLast-freqFirst)/(max(bandwidth)-min(bandwidth));
+  
+        if(bandwidthFraction >= minAcceptableBandwidthFraction)
+          frequencyResponse.idxBWC2 = ...
+              [   frequencyResponse.idxBW(idxFirst):1: ...
+                  frequencyResponse.idxBW(idxLast)]';
+          frequencyResponse.bandwidthHzC2= ...
+              [   freqHz(frequencyResponse.idxBWC2(1,1)),...
+                   freqHz(frequencyResponse.idxBWC2(end,1))];           
+        end
       end
     end
 

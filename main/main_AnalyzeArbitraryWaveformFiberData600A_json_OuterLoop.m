@@ -10,14 +10,21 @@ addpath(projectFolders.common);
 addpath(projectFolders.postprocessing);
 addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
-disp('To-do:')
-disp('1. Update the way the BW that meets the coherence-sq threshold is');
-disp('calculated: start in the middle and widen the interval until the');
-disp('first point that fails to meet the threshold is found');
-disp('2. Check to make sure that active forces are calculated relative');
-disp('to the value at which they are first plunged into the bath');
 
-assert(0,'Error: look at the To-do note above');
+disp('0. Note for the future. To properly measure 0 force, every trial');
+disp('   would need to begin at a length with no passive force');
+disp('   (say 0.7 Lo), and then moved to the bath that will be used for ');
+disp('   analysis: the force shortly after entering the bath is a good');
+disp('   measure for 0 force. Lucky for this study the focus is on ');
+disp('   impedance, and so, the bias is subtracted from every signal ');
+disp('   prior to analysis. That said, we cannot evaluate the force bias');
+disp('   due to the depth of the bath on each trial. The best we can do');
+disp('   is extract this force once per experiment during a short passive');
+disp('   trial, and a short active trial.');
+
+
+
+%assert(0,'Error: look at the To-do note above');
 
 disp('Note:')
 disp(['1. The phase delay of the specimen is reported using an',...
@@ -50,16 +57,16 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
 %   '20251121_degradation_larb_4'...
 % };
 
-experimentsToProcess = {'20260116_impedance_larb_spring'};
+%experimentsToProcess = {'20260116_impedance_larb_spring'};
 %{'20251118_impedance_larb_1'};
 
-% experimentsToProcess = { '20251118_impedance_larb_1',...
-%                         '20251118_impedance_larb_2',...
-%                         '20251120_impedance_larb_3',...
-%                         '20251121_impedance_larb_4',...
-%                         '20251121_impedance_larb_5',...
-%                         '20251128_impedance_larb_6',...
-%                         '20251203_impedance_larb_7'};
+experimentsToProcess = {'20251118_impedance_larb_1',...
+                        '20251118_impedance_larb_2',...
+                        '20251120_impedance_larb_3',...
+                        '20251121_impedance_larb_4',...
+                        '20251121_impedance_larb_5',...
+                        '20251128_impedance_larb_6',...
+                        '20251203_impedance_larb_7'};
 
 % experimentsToProcess = { '20251118_impedance_larb_1'};
 
@@ -92,10 +99,11 @@ settings.forceNoiseThresholdmN                  = 0.025;
 
 settings.prePerburationWindowMs                 = 100;
 
-settings.useManuallySetDaqDelay = 0;
+settings.useManuallySetDaqDelay = 1;
 settings.daqDelayModel          = 'frequency-domain'; 
 settings.daqDelay               = 6.67e-4; %Only used when the delay is fixed
 settings.daqFilterFrequencyHz   = mean([635,654]); 
+
 
 % Avg of filter-of-best-fit to the spring data from the 
 % 0.01 Lo perturbations in water
@@ -106,6 +114,14 @@ settings.normFittingBandwidth = [0.05,1];
 settings.minAcceptableBandwidthFraction = 0.67;
 
 settings.impedanceTemperatureBaseLineFilterHz = 2;
+
+settings.biasForce.keywords =...
+    {'_passive_055Lo_','_active_055Lo_'};
+settings.biasForce.isActive=[0,1];
+settings.biasForce.lowPassFilterFrequency=30;
+settings.biasForce.passiveTimeWindowS = 0.1;
+settings.biasForce.activeTimeWindowS = [1.5,2.0];
+settings.biasForce.activeEnvelopeThreshold=1;
 
 switch(settings.daqDelayModel)
     case 'time-domain'
@@ -241,7 +257,7 @@ modelK3.trialTypes     = {'delay',...
                           'impedance',...
                           'impedance temperature',...
                           'impedance calibration'};
-modelK3.activityTypes  = {'active'};
+modelK3.activityTypes  = {'active','passive'};
 modelK3.color          = lineColors.purple;
 modelK3.lineType       = '-';
 
