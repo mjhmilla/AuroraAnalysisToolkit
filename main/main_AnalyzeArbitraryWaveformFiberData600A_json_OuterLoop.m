@@ -11,20 +11,7 @@ addpath(projectFolders.postprocessing);
 addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
 
-disp('0. Note for the future. To properly measure 0 force, every trial');
-disp('   would need to begin at a length with no passive force');
-disp('   (say 0.7 Lo), and then moved to the bath that will be used for ');
-disp('   analysis: the force shortly after entering the bath is a good');
-disp('   measure for 0 force. Lucky for this study the focus is on ');
-disp('   impedance, and so, the bias is subtracted from every signal ');
-disp('   prior to analysis. That said, we cannot evaluate the force bias');
-disp('   due to the depth of the bath on each trial. The best we can do');
-disp('   is extract this force once per experiment during a short passive');
-disp('   trial, and a short active trial.');
 
-
-
-%assert(0,'Error: look at the To-do note above');
 
 disp('Note:')
 disp(['1. The phase delay of the specimen is reported using an',...
@@ -102,7 +89,7 @@ settings.prePerburationWindowMs                 = 100;
 settings.useManuallySetDaqDelay = 1;
 settings.daqDelayModel          = 'frequency-domain'; 
 settings.daqDelay               = 6.67e-4; %Only used when the delay is fixed
-settings.daqFilterFrequencyHz   = mean([635,654]); 
+settings.daqFilterFrequencyHz   = mean([638.872,686.438]); 
 
 
 % Avg of filter-of-best-fit to the spring data from the 

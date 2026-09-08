@@ -10,8 +10,8 @@ function figH = plotForceLengthImpedanceModel600A(...
                       flag_savePlot)
 
 
-numberOfHorizontalPlotColumnsGeneric  = 2;
-numberOfVerticalPlotRowsGeneric       = 1;
+numberOfHorizontalPlotColumnsGeneric  = 3;
+numberOfVerticalPlotRowsGeneric       = 6;
 
 switch flag_0Presentation_1Publication
   case 0
@@ -46,14 +46,27 @@ end
 %%
 nLengths = length(categories.length.str);
 
+trialTypeSet={'active','passive'};
+fieldTypeSet = {'forceNominal','A','B','C','alpha','beta','gamma','k'};
+
+flag_expDataSetInitialized=0;
 expDataSet(length(categories.length.value)) ...
         = struct('active',[],...
                  'passive',[]);
+
+expNormDataSet(length(categories.length.value)) ...
+        = struct('active',[],...
+                 'passive',[]);
+
+idxLopt = 4; 
+assert(abs(categories.length.value(idxLopt)-1.0)<1e-6);
+idxLmax = length(categories.length.value);
 
 for i=1:1:length(categories.length.value)
 
   expDataSet(i).active = ...
     struct( 'lengthNominal',categories.length.value(i),...
+            'forceNominal',nan,...
             'A',nan,...
             'B',nan,...
             'C',nan,...
@@ -65,6 +78,7 @@ for i=1:1:length(categories.length.value)
 
   expDataSet(i).passive = ...
       struct( 'lengthNominal',categories.length.value(i),...
+              'forceNominal',nan,...      
               'A',nan,...
               'B',nan,...
               'C',nan,...
@@ -73,6 +87,30 @@ for i=1:1:length(categories.length.value)
               'gamma',nan,...
               'k',nan,...
               'isValid',1);
+
+  expNormDataSet(i).active = ...
+    struct( 'lengthNominal',categories.length.value(i),...
+            'forceNominal',nan,...
+            'A',nan,...
+            'B',nan,...
+            'C',nan,...
+            'alpha',nan,...
+            'beta',nan,...
+            'gamma',nan,...
+            'k',nan,...
+            'isValid',1);
+
+  expNormDataSet(i).passive = ...
+      struct( 'lengthNominal',categories.length.value(i),...
+              'forceNominal',nan,...      
+              'A',nan,...
+              'B',nan,...
+              'C',nan,...
+              'alpha',nan,...
+              'beta',nan,...
+              'gamma',nan,...
+              'k',nan,...
+              'isValid',1);  
 
 end
 
@@ -88,6 +126,7 @@ for idxExp = 1:1:length(experimentList)
 
     trialDataSet(i).active = ...
       struct( 'lengthNominal',categories.length.value(i),...
+              'forceNominal',nan,...
               'A',nan,...
               'B',nan,...
               'C',nan,...
@@ -99,6 +138,7 @@ for idxExp = 1:1:length(experimentList)
   
     trialDataSet(i).passive = ...
         struct( 'lengthNominal',categories.length.value(i),...
+                'forceNominal',nan,...
                 'A',nan,...
                 'B',nan,...
                 'C',nan,...
@@ -159,14 +199,27 @@ for idxExp = 1:1:length(experimentList)
           for k=1:1:2
             trialType='';
             isModelValid=0;
+            a=nan;
+            b=nan;
+            c=nan;
+            d=nan;
+            forceNominal=nan;
             switch k
               case 1
-                a = aJsonData(segId).segment.model.K3.componentImpedance(j,2);
-                b = aJsonData(segId).segment.model.K3.componentImpedance(j,3);
-                c = aJsonData(segId).segment.model.K3.componentImpedance(j,4);
-                d = aJsonData(segId).segment.model.K3.componentImpedance(j,5);
-                trialType='active';
-                isModelValid=1;
+                if(isfield(aJsonData(segId).segment,'model'))
+                  if(isfield(aJsonData(segId).segment.model,'K3'))
+                    if(~isempty(aJsonData(segId).segment.model.K3))                
+                      a = aJsonData(segId).segment.model.K3.componentImpedance(j,2);
+                      b = aJsonData(segId).segment.model.K3.componentImpedance(j,3);
+                      c = aJsonData(segId).segment.model.K3.componentImpedance(j,4);
+                      d = aJsonData(segId).segment.model.K3.componentImpedance(j,5);                      
+                      isModelValid=1;
+                    end
+                  end
+                end
+                forceNominal=mean(aJsonData(segId).segment.force);                
+                trialType='active';      
+
               case 2
                 if(isfield(pJsonData(segId).segment,'model'))
                   if(isfield(pJsonData(segId).segment.model,'K3'))
@@ -179,35 +232,39 @@ for idxExp = 1:1:length(experimentList)
                     end
                   end
                 end
+                forceNominal=mean(pJsonData(segId).segment.force);                
                 trialType='passive';                
 
               otherwise
                 assert(0,'Error: k must be 1 or 2, active or passive');
             end
 
-            trialDataSet(idxL).(trialType).isValid =...
+            trialDataSet(idxL).(trialType).isValid = ...
               trialDataSet(idxL).(trialType).isValid && isModelValid;
-            
-            switch j
-              case 1
-                assert(abs(a)<1e-6);
-                trialDataSet(idxL).(trialType).A    = b/d;
-                trialDataSet(idxL).(trialType).alpha= c/d;
-              case 2                
-                assert(abs(a)<1e-6);
-                trialDataSet(idxL).(trialType).B    = b/d;
-                trialDataSet(idxL).(trialType).beta = c/d;              
 
-              case 3
-                assert(abs(a)<1e-6);              
-                trialDataSet(idxL).(trialType).C    = b/d;
-                trialDataSet(idxL).(trialType).gamma = c/d;
-              case 4
-                assert(abs(b)<1e-6);              
-                assert(abs(d)<1e-6);              
-                trialDataSet(idxL).(trialType).k    = a/c;  
-              otherwise
-                assert(0,'Error: attempted to access an invalid component');
+            trialDataSet(idxL).(trialType).forceNominal=forceNominal;
+            if(isModelValid==1)
+              switch j
+                case 1
+                  assert(abs(a)<1e-6);
+                  trialDataSet(idxL).(trialType).A    = b/d;
+                  trialDataSet(idxL).(trialType).alpha= c/d;
+                case 2                
+                  assert(abs(a)<1e-6);
+                  trialDataSet(idxL).(trialType).B    = b/d;
+                  trialDataSet(idxL).(trialType).beta = c/d;              
+  
+                case 3
+                  assert(abs(a)<1e-6);              
+                  trialDataSet(idxL).(trialType).C    = b/d;
+                  trialDataSet(idxL).(trialType).gamma = c/d;
+                case 4
+                  assert(abs(b)<1e-6);              
+                  assert(abs(d)<1e-6);              
+                  trialDataSet(idxL).(trialType).k    = a/c;  
+                otherwise
+                  assert(0,'Error: attempted to access an invalid component');
+              end
             end
           end
         end
@@ -218,87 +275,94 @@ for idxExp = 1:1:length(experimentList)
 
   %Check that all categories have been filled.
   for idxC=1:1:length(trialDataSet)
-    trialType={'active'};%,'passive'};
-    fieldType = {'A','B','C','alpha','beta','gamma','k'};
-    for j=1:1:length(trialType)
-      for k=1:1:length(fieldType)
-        assert(~isnan(trialDataSet(idxC).(trialType{j}).(fieldType{k})));
+    for j=1:1:length(trialTypeSet)
+      %Check to make sure all fields are empty, or all are populated
+      if(~isnan(trialDataSet(idxC).(trialTypeSet{j}).A))
+        for k=1:1:length(fieldTypeSet)
+          if(isnan(trialDataSet(idxC).(trialTypeSet{j}).(fieldTypeSet{k})) ...
+             && ~strcmp(fieldTypeSet{k},'forceNominal'))
+            here=1;
+          end
+          if(~strcmp(fieldTypeSet{k},'forceNominal'))
+            assert(~isnan(trialDataSet(idxC).(trialTypeSet{j}).(fieldTypeSet{k})));
+          end
+        end
+      else
+        for k=1:1:length(fieldTypeSet)
+          if(~isnan(trialDataSet(idxC).(trialTypeSet{j}).(fieldTypeSet{k})) ...
+              && ~strcmp(fieldTypeSet{k},'forceNominal'))
+            here=1;
+          end          
+          if(~strcmp(fieldTypeSet{k},'forceNominal'))          
+            assert(isnan(trialDataSet(idxC).(trialTypeSet{j}).(fieldTypeSet{k})));
+          end
+        end
       end
     end
   end
 
   %
-  % You are here
+  % Normalize the coefficients
   %
-  assert(0,'You are here');
-
-  %Adjust the passive forces so that 0.55 Lo is zero, and then
-  %evaluate the nominal active force
-  for idxC=1:1:length(trialDataSet)
-    trialDataSet(idxC).forceNominalPassive= ...
-      trialDataSet(idxC).forceNominalPassive ...
-      -trialDataSet(1).forceNominalPassive;
-    trialDataSet(idxC).forceNominalActive = ...
-      trialDataSet(idxC).forceNominal ...
-      -trialDataSet(idxC).forceNominalPassive;
-  end
-
-  %Normalize the data
-  normTrialDataSet(length(categories.length.value)) ...
-            = struct('lengthNominal',nan,...
-                     'forceNominal',[],...
-                     'forceNominalActive',nan,...
-                     'forceNominalPassive',[],...
-                     'storage',[],...
-                     'loss',[]);  
-  
-  iN = categories.length.indexLopt;
+  normTrialDataSet=trialDataSet;
+  normActiveTrial = trialDataSet(idxLopt).active;
+  normPassiveTrial=trialDataSet(idxLmax).passive;
 
   for i=1:1:length(trialDataSet)
-    normTrialDataSet(i).lengthNominal=trialDataSet(i).lengthNominal;
-
-    lopt = trialDataSet(iN).lengthNominal;
-    fiso = trialDataSet(iN).forceNominalActive;
-    siso=nan;
-    liso=nan;
-    if(modeNormalization==0)
-      siso = median(trialDataSet(iN).storage);
-      liso = siso;      
+    for j=1:1:length(trialTypeSet)
+      for k=1:1:length(fieldTypeSet)
+        normFactor=nan;
+        switch fieldTypeSet{k}
+          case 'forceNominal'
+            normFactor=normActiveTrial.forceNominal;            
+          case 'A' 
+            normFactor=normActiveTrial.B;
+          case 'B'
+            normFactor=normActiveTrial.B;            
+          case 'C'
+            normFactor=normActiveTrial.B;            
+          case 'alpha'
+            normFactor=normActiveTrial.beta;                        
+          case 'beta'
+            normFactor=normActiveTrial.beta;                                    
+          case 'gamma'
+            normFactor=normActiveTrial.beta;                                    
+          case 'k'
+            normFactor=normPassiveTrial.k;                                    
+          otherwise
+            assert(0,'Error: field not found');
+        end
+        normTrialDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k}) = ...
+          trialDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k})...
+          ./normFactor;        
+      end
     end
-    if(modeNormalization==1)
-      siso = median(trialDataSet(iN).storage);
-      liso = median(trialDataSet(iN).loss);      
-    end
-
-
-    normTrialDataSet(i).forceNominalActive = ...
-      trialDataSet(i).forceNominalActive / fiso;
-    normTrialDataSet(i).forceNominal = ...
-      trialDataSet(i).forceNominal / fiso;
-    normTrialDataSet(i).forceNominalPassive = ...
-      trialDataSet(i).forceNominalPassive / fiso;
-
-    normTrialDataSet(i).storage = ...
-      trialDataSet(i).storage / siso;
-    normTrialDataSet(i).loss = ...
-      trialDataSet(i).loss / liso;
-
   end
 
   %
   % Accumulate this into the experiment data set
   %
-  fieldsToAccmulate = ...
-    {'forceNominal','forceNominalActive','forceNominalPassive',....
-     'storage','loss'};
   
   for i=1:1:length(expDataSet)
-    for j=1:1:length(fieldsToAccmulate)
-      expDataSet(i).(fieldsToAccmulate{j}) = ...
-        [expDataSet(i).(fieldsToAccmulate{j});...
-         normTrialDataSet(i).(fieldsToAccmulate{j})];
+    for j=1:1:length(trialTypeSet)
+      for k=1:1:length(fieldTypeSet)
+        if(flag_expDataSetInitialized==0)
+          expDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k}) = ...
+             trialDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k});
+          expNormDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k}) = ...
+             normTrialDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k});                  
+        else
+          expDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k}) = ...
+            [expDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k});...
+             trialDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k})];
+          expNormDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k}) = ...
+            [expNormDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k});...
+             normTrialDataSet(i).(trialTypeSet{j}).(fieldTypeSet{k})];        
+        end
+      end
     end
   end
+  flag_expDataSetInitialized=1;
   here=1;
 end
 
@@ -308,9 +372,9 @@ end
 
 
 
-fieldsToPlot = {'storage','loss'};
+fieldsToPlot = {'A','B','C','alpha','beta','gamma','k'};
 
-xySeries(2)=struct('x','','y','',...
+xySeries(14)=struct('x','','y','',...
                   'segment',2,...
                   'row',nan,'col',nan,...
                   'xTicks',[],'yTicks',[],...
@@ -318,108 +382,175 @@ xySeries(2)=struct('x','','y','',...
                   'xLabel','','yLabel','',...
                   'title',[],'color',[]);
 
+ptColorSeries=getPaulTolColourSchemes('vibrant');
+
+colorSeries = zeros(length(experimentList),3);
+
+colorFields=fields(ptColorSeries);
+
+for i=1:1:size(colorSeries,1)
+  colorSeries(i,:)=ptColorSeries.(colorFields{i});
+end
+
+
 idx=1;
 xySeries(idx).x='lengthNominal';
-xySeries(idx).y='storage';
+xySeries(idx).y='A';
+xySeries(idx).type='active';
 xySeries(idx).row=1;
 xySeries(idx).col=1;
 xySeries(idx).xTicks = categories.length.value;
-xySeries(idx).yTicks = [0,1];
+xySeries(idx).yTicks = [];%[0,20];
 xySeries(idx).xLim   = [min(categories.length.value),...
                         max(categories.length.value)] + [-1,1].*0.05;
-xySeries(idx).yLim   = [0,1.6] + [-1,1].*sqrt(eps);
+xySeries(idx).yLim   = [];%[0,20] + [-1,1].*sqrt(eps);
 xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
-xySeries(idx).yLabel = 'Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
-xySeries(idx).title = 'Storage-Length-Relation';
+xySeries(idx).yLabel = 'Impedance Magnitude (mN/mm)';
+xySeries(idx).title = 'A';
 xySeries(idx).color = [0,0,0];
 
 idx=idx+1;
 xySeries(idx).x='lengthNominal';
-xySeries(idx).y='loss';
+xySeries(idx).y='B';
+xySeries(idx).type='active';
 xySeries(idx).row=1;
 xySeries(idx).col=2;
 xySeries(idx).xTicks = categories.length.value;
-xySeries(idx).yTicks = [0,1];
+xySeries(idx).yTicks = [];%[-7,0];
 xySeries(idx).xLim   = [min(categories.length.value),...
                         max(categories.length.value)] + [-1,1].*0.05;
-xySeries(idx).yLim   = [0,1.6] + [-1,1].*sqrt(eps);
+xySeries(idx).yLim   = [];%[-7,0] + [-1,1].*sqrt(eps);
 xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
-xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
-xySeries(idx).title = 'Loss-Length-Relation';
+xySeries(idx).yLabel = 'Impedance Magnitude (mN/mm)';
+xySeries(idx).title = 'B';
 xySeries(idx).color = [0,0,0];
 
-if(modeNormalization==1)
-  for i=1:1:length(xySeries)
-    xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o^M)$$)';
-  end
-end
+idx=idx+1;
+xySeries(idx).x='lengthNominal';
+xySeries(idx).y='C';
+xySeries(idx).type='active';
+xySeries(idx).row=1;
+xySeries(idx).col=3;
+xySeries(idx).xTicks = categories.length.value;
+xySeries(idx).yTicks = [];%[0,5];
+xySeries(idx).xLim   = [min(categories.length.value),...
+                        max(categories.length.value)] + [-1,1].*0.05;
+xySeries(idx).yLim   = [];%[0,5] + [-1,1].*sqrt(eps);
+xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
+xySeries(idx).yLabel = 'Impedance Magnitude (mN/mm)';
+xySeries(idx).title  = 'C';
+xySeries(idx).color  = [0,0,0];
 
+
+idx=idx+1;
+xySeries(idx).x='lengthNominal';
+xySeries(idx).y='alpha';
+xySeries(idx).type='active';
+xySeries(idx).row=2;
+xySeries(idx).col=1;
+xySeries(idx).xTicks = categories.length.value;
+xySeries(idx).yTicks = [];%[0,50]./(2*pi);
+xySeries(idx).xLim   = [min(categories.length.value),...
+                        max(categories.length.value)] + [-1,1].*0.05;
+xySeries(idx).yLim   = [];%[0,50]./(2*pi) + [-1,1].*sqrt(eps);
+xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
+xySeries(idx).yLabel = 'Frequency (Hz)';
+xySeries(idx).title  = '$$\alpha/(2\pi)$$';
+xySeries(idx).color  = [0,0,0];
+
+idx=idx+1;
+xySeries(idx).x='lengthNominal';
+xySeries(idx).y='beta';
+xySeries(idx).type='active';
+xySeries(idx).row=2;
+xySeries(idx).col=2;
+xySeries(idx).xTicks = categories.length.value;
+xySeries(idx).yTicks = [];%[0,15]./(2*pi);
+xySeries(idx).xLim   = [min(categories.length.value),...
+                        max(categories.length.value)] + [-1,1].*0.05;
+xySeries(idx).yLim   = [];%[0,15]./(2*pi) + [-1,1].*sqrt(eps);
+xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
+xySeries(idx).yLabel = 'Frequency (Hz)';
+xySeries(idx).title  = '$$\beta/(2\pi)$$';
+xySeries(idx).color  = [0,0,0];
+
+idx=idx+1;
+xySeries(idx).x='lengthNominal';
+xySeries(idx).y='gamma';
+xySeries(idx).type='active';
+xySeries(idx).row=2;
+xySeries(idx).col=3;
+xySeries(idx).xTicks = categories.length.value;
+xySeries(idx).yTicks = [];%[0,600]./(2*pi);
+xySeries(idx).xLim   = [min(categories.length.value),...
+                        max(categories.length.value)] + [-1,1].*0.05;
+xySeries(idx).yLim   = [];%[0,600]./(2*pi) + [-1,1].*sqrt(eps);
+xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
+xySeries(idx).yLabel = 'Frequency (Hz)';
+xySeries(idx).title  = '$$\gamma/(2\pi)$$';
+xySeries(idx).color  = [0,0,0];
+
+idx=idx+1;
+xySeries(idx).x='lengthNominal';
+xySeries(idx).y='k';
+xySeries(idx).type='active';
+xySeries(idx).row=3;
+xySeries(idx).col=1;
+xySeries(idx).xTicks = categories.length.value;
+xySeries(idx).yTicks = [];%[0,10];
+xySeries(idx).xLim   = [min(categories.length.value),...
+                        max(categories.length.value)] + [-1,1].*0.05;
+xySeries(idx).yLim   = [];%[0,10] + [-1,1].*sqrt(eps);
+xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
+xySeries(idx).yLabel = 'Stiffness (mN/mm)';
+xySeries(idx).title  = '$$k$$';
+xySeries(idx).color  = [0,0,0];
+
+for idx =1:1:7
+  xySeries(idx+7)=xySeries(idx);
+  xySeries(idx+7).row =  xySeries(idx+7).row + 3;
+  xySeries(idx+7).type='passive';
+end
 
 
 for i=1:1:length(xySeries)
   figure(figH);
   subplot('Position',reshape(subPlotPanelZ(xySeries(i).row,xySeries(i).col,:),1,4));
   
-  %Plot the force-length relation in the background
-  nData.l=[];
-  nData.f=[];
-  aData.l=[];
-  aData.f=[];  
-  pData.l=[];
-  pData.f=[];
-  for j=1:1:length(expDataSet)
-    aData.l=[aData.l,expDataSet(j).lengthNominal];
-    idxA = find(expDataSet(j).forceNominalActive >=0);
-    aData.f = [aData.f,mean(expDataSet(j).forceNominalActive(idxA))];
 
-    nData.l=[nData.l,expDataSet(j).lengthNominal];
-    idxN = find(expDataSet(j).forceNominal >=0);
-    nData.f = [nData.f,mean(expDataSet(j).forceNominal(idxN))];
-    
-    idxP0 = find(~isnan(expDataSet(j).forceNominalPassive));
-    pTmp = expDataSet(j).forceNominalPassive(idxP0);
-    idxP = find(pTmp >=0);
-    if(~isempty(idxP))
-      pData.f = [pData.f,mean(pTmp(idxP))];
-      pData.l = [pData.l,expDataSet(j).lengthNominal];
+  trialType=xySeries(i).type;
+  %Collect the data across each length
+  for n=1:1:length(experimentList)      
+    dataX = [];
+    dataY = [];        
+    for m=1:1:length(expDataSet)
+      dataX = [dataX,expDataSet(m).(trialType).(xySeries(i).x)];
+      dataY = [dataY,expDataSet(m).(trialType).(xySeries(i).y)(n)];
     end
-  end
-  switch i
-    case 1
-      yMax = median(expDataSet(categories.length.indexLopt).storage);
-    case 2
-      yMax = median(expDataSet(categories.length.indexLopt).loss);
-  end
-
-  if(i==1 && modeNormalization==0 || modeNormalization==1)
-    fill([min(aData.l),max(aData.l),fliplr(aData.l)],...
-          [0,0,fliplr(aData.f)].*yMax, [1,1,1].*0.9,'EdgeColor','none');
+    plot(dataX,dataY,'-','Color',colorSeries(n,:),...
+         'DisplayName',num2str(n));
     hold on;
-    fill([min(pData.l),max(pData.l),fliplr(pData.l)],...
-          [0,0,fliplr(pData.f)].*yMax, [1,1,1].*0.7,'EdgeColor','none');
-    hold on;
-    plot(nData.l,nData.f,'-','Color',[1,1,1].*0.8,'LineWidth',1);
+  end
+
+  box off;
+
+  if(i==1)
+    legend('Location','NorthWest');
+    legend box off;
   end
 
 
-  %Plot the stiffness / loss data
-  for j=1:1:length(expDataSet)
-
-    lineColor = xySeries(i).color;
-    boxColor  = [1,1,1].*0.5 + lineColor.*0.5;
-    summaryStatistics = getSummaryStatistics(expDataSet(j).(xySeries(i).y));
-    plotBoxWhiskerData(expDataSet(j).lengthNominal,...
-                       summaryStatistics,...
-                       0.05,lineColor,boxColor);
-    here=1;
-  end
   xlabel(xySeries(i).xLabel);
   ylabel(xySeries(i).yLabel);
   title(xySeries(i).title);
-  ylim(xySeries(i).yLim);
+  if(~isempty(xySeries(i).yLim))
+    ylim(xySeries(i).yLim);
+  end
   xlim(xySeries(i).xLim);
   xticks(xySeries(i).xTicks);
-  yticks(xySeries(i).yTicks);  
+  if(~isempty(xySeries(i).yTicks))  
+    yticks(xySeries(i).yTicks);  
+  end
   if(i==1)
     text(0.7,0.1,'$$f^L(\ell^M)$$','HorizontalAlignment','right',...
                  'FontSize',6);
