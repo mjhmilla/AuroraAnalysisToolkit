@@ -22,7 +22,11 @@ if(settings.applyParameterMap==1)
             case settings.elementTypes.spring
               modelParams(indexBranch,eleType)= paramsIn(i);
             case settings.elementTypes.damper
-              modelParams(indexBranch,eleType)= paramsIn(i);            
+              modelParams(indexBranch,eleType)= paramsIn(i);   
+            case settings.elementTypes.amplitude 
+              modelParams(indexBranch,eleType)= paramsIn(i);   
+            case settings.elementTypes.frequency 
+              modelParams(indexBranch,eleType)= paramsIn(i);                 
             otherwise
               assert(0,'Error: unrecognized element type');
           end
@@ -45,8 +49,11 @@ end
 networkComponentImpedanceParams = zeros(size(modelParams,1),5);
 networkComponentImpedanceParams(:,1)=modelParams(:,1);
 for i=1:1:size(modelParams,1)
+
   k     = modelParams(i,settings.elementTypes.spring);
   beta  = modelParams(i,settings.elementTypes.damper);
+  amplitude=modelParams(i,settings.elementTypes.amplitude);
+  frequency=modelParams(i,settings.elementTypes.frequency);
 
   switch modelParams(i,3)
     case settings.modelTypes.KelvinVoigt  
@@ -64,7 +71,14 @@ for i=1:1:size(modelParams,1)
       networkComponentImpedanceParams(i,3)=k*beta; %B
       networkComponentImpedanceParams(i,4)=k;      %C
       networkComponentImpedanceParams(i,5)=beta;   %D
-      
+    
+    case settings.modelTypes.MaxwellNormalized
+
+      networkComponentImpedanceParams(i,2)=0;         %A
+      networkComponentImpedanceParams(i,3)=amplitude; %B
+      networkComponentImpedanceParams(i,4)=frequency; %C
+      networkComponentImpedanceParams(i,5)=1;         %D
+
     otherwise
       assert(0,'Error: unrecognized model type');
   end

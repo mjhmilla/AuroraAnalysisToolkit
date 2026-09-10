@@ -302,6 +302,33 @@ for idxExp = 1:1:length(experimentList)
   end
 
   %
+  % If A has a higher frequency than C, switch these fields
+  %
+  for idxC=1:1:length(trialDataSet)
+    for j=1:1:length(trialTypeSet)
+      if(~isnan(trialDataSet(idxC).(trialTypeSet{j}).alpha) ...
+          && ~isnan(trialDataSet(idxC).(trialTypeSet{j}).gamma))
+        if(trialDataSet(idxC).(trialTypeSet{j}).alpha ...
+            > trialDataSet(idxC).(trialTypeSet{j}).gamma)
+          
+          t0 = trialDataSet(idxC).(trialTypeSet{j}).A;
+          t1 = trialDataSet(idxC).(trialTypeSet{j}).alpha;
+
+          trialDataSet(idxC).(trialTypeSet{j}).A = ...
+            trialDataSet(idxC).(trialTypeSet{j}).C;
+          trialDataSet(idxC).(trialTypeSet{j}).alpha = ...
+            trialDataSet(idxC).(trialTypeSet{j}).gamma;
+          
+          trialDataSet(idxC).(trialTypeSet{j}).C=t0;
+          trialDataSet(idxC).(trialTypeSet{j}).gamma=t1;
+
+
+        end
+      end
+    end
+  end
+
+  %
   % Normalize the coefficients
   %
   normTrialDataSet=trialDataSet;

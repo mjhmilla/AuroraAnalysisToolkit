@@ -98,14 +98,22 @@ for i=1:1:length(experimentJson.measurements)
     %%
     % Check to see if this trial has a Larb-Stochastic segment
     %%
-    isLarbStochastic = 0;    
-    if(~isempty(trialJson.segments) ... 
-            && strcmp(trialJson.segments(1).type,'Larb-Stochastic')==1)
-        setOfVerifiedTrials = [setOfVerifiedTrials;i];        
-        isLarbStochastic=1;
+    isLarbStochastic = 0;
+    if(~isempty(trialJson.segments))
+      larbFound=0;
+      for idxSeg= 1:1:length(trialJson.segments)
+        if((strcmp(trialJson.segments(idxSeg).type,'Larb-Stochastic')==1 ...
+            || strcmp(trialJson.segments(idxSeg).type,'Length-Arb')==1) ...
+            && larbFound==0)
+            setOfVerifiedTrials = [setOfVerifiedTrials;i];        
+            isLarbStochastic=1;            
+            larbFound=1;
+        end
+      end
     else
-        commentStr = [commentStr,' Skipping'];
+      commentStr = [commentStr,' Skipping'];
     end
+
 
     %
     % Message to user
