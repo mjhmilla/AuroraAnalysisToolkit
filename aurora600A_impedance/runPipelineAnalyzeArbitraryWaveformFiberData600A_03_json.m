@@ -1,7 +1,7 @@
 function success = ...
   runPipelineAnalyzeArbitraryWaveformFiberData600A_03_json(...
-    folderName, fileKeyWord,specimenType, trialType, ...
-    modelSeries, settings,projectFolders)
+    folderName, fileKeyWord,modelSeries, ...
+    analysisJsonSetting_fopen,settings,projectFolders)
 
 success=0;
 mm2m = 0.001;
@@ -15,34 +15,7 @@ assert(strcmp(settings.daqDelayModel,'frequency-domain'),...
 flag_readHeader       = 1;
 flag_checkSha256Sum   = 1; %Might not work on Windows
 
-setOfSpecimenTypes = {'spring','fiber'};
-foundSpecimenType=0;
-for i=1:1:length(setOfSpecimenTypes)
-  if(strcmp(setOfSpecimenTypes{i},specimenType))
-    foundSpecimenType=1;
-  end
-end
-assert(foundSpecimenType,...
-  ['Error: specimen name does not contain one of the following'...
-      ' keywords: spring or fiber']);
-
-
-setOfTrialTypes = {'delay','degradation','impedance',...
-                   'impedance temperature','impedance calibration',...
-                   'impedance calibration rigor fixation'};
-foundTrialType=0;
-for i=1:1:length(setOfTrialTypes)
-  if(strcmp(setOfTrialTypes{i},trialType))
-    foundTrialType=1;
-  end
-end
-assert(foundTrialType,...
-  ['Error: folder name does not contain one of the following'...
-      ' keywords: spring, impedance, or degradation']);
-
-
-
-keyword.label      = 'Larb-Stochastic';
+keyword.label      = 'Length-Arb';
 keyword.controlFunction= 'Length-Arb';
 
 
@@ -96,6 +69,47 @@ dataFolder      = fullfile(projectFolders.data600A,folderName);
 experimentStr   = fileread(fullfile(dataFolder,[folderName,'.json']));
 experimentJson  = jsondecode(experimentStr);
 
+%%
+% Check that the type of experiment is valid for this processing script
+%%
+
+specimenType=lower(experimentJson.experiment.specimen);
+idxS = strfind(specimenType,' ');
+specimenType(idxS)='-';
+
+setOfSpecimenTypes = {'spring','rat-edl'};
+foundSpecimenType=0;
+for i=1:1:length(setOfSpecimenTypes)
+  if(strcmp(setOfSpecimenTypes{i},specimenType))
+    foundSpecimenType=1;
+  end
+end
+
+assert(foundSpecimenType,...
+  ['Error: specimen name does not contain one of the following'...
+      ' keywords: spring or fiber']);
+
+trialType=lower(experimentJson.experiment.type);
+idxS = strfind(trialType,' ');
+trialType(idxS)='_';
+
+setOfTrialTypes = {'delay','degradation','impedance',...
+                   'impedance_temperature','impedance_calibration'};
+foundTrialType=0;
+for i=1:1:length(setOfTrialTypes)
+  if(strcmp(setOfTrialTypes{i},trialType))
+    foundTrialType=1;
+  end
+end
+assert(foundTrialType,...
+  ['Error: folder name does not contain one of the following'...
+      ' keywords: spring, impedance, or degradation']);
+
+
+
+%%
+%
+%%
 fidLogFile = fopen(fullfile(dataFolder,...
   'log_runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json.txt'),'w');
 
@@ -128,8 +142,12 @@ lineColors = getPaulTolColourSchemes('bright');
 
    
 setOfTrialsVerified=verifyDataIntegrityCompletnessOrder600A(...
-                      dataFolder,experimentJson,fidLogFile,...
-                      settings.checkFileOrder,settings.checkSha256Sum);
+                      dataFolder,...
+                      experimentJson,...
+                      {'Impedance-Length-Arb'},...
+                      fidLogFile,...
+                      settings.checkFileOrder,...
+                      settings.checkSha256Sum);
 
 
 totalNumberOfSegmentsToPlot = 0;
@@ -1051,7 +1069,7 @@ if(settings.processData==1)
           % because fibers at the higher temperature do not maintain a
           % stable force for long.
           %%
-          if(strcmp(trialType,'impedance temperature'))
+          if(strcmp(trialType,'impedance_temperature'))
             wn = settings.impedanceTemperatureBaseLineFilterHz ...
                  / (0.5*segData.sampleFrequency);
             [b,a] = butter(2,wn,'low');
@@ -1124,12 +1142,10 @@ if(settings.processData==1)
               segData.H = segData.H2;
             case 'impedance'
               segData.H = segData.H2;
-            case 'impedance temperature'
+            case 'impedance_temperature'
               segData.H = segData.H3;
-            case 'impedance calibration'
-              segData.H = segData.H2;
-            case 'impedance calibration rigor fixation'
-              segData.H = segData.H2;              
+            case 'impedance_calibration'
+              segData.H = segData.H2;            
             otherwise
               assert(0,'Error: invalid trialType');
           end
@@ -1156,17 +1172,11 @@ if(settings.processData==1)
                      'Error: expecting a Kawai 3-state model');
   
               isModelSpecimenTypeValid = 0;
-              isModelTrialTypeValid  = 0;
               isModelActivityTypeValid = 0;
   
               for idxT = 1:1:length(modelSeries(idxMdl).model.specimenTypes)
                 if(strcmp(modelSeries(idxMdl).model.specimenTypes{idxT},specimenType))
                   isModelSpecimenTypeValid=1;
-                end
-              end
-              for idxT = 1:1:length(modelSeries(idxMdl).model.trialTypes)
-                if(strcmp(modelSeries(idxMdl).model.trialTypes{idxT},trialType))
-                  isModelTrialTypeValid=1;
                 end
               end
   
@@ -1203,7 +1213,6 @@ if(settings.processData==1)
               end
   
               if(isModelSpecimenTypeValid ...
-                  && isModelTrialTypeValid ...
                   && isModelActivityTypeValid)
                 modelSeriesToFit = [modelSeriesToFit;idxMdl];
               else
@@ -1217,11 +1226,16 @@ if(settings.processData==1)
               assert(strcmp(modelSeries(idxMdl).model.abbreviation,'K3'),...
                      'Error: expecting a Kawai 3-state model');
   
-  
-              if(trialJson.segments(idxSeg).meta_data.is_active==1)
-                ttype='active';
-              else
-                ttype='passive';              
+              if(isfield(trialJson.segments(idxSeg).meta_data,'is_active'))
+                if(trialJson.segments(idxSeg).meta_data.is_active==1)
+                  ttype='active';
+                else
+                  ttype='passive';              
+                end
+              end
+
+              if(isfield(trialJson.segments(idxSeg).meta_data,'bath'))
+                ttype=trialJson.segments(idxSeg).meta_data.bath;
               end
   
               x0 = zeros(size(modelSeries(idxMdl).model.settings.(ttype).parameterMap,1),1);
@@ -2093,7 +2107,8 @@ if(settings.processData==1)
       
       setSegmentJsonEncode = jsonencode(setSegmentJson);
       jsonFileName = ['analysis_',experimentJson.measurements{idxTrial}];
-      fidJson = fopen(fullfile(outputJsonDir,jsonFileName),'w');
+      fidJson = fopen(fullfile(outputJsonDir,jsonFileName),...
+                      analysisJsonSetting_fopen);
       fprintf(fidJson,setSegmentJsonEncode);
     
       clear('setSegmentJson');

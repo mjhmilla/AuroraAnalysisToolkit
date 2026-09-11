@@ -1,6 +1,7 @@
 function setOfVerifiedTrials=...
             verifyDataIntegrityCompletnessOrder600A(...
-                    dataFolder,experimentJson,fidLogFile,...
+                    dataFolder,experimentJson,...
+                    keywordFilter,fidLogFile,...
                     flag_checkFileOrder,flag_checkSha256Sum)
 
 fprintf('%s\n','Preprocessing: ');
@@ -98,18 +99,23 @@ for i=1:1:length(experimentJson.measurements)
     %%
     % Check to see if this trial has a Larb-Stochastic segment
     %%
-    isLarbStochastic = 0;
-    if(~isempty(trialJson.segments))
-      larbFound=0;
-      for idxSeg= 1:1:length(trialJson.segments)
-        if((strcmp(trialJson.segments(idxSeg).type,'Larb-Stochastic')==1 ...
-            || strcmp(trialJson.segments(idxSeg).type,'Length-Arb')==1) ...
-            && larbFound==0)
-            setOfVerifiedTrials = [setOfVerifiedTrials;i];        
-            isLarbStochastic=1;            
-            larbFound=1;
+    
+    if(~isempty(trialJson.experiment.keywords))
+      keywordFound=0;
+      for idxA=1:1:length(trialJson.experiment.keywords)
+        for idxB=1:1:length(keywordFilter)          
+          if(strcmp(trialJson.experiment.keywords{idxA},keywordFilter{idxB}))
+            if(keywordFound==0)
+              setOfVerifiedTrials = [setOfVerifiedTrials;i];   
+            end
+            keywordFound=1;
+          end
         end
       end
+      if(keywordFound==0)
+        commentStr = [commentStr,' Skipping'];
+      end
+
     else
       commentStr = [commentStr,' Skipping'];
     end
