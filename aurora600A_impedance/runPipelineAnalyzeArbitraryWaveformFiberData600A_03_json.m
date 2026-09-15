@@ -1,7 +1,8 @@
 function success = ...
   runPipelineAnalyzeArbitraryWaveformFiberData600A_03_json(...
     folderName, fileKeyWord,modelSeries, ...
-    analysisJsonSetting_fopen,settings,projectFolders)
+    analysisJsonSetting_fopen,settings,...
+    projectFolders)
 
 success=0;
 mm2m = 0.001;
@@ -13,13 +14,18 @@ assert(strcmp(settings.daqDelayModel,'frequency-domain'),...
     ' in the frequency-domain using this implementation']);
 
 flag_readHeader       = 1;
-flag_checkSha256Sum   = 1; %Might not work on Windows
-
-keyword.label      = 'Length-Arb';
-keyword.controlFunction= 'Length-Arb';
 
 
+analysisKeywords={'Impedance-Length-Arb'};
 
+analysisKeywordsList='';
+for i=1:1:length(analysisKeywords)
+  if(i>1)
+    analysisKeywordsList = [analysisKeywordsList,', '];
+  end  
+  analysisKeywordsList=analysisKeywords{i};
+
+end
 
 
 %% 
@@ -111,7 +117,7 @@ assert(foundTrialType,...
 %
 %%
 fidLogFile = fopen(fullfile(dataFolder,...
-  'log_runPipelineAnalyzeArbitraryWaveformFiberData600A_01_json.txt'),'w');
+  'log_runPipelineAnalyzeArbitraryWaveformFiberData600A_03_json.txt'),'w');
 
 currentDateTime  = datestr(now, 'dd/mm/yy-HH:MM:SS');
 
@@ -144,7 +150,7 @@ lineColors = getPaulTolColourSchemes('bright');
 setOfTrialsVerified=verifyDataIntegrityCompletnessOrder600A(...
                       dataFolder,...
                       experimentJson,...
-                      {'Impedance-Length-Arb'},...
+                      analysisKeywords,...
                       fidLogFile,...
                       settings.checkFileOrder,...
                       settings.checkSha256Sum);
@@ -177,54 +183,61 @@ for indexSetOfTrials=1:1:length(setOfTrialsVerified)
   setOfSegments=[];
   numSegmentsToPlot = 0;
   for j=1:1:length(trialJson.segments)
-    if(strcmp(trialJson.segments(j).type,keyword.label) ...
-        || strcmp(trialJson.segments(j).type,keyword.controlFunction) )
-      %assert(idxSeg==0,['Error: multiple segments have the name ',...
-      %          keyword.label]);
-      if(isempty(setOfSegments)==1)
-        setOfSegments = j;
-      else
-        setOfSegments = [setOfSegments;j];
-      end      
-    end
-    if(strcmp(trialJson.segments(j).type,'Larb-Stochastic') ...
-        || strcmp(trialJson.segments(j).type,keyword.controlFunction) )
-      waveFile = '';
-      fileField = '';
-      if(isfield(trialJson.segments(j).meta_data,'file'))
-        fileField='file';
-      end
-      if(isfield(trialJson.segments(j).meta_data,'file_name'))
-        fileField='file_name';        
-      end
-      
 
-      for k=1:1:length(trialJson.segments(j).meta_data.(fileField))
-        if(k==1)
-          waveFile = trialJson.segments(j).meta_data.(fileField){k};
-        else
-          waveFile = [waveFile,filesep,...
-                trialJson.segments(j).meta_data.(fileField){k}];
+    if(isfield(trialJson.segments(j).meta_data,'keywords'))
+      foundKeyword=0;
+      for idxA = 1:1:length(trialJson.segments(j).meta_data.keywords)
+        for idxB = 1:1:length(analysisKeywords)
+          if(strcmp(trialJson.segments(j).meta_data.keywords{idxA},...
+                    analysisKeywords{idxB}))
+            foundKeyword=1;
+          end
         end
       end
-      waveFilePath = fullfile(dataFolder, waveFile);
-      if( ~exist(waveFilePath,'file'))
-        fprintf('%s\n','  Error: wave file not found: ');
-        fprintf('%s\n',['  ', waveFilePath]);
-        fprintf(fidLogFile,'%s\n','  Error: wave file not found: ');
-        fprintf(fidLogFile,'%s\n',['  ', waveFilePath]);
-      end
+      if(foundKeyword==1)
+        if(isempty(setOfSegments)==1)
+          setOfSegments = j;
+        else
+          setOfSegments = [setOfSegments;j];
+        end
 
-    end
+        waveFile = '';
+        fileField = '';
+        if(isfield(trialJson.segments(j).meta_data,'file'))
+          fileField='file';
+        end
+        if(isempty(fileField))
+          here=1;
+        end
+          
+        for k=1:1:length(trialJson.segments(j).meta_data.(fileField))
+          if(k==1)
+            waveFile = trialJson.segments(j).meta_data.(fileField){k};
+          else
+            waveFile = [waveFile,filesep,...
+                  trialJson.segments(j).meta_data.(fileField){k}];
+          end
+        end
+        waveFilePath = fullfile(dataFolder, waveFile);
+        if( ~exist(waveFilePath,'file'))
+          fprintf('%s\n','  Error: wave file not found: ');
+          fprintf('%s\n',['  ', waveFilePath]);
+          fprintf(fidLogFile,'%s\n','  Error: wave file not found: ');
+          fprintf(fidLogFile,'%s\n',['  ', waveFilePath]);
+        end
+
+      end
+    end    
+
   end  
 
   if(isempty(setOfSegments))
     fprintf(fidLogFile,'%s\n', ...
-        ['Error: could not find segment with ',keyword.label]);
+        ['Error: could not find segment with ',analysisKeywordsList]);
   end
 
   assert(~isempty(setOfSegments),...
-      ['Error: could not find segment with ',keyword.label]);
+      ['Error: could not find segment with ',analysisKeywordsList]);
   if(length(setOfSegments) > totalNumberOfSegmentsToPlot)
     totalNumberOfSegmentsToPlot = length(setOfSegments);
   end  
@@ -478,29 +491,37 @@ if(settings.processData==1)
     % Get the perturbation segment intervals
     %%
     setOfSegments=[];
-    numSegmentsToPlot = 0;
     for j=1:1:length(trialJson.segments)
-      if(strcmp(trialJson.segments(j).type,keyword.label) ...
-           ||  strcmp(trialJson.segments(j).type,keyword.controlFunction))
-        %assert(idxSeg==0,['Error: multiple segments have the name ',...
-        %          keyword.label]);
-        if(isempty(setOfSegments)==1)
-          setOfSegments = j;
-        else
-          setOfSegments = [setOfSegments;j];
+      
+      if(isfield(trialJson.segments(j).meta_data,'keywords'))
+        foundKeyword=0;
+        for idxA = 1:1:length(trialJson.segments(j).meta_data.keywords)
+          for idxB=1:1:length(analysisKeywords)
+            if(strcmp(trialJson.segments(j).meta_data.keywords{idxA},...
+                      analysisKeywords{idxB}))
+              foundKeyword=1;
+            end
+          end
+        end
+        if(foundKeyword==1)
+          if(isempty(setOfSegments)==1)
+            setOfSegments = j;
+          else
+            setOfSegments = [setOfSegments;j];
+          end
         end
       end
     end  
-  
 
     if(isempty(setOfSegments))
       isValid=0;    
+      
 
       fprintf(fidLogFile,'%s\n', ...
-          ['Warning: could not find segment with ',keyword.label, ...
+          ['Warning: could not find segment with ',analysisKeywordsList, ...
            ' in ', experimentJson.measurements{idxTrial}]);
       fprintf('%s\n', ...
-          ['Warning: could not find segment with ',keyword.label, ...
+          ['Warning: could not find segment with ',analysisKeywordsList, ...
            ' in ', experimentJson.measurements{idxTrial}]);
 
     end  
@@ -739,7 +760,7 @@ if(settings.processData==1)
         timeEnd   = trialJson.segments(idxSeg).time_ms(2);
         dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
                 & auroraData.Data.Time.Values <= timeEnd); 
-        preTimeStart = timeStart-settings.prePerburationWindowMs;
+        preTimeStart = timeStart-settings.paddingTimeMS;
         preTimeEnd   = timeStart;
         preDataIndex = [];
   
@@ -2106,7 +2127,8 @@ if(settings.processData==1)
       end
       
       setSegmentJsonEncode = jsonencode(setSegmentJson);
-      jsonFileName = ['analysis_',experimentJson.measurements{idxTrial}];
+      jsonFileName = [settings.prependToJsonFileName,...
+                      experimentJson.measurements{idxTrial}];
       fidJson = fopen(fullfile(outputJsonDir,jsonFileName),...
                       analysisJsonSetting_fopen);
       fprintf(fidJson,setSegmentJsonEncode);

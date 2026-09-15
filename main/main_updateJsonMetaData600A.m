@@ -11,27 +11,41 @@ addpath(projectFolders.postprocessing);
 addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
 
-experimentsToProcess =    {'20251118_impedance_larb_1',...
-                           '20251118_impedance_larb_2',...
-                            '20251120_impedance_larb_3',...
-                            '20251121_impedance_larb_4',...
-                            '20251121_impedance_larb_5',...
-                            '20251128_impedance_larb_6',...
-                           '20251203_impedance_larb_7'};
+% '20251114_degradation_larb_1',...
+% '20251119_degradation_larb_2',...
+% '20251121_degradation_larb_3',...
+% '20251121_degradation_larb_4',...
+% '20251118_impedance_larb_1',...
+% '20251118_impedance_larb_2',...
+% '20251120_impedance_larb_3',...
+% '20251121_impedance_larb_4',...
+% '20251121_impedance_larb_5',...
+% '20251128_impedance_larb_6',...
+% '20251203_impedance_larb_7',...
+% '20260109_impedance_temperature_pilot',...
+% '20260116_impedance_larb_spring',...
+%   '20260504_impedance_calibration',...
+%   '20260703_impedance_calibration_larb_fiber'
+experimentsToProcess =    ...
+  {'20260827_impedance_calibration_rigor_fixation_01'};
 
 
 
 flag_updateExperiment     =0;
-flag_updateTrials         =0;
+flag_updateTrials         =1;
 
-flag_updateKeywords       =0;
-flag_updateLengthArb      =0;
-flag_updateRelativeUnits  =0;
-flag_updateBath           =0;
+
+flag_updateExperimentKeywords =0;
+flag_updateControlFunctionKeywords=1;
+flag_updateLengthArb          =0;
+flag_updateRelativeUnits      =0;
+flag_updateBath               =0;
 
 experimentType = 'impedance';
 
-experimentKeywords={'Impedance-Length-Arb'};%,'Impedance-Length-Sine'};
+experiment.keywords = {'Impedance-Length-Arb',...
+                       'Impedance-Individual-Length-Sine'};
+experiment.controlFunctions = {'Length-Arb','Length-Sine'};
 
 LengthArbSettings.point_count = [1,1,1,1, 1,1,1,1].*8192;
 LengthArbSettings.wave_number = [2,2,2,2, 4,4,4,4];
@@ -101,11 +115,61 @@ for i=1:1:length(experimentsToProcess)
       %%
       % Update the fields
       %%
-      if(flag_updateKeywords==1)
-        trialJson.experiment.keywords=experimentKeywords;
+      if(flag_updateExperimentKeywords==1)
+        trialJson.experiment.keywords=experiment.keywords;
     
         if(isfield(trialJson,'experiments'))
           trialJson=rmfield(trialJson,'experiments');
+        end
+      end
+
+      if(flag_updateControlFunctionKeywords==1)
+
+        for k=1:1:length(trialJson.segments)
+          foundControlFunction=0;
+          foundKeywords = 0;
+          cf='';
+          kw='';
+          idxCF=0;
+          for idxA = 1:1:length(experiment.controlFunctions)
+            if(strcmp(trialJson.segments(k).type,...
+                      experiment.controlFunctions{idxA}) == 1)
+              assert(foundControlFunction==0);
+              foundControlFunction=1;
+              cf=experiment.controlFunctions{idxA};
+              idxCF=idxA;
+            end
+          end
+          if(foundControlFunction==1)
+            for idxA = 1:1:length(trialJson.experiment.keywords)
+              if(strcmp(trialJson.experiment.keywords{idxA},...
+                        experiment.keywords{idxCF}) == 1)
+                assert(foundKeywords==0);
+                assert(idxA==idxCF);
+                foundKeywords=1;
+                kw = experiment.keywords{idxA};              
+              end
+            end
+    
+            if(foundControlFunction==1 && foundKeywords==1)
+              if(isfield(trialJson.segments(k).meta_data,'keywords'))
+                %Check to see if the keyword already exists
+                foundExistingEntry=0;
+                for idxA = 1:1:length(trialJson.segments(k).meta_data.keywords)
+                  if(strcmp(trialJson.segments(k).meta_data.keywords{idxA},...
+                            kw)==1)
+                    foundExistingEntry=1;
+                  end
+                end
+                if(foundExistingEntry==0)
+                  trialJson.segments(k).meta_data.keywords = ...
+                    [trialJson.segments(k).meta_data.keywords,{kw}];
+                end
+              else
+                trialJson.segments(k).meta_data.keywords = {kw};
+              end
+            end
+          end
         end
       end
   

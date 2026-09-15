@@ -1,5 +1,6 @@
 function biasForce = extractBiasForce600A(biasForce,experimentJson,...
                                      dataFolder,settings,fidLogFile)
+s2ms=1000;
 
 for idxBiasTrial = 1:1:length(biasForce.trials)
       %%
@@ -39,12 +40,19 @@ for idxBiasTrial = 1:1:length(biasForce.trials)
       lpfFreqHz  = settings.biasForce.lowPassFilterFrequency;
       [b,a]      = butter(2,(lpfFreqHz/(0.5*adFreqHz)),'low');
       finFilt    = filtfilt(b,a,auroraData.Data.Fin.Values);
-      finEnv = filtfilt(b,a,abs(auroraData.Data.Fin.Values-finFilt));
+      finEnv  = filtfilt(b,a,abs(auroraData.Data.Fin.Values-finFilt));
+      dfinEnv = calcCentralDifferenceDataSeries(...
+                  auroraData.Data.Time.Values,finEnv);
+      dfinEnv = abs(dfinEnv);
+      d2finEnv = calcCentralDifferenceDataSeries(...
+                  dfinEnv,finEnv);
+      d2finEnv = abs(d2finEnv);
 
       if(flag_isActive==0)
         npts = round(settings.biasForce.passiveTimeWindowS*adFreqHz);
-        biasForce.passive.time = ...
-            auroraData.Data.Time.Values(round(npts*0.5));
+        biasForce.passive.index = round(npts*0.5);
+        biasForce.passive.time  = ...
+          auroraData.Data.Time.Values(biasForce.passive.index);
         biasForce.passive.force = mean(finFilt(1:npts));
         biasForce.passive.indexWindow = [1:1:npts];
       end
@@ -69,39 +77,44 @@ for idxBiasTrial = 1:1:length(biasForce.trials)
               delayBathChangeMs=str2double(auroraData.Test_Protocol.Options.Value{idxCF}(idxA:idxB));
               timeBathChangeStart=timeBathChangeStart+delayBathChangeMs;
               timeBathChange = [1,1].*timeBathChangeStart ...
-                              +[0,1].*max(settings.biasForce.activeTimeWindowS).*1000;
+                              +[0,1].*max(settings.biasForce.activeTimeWindowS).*s2ms;
               assert(strcmp(auroraData.Data.Time.Unit,'ms'),...
                      'Error: Time is not in ms');
-              idxA = round(timeBathChange(1)/(adFreqHz/1000));
-              idxC = round(timeBathChange(2)/(adFreqHz/1000));              
+              idxA = find(auroraData.Data.Time.Values > timeBathChange(1),1,'first'); %round(timeBathChange(1)/(adFreqHz/1000));
+              idxC = find(auroraData.Data.Time.Values > timeBathChange(2),1,'first');%round(timeBathChange(2)/(adFreqHz/1000));              
               biasForce.active.indexWindow = [idxA:1:idxC];
               timeQuietForce = timeBathChangeStart ...
-                   + settings.biasForce.activeTimeWindowS(1).*1000;
+                   + settings.biasForce.activeTimeWindowS(1).*s2ms;
               assert(length(settings.biasForce.activeTimeWindowS)==2,...
                   ['Error: settings.biasForce.activeTimeWindowS should',...
                    ' contain 2 entries that define a window after the ',...
                    'the bath change that should have a low-noise force reading']);
-              idxB = round(timeQuietForce/(adFreqHz/1000));
+              idxB = find(auroraData.Data.Time.Values > timeQuietForce,1,'first');%round(timeQuietForce/(adFreqHz/1000));
               indexQuietSample = [idxB:idxC];              
             end
           end
         end
 
-        finEnvQuiet = mean(finEnv(indexQuietSample)) ...
-                      + (settings.biasForce.activeEnvelopeThreshold...
-                         *std(finEnv(indexQuietSample)));
+%         finEnvQuiet = mean(finEnv(indexQuietSample)) ...
+%                       + (settings.biasForce.activeEnvelopeThreshold...
+%                          *std(finEnv(indexQuietSample)));
+        finEnvThreshold = max(finEnv(idxA:idxC)).*settings.biasForce.activeEnvelopeThreshold;
+        dfinEnvThreshold = max(dfinEnv(idxA:idxC)).*settings.biasForce.activeEnvelopeThreshold;
         %Step backwards to the first point at which the threshold is
         %exceeded
 
         idxBias=idxC;
-        while(finEnv(idxBias) < finEnvQuiet)
+        while(finEnv(idxBias) < finEnvThreshold ...
+            && dfinEnv(idxBias) <dfinEnvThreshold)%finEnvQuiet)
           idxBias=idxBias-1;
           assert(idxBias>0,'Error: idxBias has reached 0');
         end
+        idxBias=idxBias+1;
 
+        biasForce.active.index  = idxBias;
         biasForce.active.time   = auroraData.Data.Time.Values(idxBias);
         biasForce.active.force  = finFilt(idxBias);   
-        biasForce.active.forceThreshold = finEnvQuiet;
+        biasForce.active.forceThreshold = finEnvThreshold;%finEnvQuiet;
         assert(~isempty(biasForce.active.indexWindow),...
            'Error: the window to identify the active bias was not found');
         
@@ -111,38 +124,76 @@ for idxBiasTrial = 1:1:length(biasForce.trials)
       flag_debugBiasForce=0;
       if(flag_debugBiasForce==1)
         fig_debugBiasForce=figure;
-        plot(auroraData.Data.Time.Values,auroraData.Data.Fin.Values,...
-             'Color',[1,1,1].*0.75);
-        hold on;
-        plot(auroraData.Data.Time.Values,finFilt,...
-             'Color',[1,1,1].*0.25);
-        hold on;
-        plot(auroraData.Data.Time.Values,finEnv,...
-             'Color',[0,0,0]);
-        hold on;
-        if(flag_isActive==0)
-          plot(biasForce.passive.time,...
-               biasForce.passive.force,...
-               'o','Color',[0,0,1],'MarkerFaceColor',[0,0,1]);
+        subplot(2,1,1);
+          plot(auroraData.Data.Time.Values,auroraData.Data.Fin.Values,...
+               'Color',[1,1,1].*0.75);
           hold on;
-        end
-        if(flag_isActive==1)
-          plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
-               finFilt(biasForce.active.indexWindow),...
-               '-','Color',[1,0,0]);
+          plot(auroraData.Data.Time.Values,finFilt,...
+               'Color',[1,1,1].*0.25);
           hold on;
-          plot(biasForce.active.time,...
-               biasForce.active.force,...
-               'o','Color',[1,0,0],'MarkerFaceColor',[1,0,0]);
+          if(flag_isActive==0)
+            plot(biasForce.passive.time,...
+                 biasForce.passive.force,...
+                 'o','Color',[0,0,1],'MarkerFaceColor',[0,0,1]);
+            hold on;
+          end
+          if(flag_isActive==1)
+            plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
+                 auroraData.Data.Fin.Values(biasForce.active.indexWindow),...
+                 '-','Color',[1,0,0]);
+            hold on;
+            plot(biasForce.active.time,...
+                 biasForce.active.force,...
+                 'o','Color',[1,0,0],'MarkerFaceColor',[1,0,0]);
+            hold on;
+          end  
+          
+          xlabel(['Time ', auroraData.Data.Time.Unit]);
+          ylabel(['Force ',auroraData.Data.Fin.Unit]);
+
+        subplot(2,1,2);        
+          plot(auroraData.Data.Time.Values,finEnv,...
+               'Color',[0,0,0]);
           hold on;
-          plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
-               ones(size(auroraData.Data.Time.Values(biasForce.active.indexWindow)))...
-               .*biasForce.active.forceThreshold,...
-               '-c');
-          here=1;
-        end
-        xlabel(['Time ', auroraData.Data.Time.Unit]);
-        ylabel(['Force ',auroraData.Data.Fin.Unit]);
+          if(flag_isActive==0)
+            plot(auroraData.Data.Time.Values(biasForce.passive.index),...
+                 finEnv(biasForce.passive.index),...
+                 'o','Color',[0,0,1],'MarkerFaceColor',[0,0,1]);
+            hold on;
+          end
+          if(flag_isActive==1)
+            plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
+                 finEnv(biasForce.active.indexWindow),...
+                 '-','Color',[1,0,0]);
+            hold on;
+
+            scale_dfinEnv = max(finEnv(biasForce.active.indexWindow)) ...
+                          ./max(dfinEnv(biasForce.active.indexWindow));
+            scale_d2finEnv = max(finEnv(biasForce.active.indexWindow)) ...
+                          ./max(d2finEnv(biasForce.active.indexWindow));
+
+            plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
+                 abs(dfinEnv(biasForce.active.indexWindow)).*scale_dfinEnv,...
+                 '-','Color',[0,0,1]);
+            hold on;
+
+%             plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
+%                  d2finEnv(biasForce.active.indexWindow).*scale_d2finEnv,...
+%                  '-','Color',[0,0,0]);
+%             hold on;
+
+            plot(auroraData.Data.Time.Values(biasForce.active.index),...
+                 finEnv(biasForce.active.index),...
+                 'o','Color',[1,0,0]);
+            hold on;            
+            plot(auroraData.Data.Time.Values(biasForce.active.indexWindow),...
+                 ones(size(auroraData.Data.Time.Values(biasForce.active.indexWindow)))...
+                 .*biasForce.active.forceThreshold,...
+                 '-c');
+            hold on;  
+          end          
+          xlabel(['Time ', auroraData.Data.Time.Unit]);
+          ylabel(['Force ',auroraData.Data.Fin.Unit]);
           
         close(fig_debugBiasForce);
       end
