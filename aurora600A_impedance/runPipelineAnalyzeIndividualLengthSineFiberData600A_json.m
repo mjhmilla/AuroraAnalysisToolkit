@@ -1,7 +1,6 @@
 function success = ...
   runPipelineAnalyzeIndividualLengthSineFiberData600A_json(...
-    folderName, fileKeyWord,modelSeries, ...
-    analysisJsonSetting_fopen,settings,...
+    folderName, fileKeyWord,settings,...
     projectFolders)
 
 success=0;
@@ -115,6 +114,7 @@ fprintf('%s\n','  Counting the number of segments to plot');
 fprintf(fidLogFile,'%s\n','Preprocessing: ');
 fprintf(fidLogFile,'%s\n','  Counting the number of segments to plot');
 
+
 for indexSetOfTrials=1:1:length(setOfTrialsVerified)
 
   i = setOfTrialsVerified(indexSetOfTrials);
@@ -208,7 +208,7 @@ if(settings.processData==1)
   % Plot the segment data
   %  
   numberOfHorizontalPlotColumnsGeneric  = length(setOfTrials);
-  numberOfVerticalPlotRowsGeneric       = 2*totalNumberOfSegmentsToPlot;
+  numberOfVerticalPlotRowsGeneric       = 7*totalNumberOfSegmentsToPlot;
 
   % 1. Time domain
   % 2. gain
@@ -444,31 +444,6 @@ if(settings.processData==1)
       hold on;
   
   
-      if(~isempty(activeIntervals))
-        for j=1:1:length(intraSegmentData)
-          n = 0;
-          if(length(intraSegmentData)>1)
-            n = (j-1)/(length(intraSegmentData)-1);
-          end
-          
-          plot(intraSegmentData(j).filtered.time,...
-             intraSegmentData(j).filtered.force,...
-             '-','Color',lineColors.cyan);
-          hold on;
-  
-          text(intraSegmentData(j).filtered.time(1),...
-             intraSegmentData(j).filtered.force(1),...
-             sprintf('%1.3e = yMax', ...
-               intraSegmentData(j).forceReference),...
-               'HorizontalAlignment','right',...
-               'VerticalAlignment','top',...
-               'FontSize',8,...
-               'Rotation',45);
-          hold on;
-  
-        end
-      end
-  
       ylabel(['Force (',auroraData.Data.Fin.Unit,')']);
       titleStr = strrep(experimentJson.measurements{idxTrial},'_','\_');        
       title(titleStr);
@@ -490,12 +465,30 @@ if(settings.processData==1)
         %%
         %Extract the indicies to plot
         %%
+        timeStartNoPad = trialJson.segments(idxSeg).time_ms(1);
+        timeEndNoPad   = trialJson.segments(idxSeg).time_ms(2);
+        dataIndexNoPad = find( auroraData.Data.Time.Values >= timeStartNoPad ...
+                & auroraData.Data.Time.Values <= timeEndNoPad); 
+
         timeStart = trialJson.segments(idxSeg).time_ms(1)-settings.paddingTimeMS;
         timeEnd   = trialJson.segments(idxSeg).time_ms(2)+settings.paddingTimeMS;
         dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
                 & auroraData.Data.Time.Values <= timeEnd); 
 
+        isSegmentValid=nan;
+        if(length(dataIndex)>10)
+          if(    length(auroraData.Data.Lin.Values(dataIndex,1))>10 ...
+              && length(auroraData.Data.Fin.Values(dataIndex,1))>10)
+            isSegmentValid=1;
+          else
+            isSegmentValid=0;
+          end
+        else
+          isSegmentValid=0;
+        end
         
+        assert(isSegmentValid);
+
         %%
         %Get the meta data
         %%
@@ -520,416 +513,478 @@ if(settings.processData==1)
         assert(isfield(trialJson.segments(idxSeg).meta_data,'length_Lo'));
         assert(isfield(trialJson.segments(idxSeg).meta_data,'duration_ms'));
         
-
+        
        
         %%
-        % Evaluate frequency response   
+        % Fit a sinusoid to the length data to extract the amplitude
+        % and fundamental frequency and process the data using the 
+        % exact same approach as Kawai
         %%
-        x = auroraData.Data.Lin.Values(dataIndex,1);
-        xMean = mean(x);
-        x = x - xMean;      
+        if(isSegmentValid==1)
 
-        y = auroraData.Data.Fin.Values(dataIndex,1);
-
-        yBias=0;        
-        switch trialJson.segments(idxSeg).meta_data.bath
-          case 'active'
-            if(~isnan(biasForce.active.force))
-              yBias = biasForce.active.force;
-            end
-          case 'passive'
-            if(~isnan(biasForce.passive.force))
-              yBias = biasForce.passive.force;
-            end
-        end
-        y=y-yBias;
-        
-        yMean = mean(y);
-        y = y-yMean;
-
-        xyDataIsValid =0;
-  
-  
-        flag_peekXY=0;
-        if(flag_peekXY==1)
-          flag_peekXY=figure;
-          yyaxis left;
-          plot(auroraData.Data.Time.Values(dataIndex),x);
-          hold on;
-          xlabel('Time (ms)');
-          ylabel('Length (mm)');
-          
-          yyaxis right;
-          plot(auroraData.Data.Time.Values(dataIndex),y);
-          hold on;
-          ylabel('Force (mN)');
-          here=1;
-        end
-  
     
-        if(length(y)>10 && length(x)>10)
-          xyDataIsValid=1;
-    
-          fittingSettings.time  = auroraData.Data.Time.Values(dataIndex);
-          fittingSettings.length=auroraData.Data.Lin.Values(dataIndex,1);
-          fittingSettings.force =auroraData.Data.Fin.Values(dataIndex,1);
-          fittingSettings.timeScaling=0.001; %Convert to seconds
-          fittingSettings.duration_ms= ...
+          fittingSettings.time        = auroraData.Data.Time.Values(dataIndex);
+          fittingSettings.length      = auroraData.Data.Lin.Values(dataIndex,1);
+          fittingSettings.force       = auroraData.Data.Fin.Values(dataIndex,1);
+          fittingSettings.timeScaling = 0.001; %Convert to seconds
+          fittingSettings.duration_ms = ...
             trialJson.segments(idxSeg).meta_data.duration_ms;
+          fittingSettings.number_of_elements = length(dataIndexNoPad);
+          fittingSettings.Lo = experimentJson.experiment.length_mm;
 
-          fittingSettings.var = 'length';
-          fittingSettings.scaling=1;
-          fittingSettings.paramScaling=[];
+          fittingSettings.var          = 'length';
+          fittingSettings.scaling      = 1;
+          fittingSettings.paramScaling = [];
 
-          sinusoidFit.length = ...
-            struct('time_ms',nan,...
-                   'length_mm',nan,...
-                   'frequency_Hz',nan,...
-                   'amplitude_mm',nan,...
-                   'duration_ms',nan);
 
-          sinusoidFit.force = ...
-            struct('time_ms',nan,...
-                   'force_mN',nan,...
-                   'frequency_Hz',nan,...
-                   'amplitude_mN',nan,...
-                   'duration_ms',nan);
 
-          vars = {'length','force'};
+          fittingSettings.paramScaling = [ ...
+            trialJson.segments(idxSeg).time_ms(1),...
+            mean(fittingSettings.length),...
+            trialJson.segments(idxSeg).meta_data.frequency_Hz,...
+            trialJson.segments(idxSeg).meta_data.length_Lo];  
 
-          for idxV = 1:1:length(vars)
-            switch idxV 
-              case 1
-                Lo = experimentJson.experiment.length_mm;
-                fittingSettings.paramScaling = [ ...
-                  trialJson.segments(idxSeg).time_ms(1),...
-                  xMean,...
-                  trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-                  trialJson.segments(idxSeg).meta_data.length_Lo*Lo];  
-                params = ones(size(fittingSettings.paramScaling));
-                fittingSettings.var = 'length';                
-              case 2
-                amplitude = (max(y)-min(y)).*0.5;
-                fittingSettings.paramScaling = [ ...
-                  trialJson.segments(idxSeg).time_ms(1),...
-                  yMean,...
-                  trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-                  amplitude];  
-                params = ones(size(fittingSettings.paramScaling));
-                fittingSettings.var = 'force';                
-              otherwise
-                assert(0,'Error: unexpected value of idxV');
-            end
+          params = ones(size(fittingSettings.paramScaling));
+          
+          fittingSettings.var = 'length';                
               
-            [errV,fittedSine] = calcErrorOfSinusoid600A(params,fittingSettings);
-    
-            %fittingSettings.scaling = norm(errV);
+          [errV,fittedSine] = ...
+            calcErrorOfSinusoid600A(params,fittingSettings);
   
-            errFcn = @(arg)calcErrorOfSinusoid600A(arg,fittingSettings);
-            
-            x = params;
-            xDelta = 1;
-            iterLsq=1;
-            while(max(xDelta)>0.005 && iterLsq < 100)
-              [x,resnorm,res,exitflag,output,lambda,jac] ...
-                = lsqnonlin(errFcn,params);
-              xDelta = abs(x-params);              
-              params=x;
-              iterLsq=iterLsq+1;
-            end
+          errFcn = @(arg)calcErrorOfSinusoid600A(arg,fittingSettings);
+          
+          x = params;
+          xDelta = 1;
+          iterLsq=1;
+          options = optimoptions('lsqnonlin','Display','off');
 
-            xUpd = x.*fittingSettings.paramScaling;
+          if(indexIntoSetOfSegments==2 && indexSetOfTrials==2)
+            here=1;
+          end
 
-            switch idxV
-              case 1
-                sinusoidFit.length = ...
-                  struct('time_ms',xUpd(1),...
-                         'length_mm',xUpd(2),...
-                         'frequency_Hz',xUpd(3),...
-                         'amplitude_mm',xUpd(4),...
-                         'duration_ms',trialJson.segments(idxSeg).meta_data.duration_ms,...
-                         'resnorm',resnorm,...
-                         'exitflag',exitflag);                
-              case 2
-                sinusoidFit.force = ...
-                  struct('time_ms',xUpd(1),...
-                         'force_mN',xUpd(2),...
-                         'frequency_Hz',xUpd(3),...
-                         'amplitude_mN',xUpd(4),...
-                         'duration_ms',trialJson.segments(idxSeg).meta_data.duration_ms,...
-                         'resnorm',resnorm,...
-                         'exitflag',exitflag);
-                
-              otherwise
-                assert(0,'Error: unexpected value of idxV')
-            end
-            [errV,fittedSine] = calcErrorOfSinusoid600A(x,fittingSettings);
-  
+          while(max(xDelta)>0.005 && iterLsq < 100)
+            [x,resnorm,res,exitflag,output,lambda,jac] ...
+              = lsqnonlin(errFcn,params,[],[],options);
+            xDelta = abs(x-params);              
+            params=x;
+            iterLsq=iterLsq+1;
+          end
 
-            
-            flag_checkFit=1;
-            if(flag_checkFit==1)
-              fig_checkFit=figure;
-              plot( fittingSettings.time,...
-                    fittingSettings.(fittingSettings.var),...
-                    '-','Color',[1,1,1].*0.5);
-              hold on;
+          assert(max(xDelta) < 0.005, ...
+            'Error: failed to fit the length sinusoid data');
+          
 
-              switch idxV
-                case 1
-                  lineColor=[0,0,1];
-                case 2
-                  lineColor=[1,0,0];                  
-                otherwise
-                  assert(0,'Error: unexpected value for idxV');
-              end
-              plot(fittedSine.x,fittedSine.y,'-','Color',lineColor);
-              hold on;
-              xlabel('Time (ms)');
-              ylabel(fittingSettings.var);
-              here=1;
-            end
+          xUpd = x.*fittingSettings.paramScaling;
+
+
+             
+
+          [errV,fittedSine] = calcErrorOfSinusoid600A(x,fittingSettings);
+
+          sinusoidFit = ...
+            struct('time_ms',xUpd(1),...
+                   'length_mm',xUpd(2),...
+                   'frequency_Hz',xUpd(3),...
+                   'amplitude_Lo',xUpd(4),...
+                   'duration_ms',trialJson.segments(idxSeg).meta_data.duration_ms,...
+                   'resnorm',resnorm,...
+                   'exitflag',exitflag);   
+
+          
+          flag_checkFit=0;
+          if(flag_checkFit==1)
+            fig_checkFit=figure;
+            plot( fittingSettings.time,...
+                  fittingSettings.(fittingSettings.var),...
+                  '-','Color',[1,1,1].*0.5);
+            hold on;
+
+            lineColor=[0,0,1];
+
+            plot(fittedSine.x,fittedSine.y,'-','Color',lineColor);
+            hold on;
+            xlabel('Time (ms)');
+            ylabel(fittingSettings.var);
+            here=1;
+            close(fig_checkFit);
           end
   
         end
-      
+
+
 
         %%
-        % Record the analysis to a segment json file
+        % Extract the segment and process it using Welch's method. This
+        % will include the higher harmonics and give us a measure of
+        % the linearity of the response.
         %%
-        lengthSummary = ...
-          getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
-        forceSummary = ...
-          getSummaryStatistics(auroraData.Data.Fin.Values(dataIndex,1));
-        if(experimentJson.experiment.temperature_control)
-          temperatureSummary = ...
-          getSummaryStatistics(auroraData.Data.Aux1_C.Values(dataIndex,1));
-        else
-          temp = experimentJson.experiment.temperature_C;       
-          temperatureSummary.percentiles.x=[];
-          temperatureSummary.percentiles.y=[];
-          temperatureSummary.mean = temp;
-          temperatureSummary.median=temp;
-          temperatureSummary.std = 0;
-          temperatureSummary.min = temp;
-          temperatureSummary.max = temp;
+        nHarmonics = 10; 
+        nyquistFrequency = auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
+        if((nHarmonics*sinusoidFit.frequency_Hz) > nyquistFrequency)
+          nHarmonics = floor(nyquistFrequency/sinusoidFit.frequency_Hz);
         end
+
+        if(isSegmentValid==1)
+
+          timeStart = sinusoidFit.time_ms;
+          timeEnd   = timeStart+sinusoidFit.duration_ms;
+
+          dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
+                          & auroraData.Data.Time.Values <= timeEnd); 
+
+          preTimeStart = timeStart-settings.paddingTimeMS;
+          preTimeEnd   = timeStart;
+          preDataIndex = [];
     
-        segmentJson.interval= [timeStart,timeEnd];
-        segmentJson.index   = idxSeg;
-        segmentJson.type  = trialJson.segments(idxSeg).type; 
+          if(preTimeEnd > 0)
+            preDataIndex = find( auroraData.Data.Time.Values >= preTimeStart ...
+                    & auroraData.Data.Time.Values <= preTimeEnd); 
+          end
+
+          x     = auroraData.Data.Lin.Values(dataIndex,1);
+          xMean = mean(x);
+          x     = x - xMean;      
   
-        segmentJson.time  = auroraData.Data.Time.Values(dataIndex,1);
-        segmentJson.length  = auroraData.Data.Lin.Values(dataIndex,1);
-        segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);  
-        segmentJson.lengthMean  = segData.xMean;
-        segmentJson.forceMean   = segData.yMean;
-        segmentJson.forceBias   = segData.yBias;      
-        segmentJson.nominal.time    = segData.timePrior;
-        segmentJson.nominal.length  = segData.xPrior;
-        segmentJson.nominal.force   = segData.yPrior;
-        
-        segmentJson.forceReference = nan;
+          y = auroraData.Data.Fin.Values(dataIndex,1);
   
-  
-        segmentJson.summary.length    = lengthSummary;
-        segmentJson.summary.force     = forceSummary;
-        segmentJson.summary.temperature = temperatureSummary;
-        segmentJson.unit.length     = auroraData.Data.Lin.Unit;
-        segmentJson.unit.force      = auroraData.Data.Fin.Unit;
-        segmentJson.unit.temperature  = 'C';
-        segmentJson.unit.time         = auroraData.Data.Time.Unit;
-        segmentJson.channel.length    = 'Lin';
-        segmentJson.channel.force     = 'Fin';
-        segmentJson.channel.temperature = 'Aux 1';
-    
-        scaleTime = 1;
-        if(strcmp(auroraData.Data.Time.Unit,'ms'))
-          scaleTime=1000;
-        end
-      
-    
-        hStages = {'H','H0','H1','H2','H3'};
-  
-        for idxH = 1:1:length(hStages)
-          hStr = hStages{idxH};
-  
-          if(isfield(segData,hStr))
-            idxBW = segData.(hStr).idxBW;
+          yBias=0;        
+          switch trialJson.segments(idxSeg).meta_data.bath
+            case 'active'
+              if(~isnan(biasForce.active.force))
+                yBias = biasForce.active.force;
+              end
+            case 'passive'
+              if(~isnan(biasForce.passive.force))
+                yBias = biasForce.passive.force;
+              end
+          end
+          y     = y-yBias;        
+          yMean = mean(y);
+          y     = y-yMean;
+          
+          
+          segData.x      = x;
+          segData.y      = y;
+          segData.yBias  = yBias;
+          segData.xMean  = xMean;
+          segData.yMean  = yMean;     
+
+          segData.xPrior = [];
+          segData.yPrior = [];
+          if(~isempty(preDataIndex))
+            segData.timePrior=auroraData.Data.Time.Values(preDataIndex,1);
+            segData.xPrior = auroraData.Data.Lin.Values(preDataIndex,1);
+            segData.yPrior = auroraData.Data.Fin.Values(preDataIndex,1);            
+          end
+          
+          segData.time            = auroraData.Data.Time.Values(dataIndex);
+          segData.bandwidth_Hz    = [0,sinusoidFit.frequency_Hz*nHarmonics];
+          segData.sampleFrequency = auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;   
+
+          if(max(segData.bandwidth_Hz)>0.5*segData.sampleFrequency)
+            segData.bandwidth_Hz = [0,0.5*segData.sampleFrequency];
+          end
+
+   
+          %%
+          %
+          % Evaluate the frequency response using Welch's method
+          %
+          %%
+          segData.H = evaluateGainPhaseCoherenceSq(...
+                          segData.time,...
+                          segData.x,...
+                          segData.y,...
+                          segData.bandwidth_Hz,...
+                          segData.sampleFrequency,...
+                          settings.coherenceSquaredThreshold,...
+                          settings.minAcceptableBandwidthFraction);
+
+
+          %%
+          %
+          % Use Kawai's approach of just extracting out the Fourier
+          % coefficients directly
+          %
+          %%          
+          
+          ms2s = 0.001;          
+          segData.FS.frequency   = zeros(nHarmonics,1);
+          segData.FS.frequencyHz = zeros(nHarmonics,1);          
+          segData.FS.length.L    = zeros(nHarmonics,1);
+          segData.FS.length.hk    = zeros(nHarmonics,1);
+          segData.FS.length.I     = 0;          
+          segData.FS.length.D     = 0;
+          
+          segData.FS.force.F     = zeros(nHarmonics,1);
+          segData.FS.force.hk    = zeros(nHarmonics,1);
+          segData.FS.force.I     = 0;          
+          segData.FS.force.D     = 0;
+          
+          for idxN =1:1:nHarmonics
+            segData.FS.frequency(idxN)   = ...
+              sinusoidFit.frequency_Hz*(2*pi)*idxN;
+            segData.FS.frequencyHz(idxN) = ...
+              sinusoidFit.frequency_Hz*idxN;
             
-            responseFields = fields(segData.(hStr));
-            idxBW = segData.(hStr).idxBW;
-            fieldsToSkip ={'H'};
-            fieldsToBWLimit = ...
-              {'frequencyHz','frequency','gain','phase',...
-               'storage','loss','coherenceSq'};
-            for idxF = 1:1:length(responseFields)
-              fStr = responseFields{idxF};
-              flag_skip = 0;
-              for idxS = 1:1:length(fieldsToSkip)
-                if(strcmp(responseFields{idxF},fieldsToSkip{idxS}))
-                  flag_skip=1;
-                end
-              end
-              
-              flag_bwlimit=0;
-              for idxL = 1:1:length(fieldsToBWLimit)
-                if(strcmp(responseFields{idxF},fieldsToBWLimit{idxL}))
-                  flag_bwlimit=1;
-                end
-              end
-    
-              if(flag_skip==0)
-                if(flag_bwlimit==0)
-                  segmentJson.(hStr).(fStr)=segData.(hStr).(fStr);
-                else
-                  segmentJson.(hStr).(fStr)=segData.(hStr).(fStr)(idxBW);
-                end
-              end
-    
-            end
-            %
-            % There is no way to encode complex numbers, so we must
-            % cut H out.
-            %
-    %         segmentJson.(hStr) = segData.(hStr);         
-    %         segmentJson.(hStr).H = [];
-    
+            omega   = sinusoidFit.frequency_Hz*(2*pi)*idxN;
+            Tcyc    = 1/sinusoidFit.frequency_Hz;
+            A      = (1/(idxN*Tcyc));
+            timeSeg = (segData.time-sinusoidFit.time_ms).*ms2s;
+
+            %Real component
+            sineWt = sin( omega.*(timeSeg) );
+            l_dot_sineWt = sineWt.*segData.x;
+            f_dot_sineWt = sineWt.*segData.y;
+
+            fcnSineL = @(argX)interp1(timeSeg,l_dot_sineWt,argX,'linear');
+            L_real = integral(fcnSineL,timeSeg(1),timeSeg(end)); 
+            L_real = A.*L_real;
+
+            fcnSineF = @(argX)interp1(timeSeg,f_dot_sineWt,argX,'linear');
+            F_real = integral(fcnSineF,timeSeg(1),timeSeg(end)); 
+            F_real = A.*F_real;
+
+            %Complex component
+            cosWt = cos( omega.*(timeSeg) );
+            l_dot_cosWt = cosWt.*segData.x;
+            f_dot_cosWt = cosWt.*segData.y;
+
+            fcnCosL = @(argX)interp1(timeSeg,l_dot_cosWt,argX,'linear');
+            L_imag = integral(fcnCosL,timeSeg(1),timeSeg(end)); 
+            L_imag = A.*L_imag;
+
+            fcnCosF = @(argX)interp1(timeSeg,f_dot_cosWt,argX,'linear');
+            F_imag = integral(fcnCosF,timeSeg(1),timeSeg(end)); 
+            F_imag = A.*F_imag;        
             
-            segmentJson.(hStr).summary.gain = ...
-              getSummaryStatistics(segData.(hStr).gain(idxBW));      
-            segmentJson.(hStr).summary.phase = ...
-              getSummaryStatistics(segData.(hStr).phase(idxBW));
-            segmentJson.(hStr).summary.storage = ...
-              getSummaryStatistics(segData.(hStr).storage(idxBW));      
-            segmentJson.(hStr).summary.loss = ...
-              getSummaryStatistics(segData.(hStr).loss(idxBW));
-            segmentJson.(hStr).summary.coherenceSq = ...
-              getSummaryStatistics(segData.(hStr).coherenceSq(idxBW));
-    
-            segmentJson.(hStr).units.gain = ...
+            %Save the complex coefficients
+            segData.FS.length.L(idxN) = complex(L_real,L_imag);
+            segData.FS.force.F(idxN)  = complex(F_real,F_imag);
+            
+            segData.FS.length.I= ...
+              segData.FS.length.I + (L_real*L_real + L_imag*L_imag);
+
+            segData.FS.force.I= ...
+              segData.FS.force.I + (F_real*F_real + F_imag*F_imag);
+
+          end
+
+          for idxN=1:1:nHarmonics
+            segData.FS.force.hk(idxN) = abs(segData.FS.force.F(idxN))...
+                                        ./sqrt(segData.FS.force.I);
+            segData.FS.length.hk(idxN) = abs(segData.FS.length.L(idxN))...
+                                         ./sqrt(segData.FS.length.I);
+          end
+
+          h1F = segData.FS.force.hk(1);
+          segData.FS.force.D = sqrt(1-h1F'*h1F);
+
+          h1L = segData.FS.length.hk(1);
+          segData.FS.length.D = sqrt(1-h1L'*h1L);
+
+
+          segData.FS.H = (segData.FS.force.F .* segData.FS.length.L)...
+                       ./(segData.FS.length.L .* segData.FS.length.L);
+
+          segData.FS.gain = abs(segData.FS.H);
+          segData.FS.phase= angle(segData.FS.H);
+          segData.FS.storage = segData.FS.gain .* cos(segData.FS.phase);
+          segData.FS.loss    = segData.FS.gain .* sin(segData.FS.phase);
+
+          %%
+          % Populate and save the json structure
+          %%
+          if(isSegmentValid==1)
+
+            sinusoidJson.interval = [timeStart,timeEnd];
+            sinusoidJson.index    = idxSeg;
+            sinusoidJson.type     = trialJson.segments(idxSeg).type;
+            sinusoidJson.time     = auroraData.Data.Time.Values(dataIndex,1);
+            sinusoidJson.length   = auroraData.Data.Lin.Values(dataIndex,1);
+            sinusoidJson.force    = auroraData.Data.Fin.Values(dataIndex,1);  
+            sinusoidJson.lengthMean  = segData.xMean;
+            sinusoidJson.forceMean   = segData.yMean;
+            sinusoidJson.forceBias   = segData.yBias;      
+            sinusoidJson.nominal.time    = segData.timePrior;
+            sinusoidJson.nominal.length  = segData.xPrior;
+            sinusoidJson.nominal.force   = segData.yPrior; 
+
+
+            sinusoidJson.H  = segData.H;   
+            %Remove the H field, since we cannot encode complex numbers 
+            %into json
+            sinusoidJson.H = rmfield(sinusoidJson.H,'H');
+
+            sinusoidJson.H.units.gain = ...
               [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
-            segmentJson.(hStr).units.phase = 'radians';
-            segmentJson.(hStr).units.storage = ...
+            sinusoidJson.H.units.phase = 'radians';
+            sinusoidJson.H.units.storage = ...
               [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
-            segmentJson.(hStr).units.loss = ...
+            sinusoidJson.H.units.loss = ...
               [auroraData.Data.Fin.Unit,'s/',auroraData.Data.Lin.Unit];
-            segmentJson.(hStr).units.coherenceSq = '';
-          end
-        end
-  
-    
-        segmentJson.delayModel.settings = modelSettings;
-        segmentJson.delayModel.phaseDelayElasticRod  ...
-                = delayModel.phaseDelayElasticRod;
-  
-        segmentJson.delayModel.phaseDelayCompensated ...
-          = delayModel.phaseDelayCompensated;
-        segmentJson.delayModel.daqDelayModel ...
-          = delayModel.daqDelayModel;
-        segmentJson.delayModel.daqDelay    ...
-          = delayModel.daqDelay;
-        segmentJson.delayModel.daqFilterFrequencyHz ...
-          = delayModel.daqFilterFrequencyHz;
-        segmentJson.delayModel.daqDelayCompensated ...
-          = delayModel.daqDelayCompensated;
-  
-        if(~isempty(segData.H.idxBWC2))
-          for idxMdl = 1:1:length(fittedModelSeries)
-    
-            abb = modelSeries(idxMdl).model.abbreviation;
-  
-            if(~isempty(fittedModelSeries(idxMdl).model))
-              
-      
-              segmentJson.model.(abb) = ...
-                fittedModelSeries(idxMdl).model;
-      
-              %
-              % There is no standard way to encode complex numbers,
-              % and so, we must set H to be empty.
-              %
-              segmentJson.model.(abb).response.H = [];
-      
-            else
-              segmentJson.model.(abb) = [];
-            end
-          end
-        end
+            sinusoidJson.H.units.coherenceSq = '';
+
+            sinusoidJson.FS = segData.FS;
+            sinusoidJson.FS = rmfield(sinusoidJson.FS,'H');
+            sinusoidJson.FS.length = rmfield(sinusoidJson.FS.length,'L');
+            sinusoidJson.FS.force  = rmfield(sinusoidJson.FS.force,'F');
+            sinusoidJson.FS.lengthSinusoidFit = sinusoidFit;
             
+            lengthSummary = ...
+              getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
+            forceSummary = ...
+              getSummaryStatistics(auroraData.Data.Fin.Values(dataIndex,1));
+            temperatureSummary = ...
+              getSummaryStatistics(auroraData.Data.Aux1_C.Values(dataIndex,1));
+
+            sinusoidJson.summary.length       = lengthSummary;
+            sinusoidJson.summary.force        = forceSummary;
+            sinusoidJson.summary.temperature  = temperatureSummary;
+            sinusoidJson.unit.length          = auroraData.Data.Lin.Unit;
+            sinusoidJson.unit.force           = auroraData.Data.Fin.Unit;
+            sinusoidJson.unit.temperature     = 'C';
+            sinusoidJson.unit.time            = auroraData.Data.Time.Unit;
+            sinusoidJson.channel.length       = 'Lin';
+            sinusoidJson.channel.force        = 'Fin';
+            sinusoidJson.channel.temperature  = 'Aux 1';
+
+
+            setSinusoidJson(indexIntoSetOfSegments).sinusoid = sinusoidJson;
+             
+
+          end
+          %%
+          % Plot
+          %%
+          flag_plotH=0;
+          if(flag_plotH==1)
+            figPlotH=figure;
+            subplot(2,2,1);
+              yyaxis left;
+                plot(segData.time,segData.x);
+                hold on;
+                box off;
+                xlabel('Time (ms)');
+                ylabel('Length (mm)');
+
+              yyaxis right;
+                plot(segData.time,segData.y);
+                hold on;
+                box off;
+                ylabel('Force (mN)');
+              title('Time Domain');
+            subplot(2,2,2);
+              yyaxis left;
+                plot(segData.H.frequencyHz(segData.H.idxBW),...
+                     segData.H.gain(segData.H.idxBW),...
+                     'DisplayName','Welch');
+                hold on;
+                plot(segData.FS.frequencyHz(1),...
+                     segData.FS.gain(1),...
+                     'o','Color',[0,0,1],'MarkerFaceColor',[0,0,1],...
+                     'DisplayName','FT');
+                hold on;
+                box off;
+                xlabel('Frequency (Hz)');
+                ylabel('Gain (mN/mm)');
+              
+              yyaxis right;
+                plot(segData.H.frequencyHz(segData.H.idxBW),...
+                     segData.H.phase(segData.H.idxBW).*(180/pi),...
+                     'DisplayName','Welch');
+                hold on;
+                plot(segData.FS.frequencyHz(1),...
+                     segData.FS.phase(1).*(180/pi),...
+                     'd','Color',[1,0,0],'MarkerFaceColor',[1,0,0],...
+                     'DisplayName','FT');
+                hold on;
+                box off;                
+                ylabel('Phase (deg)');
+                legend;
+              title('Frequency Domain');
+            subplot(2,2,3);
+              plot(segData.FS.frequencyHz,...
+                   segData.FS.force.hk,'-','Color',[0,0,0]);
+              hold on;
+              plot(segData.FS.frequencyHz,...
+                   segData.FS.force.hk,'o','Color',[0,0,0],...
+                   'MarkerFaceColor',[1,1,1]);
+              hold on;
+              box off;
+              xlabel('Frequency (Hz)');
+              ylabel('Relative Magnitude (mN/mN)');
+
+
+            subplot(2,2,4);
+              plot(segData.H.frequencyHz(segData.H.idxBW),...
+                     segData.H.coherenceSq(segData.H.idxBW));
+              box off;
+              xlabel('Frequency (Hz)');
+              ylabel('Coherence-Sq');
+              hold on;
+            title('Coherence');
+                
+            close(figPlotH);
+
+          end
+
+        end
+
+
   
         %%
         % Plot time-length-force  
         %%
-        figure(figSegments);
-      
-        idxRow = (indexIntoSetOfSegments-1)*7 + 1;
-        subplot('Position',reshape(...
-          subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));    
-        yyaxis left;
-     
-        plot(auroraData.Data.Time.Values(dataIndex,1),...
-           auroraData.Data.Lin.Values(dataIndex,1),...
-           '-','Color',lineColors.grey);...
-        hold on;
-  
-        box off;  
-        xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
-        ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
-      
-        yyaxis right;
-     
-        plot(auroraData.Data.Time.Values(dataIndex,1),...
-           auroraData.Data.Fin.Values(dataIndex,1),...
-           '-','Color',[0,0,0]);...
-        hold on;
-  
-        box off;  
-        ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
+        if(isSegmentValid==1)
+          figure(figSegments);
         
-        titleStrA = trialJson.experiment.title;
-        titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);    
-        titleId   = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);    
-        title([titleId, titleStrA,':', titleStrB]);
-      
+          idxRow = (indexIntoSetOfSegments-1)*7 + 1;
+          subplot('Position',reshape(...
+            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));    
+          yyaxis left;
+       
+          plot(auroraData.Data.Time.Values(dataIndex,1),...
+             auroraData.Data.Lin.Values(dataIndex,1),...
+             '-','Color',lineColors.grey);...
+          hold on;
+    
+          box off;  
+          xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
+          ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
+        
+          yyaxis right;
+       
+          plot(auroraData.Data.Time.Values(dataIndex,1),...
+             auroraData.Data.Fin.Values(dataIndex,1),...
+             '-','Color',[0,0,0]);...
+          hold on;
+    
+          box off;  
+          ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
+          
+          titleStrA = trialJson.experiment.title;
+          titleStrB = sprintf('%i Hz, %1.3f mm',...
+            sinusoidFit.frequency_Hz,sinusoidFit.amplitude_Lo);    
+          titleId   = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);    
+          title([titleId, titleStrA,':', titleStrB]);
+        end
         %%
         % Plot the gain response 
         %%  
-        if(xyDataIsValid==1)
+        if(isSegmentValid==1)
           idxRow = (indexIntoSetOfSegments-1)*7 + 2;
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4)); 
   
   
-          plot(segData.H0.frequencyHz(segData.H0.idxBW),...
-             segData.H0.gain(segData.H0.idxBW),...
+          plot(segData.H.frequencyHz(segData.H.idxBW),...
+             segData.H.gain(segData.H.idxBW),...
             '-','Color',settings.colorData0);
           hold on;
-          plot(segData.H1.frequencyHz(segData.H1.idxBW),...
-             segData.H1.gain(segData.H1.idxBW),...
-            '-','Color',settings.colorData1);
-          hold on;
-          plot(segData.H2.frequencyHz(segData.H2.idxBW),...
-            segData.H2.gain(segData.H2.idxBW),...
-            '-','Color',settings.colorData2);
-          hold on;
-          if(isfield(segData,'H3'))
-            plot(segData.H3.frequencyHz(segData.H3.idxBW),...
-              segData.H3.gain(segData.H3.idxBW),...
-              '-','Color',settings.colorData3);
-            hold on;
-          end
+
             
           if(~isempty(segData.H.idxBWC2))
-            for idxMdl=1:1:length(fittedModelSeries)  
-              if(~isempty(fittedModelSeries(idxMdl).model))
-                plot(fittedModelSeries(idxMdl).model.response.frequencyHz,...
-                   fittedModelSeries(idxMdl).model.response.gain,...
-                   fittedModelSeries(idxMdl).model.lineType,...
-                   'Color', fittedModelSeries(idxMdl).model.color);
-                hold on;  
-              end
-            end
             for j=1:1:2
               plot([segData.H.bandwidthHzC2(j);...
                     segData.H.bandwidthHzC2(j)],...
@@ -950,30 +1005,16 @@ if(settings.processData==1)
         %%
         % Plot the phase response 
         %%      
-        if(xyDataIsValid==1)   
+        if(isSegmentValid==1)   
   
           idxRow = (indexIntoSetOfSegments-1)*7 + 3;
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
   
-          plot(segData.H0.frequencyHz(segData.H0.idxBW),...
-             segData.H0.phase(segData.H0.idxBW).*(180/pi),...
+          plot(segData.H.frequencyHz(segData.H.idxBW),...
+             segData.H.phase(segData.H.idxBW).*(180/pi),...
              '-','Color',settings.colorData0);
           hold on;
-          plot(segData.H1.frequencyHz(segData.H1.idxBW),...
-             segData.H1.phase(segData.H1.idxBW).*(180/pi),...
-             '-','Color',settings.colorData1);
-          hold on;
-          plot(segData.H2.frequencyHz(segData.H.idxBW),...
-               segData.H2.phase(segData.H.idxBW).*(180/pi),...
-               '-','Color',settings.colorData2);
-          hold on;
-          if(isfield(segData,'H3'))
-            plot(segData.H3.frequencyHz(segData.H3.idxBW),...
-                 segData.H3.phase(segData.H3.idxBW).*(180/pi),...
-                 '-','Color',settings.colorData3);
-            hold on;
-          end
   
           if(~isempty(segData.H.idxBWC2))          
             for idxMdl=1:1:length(fittedModelSeries)
@@ -993,9 +1034,7 @@ if(settings.processData==1)
               hold on;
             end
           end
-          
-          
-          
+
           box off;  
           xlabel('Frequency (Hz)');
           ylabel('Phase ($$^o$$)');
@@ -1006,41 +1045,19 @@ if(settings.processData==1)
         %%
         % Plot storage vs frequency
         %%      
-        if(xyDataIsValid==1)   
+        if(isSegmentValid==1)   
   
           idxRow = (indexIntoSetOfSegments-1)*7 + 4;
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
   
-          plot(segData.H0.frequencyHz(segData.H0.idxBW),...
-             segData.H0.storage(segData.H0.idxBW),...
+          plot(segData.H.frequencyHz(segData.H.idxBW),...
+             segData.H.storage(segData.H.idxBW),...
              '-','Color',settings.colorData0);
           hold on;
-          plot(segData.H1.frequencyHz(segData.H1.idxBW),...
-             segData.H1.storage(segData.H1.idxBW),...
-             '-','Color',settings.colorData1);
-          hold on;
-          plot(segData.H2.frequencyHz(segData.H.idxBW),...
-               segData.H2.storage(segData.H.idxBW),...
-               '-','Color',settings.colorData2);
-          hold on;
-          if(isfield(segData,'H3'))
-            plot(segData.H3.frequencyHz(segData.H3.idxBW),...
-                 segData.H3.storage(segData.H3.idxBW),...
-                 '-','Color',settings.colorData3);
-            hold on;
-          end
+
   
           if(~isempty(segData.H.idxBWC2))          
-            for idxMdl=1:1:length(fittedModelSeries)
-              if(~isempty(fittedModelSeries(idxMdl).model))
-                plot(fittedModelSeries(idxMdl).model.response.frequencyHz,...
-                   fittedModelSeries(idxMdl).model.response.storage,...
-                   fittedModelSeries(idxMdl).model.lineType,...
-                   'Color', fittedModelSeries(idxMdl).model.color);
-                hold on;  
-              end
-            end
             for j=1:1:2
               plot([segData.H.bandwidthHzC2(j);...
                   segData.H.bandwidthHzC2(j)],...
@@ -1061,41 +1078,19 @@ if(settings.processData==1)
         %%
         % Plot storage vs frequency
         %%      
-        if(xyDataIsValid==1)   
+        if(isSegmentValid==1)   
   
           idxRow = (indexIntoSetOfSegments-1)*7 + 5;
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
   
-          plot(segData.H0.frequencyHz(segData.H0.idxBW),...
-             segData.H0.loss(segData.H0.idxBW),...
+          plot(segData.H.frequencyHz(segData.H.idxBW),...
+             segData.H.loss(segData.H.idxBW),...
              '-','Color',settings.colorData0);
           hold on;
-          plot(segData.H1.frequencyHz(segData.H1.idxBW),...
-             segData.H1.loss(segData.H1.idxBW),...
-             '-','Color',settings.colorData1);
-          hold on;
-          plot(segData.H2.frequencyHz(segData.H.idxBW),...
-               segData.H2.loss(segData.H.idxBW),...
-               '-','Color',settings.colorData2);
-          hold on;
-          if(isfield(segData,'H3'))
-            plot(segData.H3.frequencyHz(segData.H3.idxBW),...
-                 segData.H3.loss(segData.H3.idxBW),...
-                 '-','Color',settings.colorData3);
-            hold on;
-          end
+
   
           if(~isempty(segData.H.idxBWC2))          
-            for idxMdl=1:1:length(fittedModelSeries)
-              if(~isempty(fittedModelSeries(idxMdl).model))
-                plot(fittedModelSeries(idxMdl).model.response.frequencyHz,...
-                   fittedModelSeries(idxMdl).model.response.loss,...
-                   fittedModelSeries(idxMdl).model.lineType,...
-                   'Color', fittedModelSeries(idxMdl).model.color);
-                hold on;  
-              end
-            end
             for j=1:1:2
               plot([segData.H.bandwidthHzC2(j);...
                   segData.H.bandwidthHzC2(j)],...
@@ -1117,43 +1112,16 @@ if(settings.processData==1)
         %%
         % Plot storage vs loss
         %%      
-        if(xyDataIsValid==1)   
+        if(isSegmentValid==1)   
   
           idxRow = (indexIntoSetOfSegments-1)*7 + 6;
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
   
-          plot(segData.H0.storage(segData.H0.idxBW),...
-             segData.H0.loss(segData.H0.idxBW),...
+          plot(segData.H.storage(segData.H.idxBW),...
+             segData.H.loss(segData.H.idxBW),...
              '-','Color',settings.colorData0);
           hold on;
-          plot(segData.H1.storage(segData.H1.idxBW),...
-             segData.H1.loss(segData.H1.idxBW),...
-             '-','Color',settings.colorData1);
-          hold on;
-          plot(segData.H2.storage(segData.H.idxBW),...
-               segData.H2.loss(segData.H.idxBW),...
-               '-','Color',settings.colorData2);
-          hold on;
-          if(isfield(segData,'H3'))
-            plot(segData.H3.storage(segData.H3.idxBW),...
-                 segData.H3.loss(segData.H3.idxBW),...
-                 '-','Color',settings.colorData3);
-            hold on;
-          end
-  
-          if(~isempty(segData.H.idxBWC2))          
-            for idxMdl=1:1:length(fittedModelSeries)
-              if(~isempty(fittedModelSeries(idxMdl).model))
-                plot(fittedModelSeries(idxMdl).model.response.storage,...
-                   fittedModelSeries(idxMdl).model.response.loss,...
-                   fittedModelSeries(idxMdl).model.lineType,...
-                   'Color', fittedModelSeries(idxMdl).model.color);
-                hold on;  
-              end
-            end
-          end
-          
           
           
           box off;  
@@ -1167,24 +1135,16 @@ if(settings.processData==1)
         %%
         % Plot the coherence-sq response 
         %%      
-        if(xyDataIsValid==1)
+        if(isSegmentValid==1)
           idxRow = (indexIntoSetOfSegments-1)*7 + 7;
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
   
-          plot(segData.H0.frequencyHz(segData.H0.idxBW),...
-            segData.H0.coherenceSq(segData.H0.idxBW),...
+          plot(segData.H.frequencyHz(segData.H.idxBW),...
+            segData.H.coherenceSq(segData.H.idxBW),...
             '-','Color',settings.colorData0);
           hold on;
-          plot(segData.H1.frequencyHz(segData.H1.idxBW),...
-            segData.H1.coherenceSq(segData.H1.idxBW),...
-            '-','Color',settings.colorData1);
-          hold on;
-          plot(segData.H2.frequencyHz(segData.H2.idxBW),...
-            segData.H2.coherenceSq(segData.H2.idxBW),...
-            '-','Color',settings.colorData2);
-          hold on;
-  
+
           if(~isempty(segData.H.idxBWC2))                    
             for j=1:1:2
               plot([segData.H.bandwidthHzC2(j);...
@@ -1204,7 +1164,7 @@ if(settings.processData==1)
           title(titleId);  
         end
     
-        setSegmentJson(indexIntoSetOfSegments).segment = segmentJson;
+        
       end
     
       
@@ -1213,15 +1173,35 @@ if(settings.processData==1)
         mkdir(outputJsonDir);
       end
       
-      setSegmentJsonEncode = jsonencode(setSegmentJson);
+      
+
+
       jsonFileName = [settings.prependToJsonFileName,...
                       experimentJson.measurements{idxTrial}];
-      fidJson = fopen(fullfile(outputJsonDir,jsonFileName),...
-                      analysisJsonSetting_fopen);
-      fprintf(fidJson,setSegmentJsonEncode);
+      jsonFilePath=fullfile(outputJsonDir,jsonFileName);
+
+
+      if(exist(jsonFilePath,'file'))
+        mainStr   = fileread(jsonFilePath);
+        mainJson  = jsondecode(mainStr); 
+
+        mainJson.ImpedanceIndividualLengthSine = setSinusoidJson;
+        mainJsonEncode  = jsonencode(mainJson);
+
+        fidJson               = fopen(jsonFilePath,'w');
+        fprintf(fidJson,mainJsonEncode);
+        fclose(fidJson);       
+
+      else
+        mainJson.ImpedanceIndividualLengthSine = setSinusoidJson;
+        mainJsonEncode  = jsonencode(mainJson);
+        fidJson         = fopen(jsonFilePath,'w');
+        fprintf(fidJson,mainJsonEncode);
+        fclose(fidJson);  
+      end      
     
-      clear('setSegmentJson');
-      clear('segmentJson');
+      clear('setSinusoidJson');
+      clear('sinusoidJson');
   
       pause(1);
   
@@ -1235,49 +1215,18 @@ if(settings.processData==1)
     mkdir(outputPlotDir);
   end
   
-  fileNameMod =['_daqDelayModel_',settings.daqDelayModel];
-  fileNameMod = strrep(fileNameMod,'-','_');
-  switch settings.daqDelayModel
-    case 'time-domain'
-      if(modelSettings.useManuallySetDaqDelay==1)
-        fileNameMod = [fileNameMod,'_fixedDelay'];
-      else
-        fileNameMod = [fileNameMod,'_fitDelayRmsePhase'];
-        if(modelSettings.zeroPhaseResponseSlope==1)
-          fileNameMod = [fileNameMod,'_fitDelayZeroPhaseSlope'];
-        end
-      end      
-    case 'frequency-domain'
-      if(modelSettings.useManuallySetDaqDelay==1)
-        fileNameMod = [fileNameMod,'_fixedInvLpfFrequency'];
-      else
-        fileNameMod = [fileNameMod,'_fitInvLpfFrequency'];
-        if(modelSettings.zeroPhaseResponseSlope==1)
-          fileNameMod = [fileNameMod,'_fitInvLpfFrequencyZeroPhaseSlope'];
-        end
-      end      
-    otherwise
-      assert(0,'Error: delayModel must be either time-domain or frequency-domain');
-  end
   
   figSegments=configPlotExporter(figSegments, ...
             pageWidthSegment, pageHeightSegment);
-  fileName =  ['fig_FrequencyResponse_',folderName,fileNameMod];
+  fileName =  ['fig_Sinusoid_FrequencyResponse_',folderName];
   print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figSegments,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figSegments);
 
-  figIntraSegments=configPlotExporter(figIntraSegments, ...
-            pageWidthIntraSegment, pageHeightIntraSegment);
-  fileName =  ['fig_IntraSegmentDegradation_',folderName,fileNameMod];
-  print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
-  saveas(figIntraSegments,fullfile(outputPlotDir,[fileName,'.fig']));
-  close(figIntraSegments);
-
 
   figTimeSeries=configPlotExporter(figTimeSeries, ...
             pageWidthTimeSeries, pageHeightTimeSeries);
-  fileName =  ['fig_TimeSeries_',folderName,fileNameMod];
+  fileName =  ['fig_Sinusoid_TimeSeries_',folderName];
   print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figTimeSeries,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figTimeSeries);  

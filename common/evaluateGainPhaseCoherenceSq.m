@@ -124,7 +124,9 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.storage      = gain.*cos(phase);
     frequencyResponse.loss         = gain.*sin(phase);
     frequencyResponse.coherenceSq  = coherenceSq;
-    frequencyResponse.coherenceSquaredThreshold = coherenceSquaredThreshold;        
+    frequencyResponse.coherenceSquaredThreshold = coherenceSquaredThreshold; 
+
+    
 else
     frequencyResponse.time         = [];
     frequencyResponse.x            = [];

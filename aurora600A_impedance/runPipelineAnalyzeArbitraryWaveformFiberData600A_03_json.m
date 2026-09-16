@@ -2126,7 +2126,9 @@ if(settings.processData==1)
         mkdir(outputJsonDir);
       end
       
-      setSegmentJsonEncode = jsonencode(setSegmentJson);
+      mainJsonFile.ImpedanceLengthArb=setSegmentJson;
+
+      setSegmentJsonEncode = jsonencode(mainJsonFile);
       jsonFileName = [settings.prependToJsonFileName,...
                       experimentJson.measurements{idxTrial}];
       fidJson = fopen(fullfile(outputJsonDir,jsonFileName),...

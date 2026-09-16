@@ -62,11 +62,11 @@ activeBiasTrialKeyword ='zcal_01_screen';
 
 skipToTrialWithKeyword = [];%['_active_145Lo_'];
  
-flag_processImpedanceLengthArb=0;
-flag_processImpedanceLengthSine=1;
+flag_processImpedanceLengthArb  = 0;
+flag_processImpedanceLengthSine = 1;
 
 
-checkSha256Sum=1; 
+checkSha256Sum=0; 
 checkFileOrder=1;
 
 
@@ -220,8 +220,6 @@ modelSeries(1).model = modelK3;
 for i=1:1:length(experimentsToProcess)
     fprintf('\n\n%s\n\n',experimentsToProcess{i});
 
-    jsonFileOpenSettigs='w';
-
     if(flag_processImpedanceLengthArb==1)
       success=runPipelineAnalyzeArbitraryWaveformFiberData600A_03_json(...
                   experimentsToProcess{i}, ...
@@ -231,15 +229,12 @@ for i=1:1:length(experimentsToProcess)
                   settingsImpedanceAnalysis,...
                   projectFolders);
       pause(0.1);
-      jsonFileOpenSettigs='a';
     end
     
     if(flag_processImpedanceLengthSine==1)
       success=runPipelineAnalyzeIndividualLengthSineFiberData600A_json(...
                   experimentsToProcess{i},...
                   skipToTrialWithKeyword,...
-                  modelSeries, ...
-                  'a',...
                   settingsImpedanceAnalysis,...
                   projectFolders);
     end

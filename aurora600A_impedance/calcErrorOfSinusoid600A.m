@@ -5,13 +5,18 @@ paramsUpd=params.*settings.paramScaling;
 t0           = paramsUpd(1);
 y0           = paramsUpd(2);
 frequency_Hz = paramsUpd(3);
-length_Lo    = paramsUpd(4);
+amplitudeNorm    = paramsUpd(4);
 
-index0 = find(settings.time < t0,1,'last');
-index1 = find(settings.time > (t0+settings.duration_ms),1,'first');
+amplitude=nan;
+if(strcmp(settings.var,'length'))
+  amplitude=amplitudeNorm*settings.Lo;
+end
+
+index0 = find(settings.time <= t0,1,'last');
+index1 = index0+settings.number_of_elements;
 
 mdl.x = settings.time(index0:index1);
-mdl.y = length_Lo.*sin( (frequency_Hz*2*pi*settings.timeScaling).*(mdl.x-t0) ) + y0;
+mdl.y = amplitude.*sin( (frequency_Hz*2*pi*settings.timeScaling).*(mdl.x-t0) ) + y0;
 errV  = mdl.y-settings.(settings.var)(index0:index1);
 errV  = errV./settings.scaling;
 
