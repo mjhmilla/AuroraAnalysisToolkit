@@ -1,7 +1,6 @@
 function success = ...
   runPipelineAnalyzeArbitraryWaveformFiberData600A_03_json(...
-    folderName, fileKeyWord,modelSeries, ...
-    analysisJsonSetting_fopen,settings,...
+    folderName, fileKeyWord,modelSeries,settings,...
     projectFolders)
 
 success=0;
@@ -17,6 +16,7 @@ flag_readHeader       = 1;
 
 
 analysisKeywords={'Impedance-Length-Arb'};
+analysisKeywordFileName = '_ImpedanceLengthArb_';
 
 analysisKeywordsList='';
 for i=1:1:length(analysisKeywords)
@@ -2126,13 +2126,11 @@ if(settings.processData==1)
         mkdir(outputJsonDir);
       end
       
-      mainJsonFile.ImpedanceLengthArb=setSegmentJson;
 
-      setSegmentJsonEncode = jsonencode(mainJsonFile);
-      jsonFileName = [settings.prependToJsonFileName,...
+      setSegmentJsonEncode = jsonencode(setSegmentJson);
+      jsonFileName = ['analysis',analysisKeywordFileName,...
                       experimentJson.measurements{idxTrial}];
-      fidJson = fopen(fullfile(outputJsonDir,jsonFileName),...
-                      analysisJsonSetting_fopen);
+      fidJson = fopen(fullfile(outputJsonDir,jsonFileName),'w');
       fprintf(fidJson,setSegmentJsonEncode);
     
       clear('setSegmentJson');
@@ -2177,14 +2175,16 @@ if(settings.processData==1)
   
   figSegments=configPlotExporter(figSegments, ...
             pageWidthSegment, pageHeightSegment);
-  fileName =  ['fig_FrequencyResponse_',folderName,fileNameMod];
+  fileName =  ['fig',analysisKeywordFileName,...
+               'FrequencyResponse_',folderName,fileNameMod];
   print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figSegments,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figSegments);
 
   figIntraSegments=configPlotExporter(figIntraSegments, ...
             pageWidthIntraSegment, pageHeightIntraSegment);
-  fileName =  ['fig_IntraSegmentDegradation_',folderName,fileNameMod];
+  fileName =  ['fig',analysisKeywordFileName,...
+               'IntraSegmentDegradation_',folderName,fileNameMod];  
   print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figIntraSegments,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figIntraSegments);
@@ -2192,7 +2192,8 @@ if(settings.processData==1)
 
   figTimeSeries=configPlotExporter(figTimeSeries, ...
             pageWidthTimeSeries, pageHeightTimeSeries);
-  fileName =  ['fig_TimeSeries_',folderName,fileNameMod];
+  fileName =  ['fig',analysisKeywordFileName,...
+               'TimeSeries_',folderName,fileNameMod];
   print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figTimeSeries,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figTimeSeries);  

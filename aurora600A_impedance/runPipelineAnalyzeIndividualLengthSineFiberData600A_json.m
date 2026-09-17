@@ -5,13 +5,15 @@ function success = ...
 
 success=0;
 mm2m = 0.001;
-
+s2ms=1000;
 
 
 flag_readHeader       = 1;
 
 
 analysisKeywords={'Impedance-Individual-Length-Sine'};
+analysisKeywordsFileName = '_ImpedanceIndividualLengthSine_';
+
 analysisKeywordsList='';
 for i=1:1:length(analysisKeywords)
   if(i>1)
@@ -27,6 +29,12 @@ end
 dataFolder      = fullfile(projectFolders.data600A,folderName);
 experimentStr   = fileread(fullfile(dataFolder,[folderName,'.json']));
 experimentJson  = jsondecode(experimentStr);
+
+outputPlotDir = fullfile(projectFolders.output600A_plots,folderName);
+if(~exist(outputPlotDir,'dir'))
+  mkdir(outputPlotDir);
+end
+
 
 %%
 % Check that the type of experiment is valid for this processing script
@@ -87,9 +95,6 @@ setOfTrialsVerified =[];
 % Plot settings
 %%
 lineColors = getPaulTolColourSchemes('bright');
-
-
-
 
 
 %%
@@ -204,32 +209,9 @@ if(settings.processData==1)
   
 
 
-  %
-  % Plot the segment data
-  %  
-  numberOfHorizontalPlotColumnsGeneric  = length(setOfTrials);
-  numberOfVerticalPlotRowsGeneric       = 7*totalNumberOfSegmentsToPlot;
 
-  % 1. Time domain
-  % 2. gain
-  % 3. phase
-  % 4. coherence  
-  plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*6;
-  plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*6;
-  plotHorizMarginCm         = 3;
-  plotVertMarginCm          = 2;
-  baseFontSize              = 12;
   
-  [subPlotPanelSegment, pageWidthSegment, pageHeightSegment]= ...
-    plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
-                        numberOfVerticalPlotRowsGeneric,...
-                        plotWidth,...
-                        plotHeight,...
-                        plotHorizMarginCm,...
-                        plotVertMarginCm,...
-                        baseFontSize); 
-  
-  figSegments = figure;
+
   
   %
   % Plot the time series domain data
@@ -457,11 +439,37 @@ if(settings.processData==1)
       % Process each of the segments
       %%
     
+      %
+      % Plot the segment data
+      %  
+      numberOfHorizontalPlotColumnsGeneric  = 6;
+      numberOfVerticalPlotRowsGeneric       = length(setOfSegments);
+    
+      % 1. Time domain
+      % 2. length-time-force
+      % 3. gain-time-phase
+      % 4. rel-mag
+      % 5. coherence-sq
+      plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*6;
+      plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*6;
+      plotHorizMarginCm         = 3;
+      plotVertMarginCm          = 2;
+      baseFontSize              = 8;
+      
+      [subPlotPanelSegment, pageWidthSegment, pageHeightSegment]= ...
+        plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
+                            numberOfVerticalPlotRowsGeneric,...
+                            plotWidth,...
+                            plotHeight,...
+                            plotHorizMarginCm,...
+                            plotVertMarginCm,...
+                            baseFontSize); 
+      figSegments = figure;
     
       for indexIntoSetOfSegments = 1:1:length(setOfSegments)
       
         idxSeg = setOfSegments(indexIntoSetOfSegments,1);
-    
+        fprintf('\t%i/%i\tSegment count\n',indexIntoSetOfSegments,length(setOfSegments));
         %%
         %Extract the indicies to plot
         %%
@@ -536,18 +544,47 @@ if(settings.processData==1)
           fittingSettings.scaling      = 1;
           fittingSettings.paramScaling = [];
 
+          xMiddle=0.5*(max(fittingSettings.length)...
+                      +min(fittingSettings.length));
+          xDelta = 0.5*(max(fittingSettings.length)...
+                       -min(fittingSettings.length));
 
+          frequency_Hz = trialJson.segments(idxSeg).meta_data.frequency_Hz;
+          period_ms = (1/frequency_Hz)*s2ms;
+
+          idxStart = ...
+            find(auroraData.Data.Lin.Values(dataIndex,1) ...
+                                  > (xMiddle+0.1*xDelta),1,'first');
+
+          idxStart=max(idxStart-1,1);
+
+          timeStartA=auroraData.Data.Time.Values(dataIndex(idxStart));
+          timeStartB=trialJson.segments(idxSeg).time_ms(1);
+
+          timeStart=timeStartB;
+          if(timeStartA<timeStartB)
+            timeStart=timeStartA;
+          end
+
+          fittingSettings.paramOffset = ...
+            [auroraData.Data.Time.Values(dataIndex(idxStart)),...
+            xMiddle,...
+            trialJson.segments(idxSeg).meta_data.frequency_Hz,...
+            trialJson.segments(idxSeg).meta_data.length_Lo];
 
           fittingSettings.paramScaling = [ ...
-            trialJson.segments(idxSeg).time_ms(1),...
-            mean(fittingSettings.length),...
-            trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-            trialJson.segments(idxSeg).meta_data.length_Lo];  
+            period_ms,...
+            xMiddle*0.5,...
+            trialJson.segments(idxSeg).meta_data.frequency_Hz*0.10,...
+            trialJson.segments(idxSeg).meta_data.length_Lo*0.10];  
 
-          params = ones(size(fittingSettings.paramScaling));
+          params = [0,0,0,0];
           
           fittingSettings.var = 'length';                
-              
+
+          if(idxSeg==42)
+            here=1;
+          end          
           [errV,fittedSine] = ...
             calcErrorOfSinusoid600A(params,fittingSettings);
   
@@ -574,10 +611,10 @@ if(settings.processData==1)
             'Error: failed to fit the length sinusoid data');
           
 
-          xUpd = x.*fittingSettings.paramScaling;
+          xUpd = x.*fittingSettings.paramScaling+fittingSettings.paramOffset;
 
 
-             
+
 
           [errV,fittedSine] = calcErrorOfSinusoid600A(x,fittingSettings);
 
@@ -591,22 +628,48 @@ if(settings.processData==1)
                    'exitflag',exitflag);   
 
           
-          flag_checkFit=0;
-          if(flag_checkFit==1)
-            fig_checkFit=figure;
-            plot( fittingSettings.time,...
-                  fittingSettings.(fittingSettings.var),...
-                  '-','Color',[1,1,1].*0.5);
-            hold on;
 
-            lineColor=[0,0,1];
+          if(strcmp(fittingSettings.var,'length')==1)
 
-            plot(fittedSine.x,fittedSine.y,'-','Color',lineColor);
-            hold on;
-            xlabel('Time (ms)');
-            ylabel(fittingSettings.var);
-            here=1;
-            close(fig_checkFit);
+            figure(figSegments)
+            subplot('Position',...
+              reshape(subPlotPanelSegment(indexIntoSetOfSegments,1,:),1,4));
+
+              Tperiod_ms = 1000/sinusoidFit.frequency_Hz;
+              nPeriodMax = sinusoidFit.duration_ms*(0.001)*sinusoidFit.frequency_Hz;
+              nPeriod = min(4,nPeriodMax);              
+
+              indexPeriod = ...
+                find(fittingSettings.time >= sinusoidFit.time_ms ... 
+                   & fittingSettings.time <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
+
+              plot( fittingSettings.time(indexPeriod),...
+                    fittingSettings.(fittingSettings.var)(indexPeriod),...
+                    '-','Color',[1,1,1].*0.75,'LineWidth',1);
+              hold on;
+
+              indexPeriod = ...
+                find(fittedSine.x >= sinusoidFit.time_ms ... 
+                   & fittedSine.x <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
+
+              plot(fittedSine.x(indexPeriod),...
+                   fittedSine.y(indexPeriod),'-','Color',[0,0,1]);
+              hold on;
+              ax = gca; 
+              xlim(ax, xlim(ax) + [-1, 1] * diff(xlim(ax)) * 0.05); 
+              ylim(ax, ylim(ax) + [-1, 1] * diff(ylim(ax)) * 0.05); 
+              box off;
+
+              text(fittedSine.x(indexPeriod(end)),...
+                   fittedSine.y(indexPeriod(end)),...
+                   sprintf('%1.4f Hz',sinusoidFit.frequency_Hz),...
+                   'HorizontalAlignment','right',...
+                   'VerticalAlignment','bottom');
+              hold on;
+  
+              xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
+              ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
+              title(sprintf('(%i,1). Length-Sine',idxSeg));
           end
   
         end
@@ -698,7 +761,7 @@ if(settings.processData==1)
                           segData.bandwidth_Hz,...
                           segData.sampleFrequency,...
                           settings.coherenceSquaredThreshold,...
-                          settings.minAcceptableBandwidthFraction);
+                          0);
 
 
           %%
@@ -712,14 +775,16 @@ if(settings.processData==1)
           segData.FS.frequency   = zeros(nHarmonics,1);
           segData.FS.frequencyHz = zeros(nHarmonics,1);          
           segData.FS.length.L    = zeros(nHarmonics,1);
-          segData.FS.length.hk    = zeros(nHarmonics,1);
-          segData.FS.length.I     = 0;          
-          segData.FS.length.D     = 0;
-          
+          segData.FS.length.hk   = zeros(nHarmonics,1);
+          segData.FS.length.I    = 0;          
+          segData.FS.length.D    = 0;
+          segData.FS.length.LinvFT = [];
+
           segData.FS.force.F     = zeros(nHarmonics,1);
           segData.FS.force.hk    = zeros(nHarmonics,1);
           segData.FS.force.I     = 0;          
           segData.FS.force.D     = 0;
+          segData.FS.force.FinvFT = [];
           
           for idxN =1:1:nHarmonics
             segData.FS.frequency(idxN)   = ...
@@ -727,9 +792,12 @@ if(settings.processData==1)
             segData.FS.frequencyHz(idxN) = ...
               sinusoidFit.frequency_Hz*idxN;
             
-            omega   = sinusoidFit.frequency_Hz*(2*pi)*idxN;
-            Tcyc    = 1/sinusoidFit.frequency_Hz;
-            A      = (1/(idxN*Tcyc));
+            omega_Hz= sinusoidFit.frequency_Hz*idxN;
+            omega   = omega_Hz*(2*pi);
+            
+            Tcyc    = 1/omega_Hz;
+            nCycles = (sinusoidFit.duration_ms.*ms2s)/Tcyc;
+            A      = (2/(nCycles*Tcyc));
             timeSeg = (segData.time-sinusoidFit.time_ms).*ms2s;
 
             %Real component
@@ -767,6 +835,22 @@ if(settings.processData==1)
 
             segData.FS.force.I= ...
               segData.FS.force.I + (F_real*F_real + F_imag*F_imag);
+
+            %Build the FS time domain signals
+            if(isempty(segData.FS.length.LinvFT))
+              segData.FS.length.LinvFT = L_real.*sineWt + L_imag.*cosWt;
+            else
+              segData.FS.length.LinvFT =  segData.FS.length.LinvFT ...
+                                        + L_real.*sineWt + L_imag.*cosWt;
+            end
+
+            if(isempty(segData.FS.force.FinvFT))
+              segData.FS.force.FinvFT = F_real.*sineWt + F_imag.*cosWt;
+            else
+              segData.FS.force.FinvFT =  segData.FS.force.FinvFT ...
+                                        + F_real.*sineWt + F_imag.*cosWt;
+            end
+
 
           end
 
@@ -855,29 +939,123 @@ if(settings.processData==1)
 
           end
           %%
+          % Inspect Fourier series
+          %%
+          flag_inspectFourierFit=0;
+          if(flag_inspectFourierFit==1)
+            fig_FS=figure;
+
+            Tperiod_ms = 1000/sinusoidFit.frequency_Hz;
+            nPeriodMax = sinusoidFit.duration_ms*(0.001)*sinusoidFit.frequency_Hz;
+            nPeriod = min(4,nPeriodMax);
+
+            indexPeriod = ...
+              find(segData.time >= sinusoidFit.time_ms ... 
+                 & segData.time <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
+
+            subplot(1,2,1)
+              plot(segData.time(indexPeriod),segData.x(indexPeriod),...
+                '-','Color',[1,1,1].*0.75,...
+                'LineWidth',1);
+              hold on;
+              plot(segData.time(indexPeriod),...
+                   segData.FS.length.LinvFT(indexPeriod),'-k');
+              hold on;
+              box off;
+              xlabel(sprintf(  'Time (%s)',auroraData.Data.Time.Unit));
+              ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
+
+            subplot(1,2,2);
+              plot(segData.time(indexPeriod),segData.y(indexPeriod),'-',...
+                'Color',[1,1,1].*0.75,...
+                 'LineWidth',1);
+              hold on;
+              plot(segData.time(indexPeriod),...
+                   segData.FS.force.FinvFT(indexPeriod),'-k');
+              hold on;
+              box off;
+              xlabel(sprintf(  'Time (%s)',auroraData.Data.Time.Unit));
+              ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
+
+            close(fig_FS);
+          end
+          %%
           % Plot
           %%
-          flag_plotH=0;
-          if(flag_plotH==1)
-            figPlotH=figure;
-            subplot(2,2,1);
-              yyaxis left;
-                plot(segData.time,segData.x);
-                hold on;
-                box off;
-                xlabel('Time (ms)');
-                ylabel('Length (mm)');
+            figure(figSegments)
 
-              yyaxis right;
-                plot(segData.time,segData.y);
-                hold on;
-                box off;
-                ylabel('Force (mN)');
-              title('Time Domain');
-            subplot(2,2,2);
+            Tperiod_ms = 1000/sinusoidFit.frequency_Hz;
+            nPeriodMax = sinusoidFit.duration_ms*(0.001)*sinusoidFit.frequency_Hz;
+            nPeriod = min(4,nPeriodMax);            
+
+            indexPeriod = ...
+              find(segData.time >= sinusoidFit.time_ms ... 
+                 & segData.time <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
+
+            subplot('Position',...
+              reshape(subPlotPanelSegment(indexIntoSetOfSegments,2,:),1,4));
+
+              plot(segData.time(indexPeriod),...
+                   segData.x(indexPeriod),'-','Color',[1,1,1].*0.75,...
+                   'LineWidth',1);
+              hold on;
+              plot(segData.time(indexPeriod),...
+                   segData.FS.length.LinvFT(indexPeriod),'-k');
+              hold on;
+              box off;
+
+              ax = gca; 
+              xlim(ax, xlim(ax) + [-1, 1] * diff(xlim(ax)) * 0.05); 
+              ylim(ax, ylim(ax) + [-1, 1] * diff(ylim(ax)) * 0.05); 
+
+              xlabel(sprintf(  'Time (%s)',auroraData.Data.Time.Unit));
+              ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
+            
+            title(sprintf('(%i,2). Length Data and FS',idxSeg));
+
+            subplot('Position',...
+              reshape(subPlotPanelSegment(indexIntoSetOfSegments,3,:),1,4));
+
+              plot(segData.time(indexPeriod),...
+                   segData.y(indexPeriod),'-','Color',[1,1,1].*0.75,...
+                   'LineWidth',1);
+              hold on;
+              plot(segData.time(indexPeriod),...
+                   segData.FS.force.FinvFT(indexPeriod),'-k');
+              hold on;
+              box off;
+              
+              ax = gca; 
+              xlim(ax, xlim(ax) + [-1, 1] * diff(xlim(ax)) * 0.05); 
+              ylim(ax, ylim(ax) + [-1, 1] * diff(ylim(ax)) * 0.05); 
+
+              xlabel(sprintf(  'Time (%s)',auroraData.Data.Time.Unit));
+              ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
+
+            title(sprintf('(%i,3). Force Data and FS',idxSeg));
+
+            subplot('Position',...
+              reshape(subPlotPanelSegment(indexIntoSetOfSegments,4,:),1,4));
+
+              idxA = find(segData.H.frequencyHz < sinusoidFit.frequency_Hz,1,'last');
+
+              idxB = find(segData.H.frequencyHz > sinusoidFit.frequency_Hz,1,'first');
+              
+              if(indexIntoSetOfSegments==15)
+                here=1;
+              end
+
+              if(idxA==idxB)
+                idxBWK2=[1;1;1].*idxA + [-1;0;-1].*idxA;
+              else
+                idxBWK2=[idxA:idxB]';
+              end
+
+
+
               yyaxis left;
-                plot(segData.H.frequencyHz(segData.H.idxBW),...
-                     segData.H.gain(segData.H.idxBW),...
+                plot(segData.H.frequencyHz(idxBWK2),...
+                     segData.H.gain(idxBWK2),...
                      'DisplayName','Welch');
                 hold on;
                 plot(segData.FS.frequencyHz(1),...
@@ -886,12 +1064,25 @@ if(settings.processData==1)
                      'DisplayName','FT');
                 hold on;
                 box off;
+
+                ax = gca; 
+                xlim(ax, xlim(ax) + [-1, 1] * diff(xlim(ax)) * 0.05); 
+                ylim(ax, ylim(ax) + [-1, 1] * diff(ylim(ax)) * 0.05);                 
+
+                ylimits =ylim;
+                if(max(ylimits)>0)
+                  ylim([0,max(ylimits)]);
+                else
+                  ylim([min(ylimits),0]);
+                end
                 xlabel('Frequency (Hz)');
-                ylabel('Gain (mN/mm)');
+                ylabel(sprintf('Gain (%s/%s)',...
+                        auroraData.Data.Fin.Unit,...
+                        auroraData.Data.Lin.Unit));
               
               yyaxis right;
-                plot(segData.H.frequencyHz(segData.H.idxBW),...
-                     segData.H.phase(segData.H.idxBW).*(180/pi),...
+                plot(segData.H.frequencyHz(idxBWK2),...
+                     segData.H.phase(idxBWK2).*(180/pi),...
                      'DisplayName','Welch');
                 hold on;
                 plot(segData.FS.frequencyHz(1),...
@@ -899,11 +1090,26 @@ if(settings.processData==1)
                      'd','Color',[1,0,0],'MarkerFaceColor',[1,0,0],...
                      'DisplayName','FT');
                 hold on;
-                box off;                
+                box off;      
+
+                ax = gca; 
+                xlim(ax, xlim(ax) + [-1, 1] * diff(xlim(ax)) * 0.05); 
+                ylim(ax, ylim(ax) + [-1, 1] * diff(ylim(ax)) * 0.05);  
+
+                ylimits =ylim;
+                if(max(ylimits)>0)
+                  ylim([0,max(ylimits)]);
+                else
+                  ylim([min(ylimits),0]);
+                end
                 ylabel('Phase (deg)');
-                legend;
-              title('Frequency Domain');
-            subplot(2,2,3);
+                %legend;
+
+              title(sprintf('(%i,4). Frequency-Response',idxSeg));                         
+
+            subplot('Position',...
+              reshape(subPlotPanelSegment(indexIntoSetOfSegments,5,:),1,4));              
+
               plot(segData.FS.frequencyHz,...
                    segData.FS.force.hk,'-','Color',[0,0,0]);
               hold on;
@@ -911,294 +1117,72 @@ if(settings.processData==1)
                    segData.FS.force.hk,'o','Color',[0,0,0],...
                    'MarkerFaceColor',[1,1,1]);
               hold on;
+              text(segData.FS.frequencyHz(end),...
+                   segData.FS.force.hk(1),...
+                   sprintf('hk(1): %1.3f\nD: %1.6f',segData.FS.force.hk(1),segData.FS.force.D),...
+                   'HorizontalAlignment','right',...
+                   'VerticalAlignment','top',...
+                   'FontSize',7);
+              hold on;
               box off;
               xlabel('Frequency (Hz)');
-              ylabel('Relative Magnitude (mN/mN)');
+              ylabel('Relative Magnitude');
+              ylim([0,1]);
+              title(sprintf('(%i,5). Fourier-Coeff. Rel. Mag',idxSeg))
 
-
-            subplot(2,2,4);
-              plot(segData.H.frequencyHz(segData.H.idxBW),...
-                     segData.H.coherenceSq(segData.H.idxBW));
+            subplot('Position',...
+              reshape(subPlotPanelSegment(indexIntoSetOfSegments,6,:),1,4));                  
+              plot(segData.H.frequencyHz(idxBWK2),...
+                   segData.H.coherenceSq(idxBWK2));
               box off;
               xlabel('Frequency (Hz)');
               ylabel('Coherence-Sq');
+              ylim([0,1]);
               hold on;
-            title('Coherence');
+              title(sprintf('(%i,6). Coherence-Sq',idxSeg))              
                 
-            close(figPlotH);
-
-          end
 
         end
+        clear('segData');
 
-
-  
-        %%
-        % Plot time-length-force  
-        %%
-        if(isSegmentValid==1)
-          figure(figSegments);
-        
-          idxRow = (indexIntoSetOfSegments-1)*7 + 1;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));    
-          yyaxis left;
-       
-          plot(auroraData.Data.Time.Values(dataIndex,1),...
-             auroraData.Data.Lin.Values(dataIndex,1),...
-             '-','Color',lineColors.grey);...
-          hold on;
-    
-          box off;  
-          xlabel(sprintf('Time (%s)',auroraData.Data.Time.Unit));
-          ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
-        
-          yyaxis right;
-       
-          plot(auroraData.Data.Time.Values(dataIndex,1),...
-             auroraData.Data.Fin.Values(dataIndex,1),...
-             '-','Color',[0,0,0]);...
-          hold on;
-    
-          box off;  
-          ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
-          
-          titleStrA = trialJson.experiment.title;
-          titleStrB = sprintf('%i Hz, %1.3f mm',...
-            sinusoidFit.frequency_Hz,sinusoidFit.amplitude_Lo);    
-          titleId   = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);    
-          title([titleId, titleStrA,':', titleStrB]);
-        end
-        %%
-        % Plot the gain response 
-        %%  
-        if(isSegmentValid==1)
-          idxRow = (indexIntoSetOfSegments-1)*7 + 2;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4)); 
-  
-  
-          plot(segData.H.frequencyHz(segData.H.idxBW),...
-             segData.H.gain(segData.H.idxBW),...
-            '-','Color',settings.colorData0);
-          hold on;
-
-            
-          if(~isempty(segData.H.idxBWC2))
-            for j=1:1:2
-              plot([segData.H.bandwidthHzC2(j);...
-                    segData.H.bandwidthHzC2(j)],...
-                   [min(segData.H.gain(segData.H.idxBW)),...
-                    max(segData.H.gain(segData.H.idxBW))],...
-                   '-','Color',lineColors.grey);
-              hold on;
-            end
-          end
-          box off;  
-          xlabel('Frequency (Hz)');
-          ylabel(sprintf('Gain (%s/%s)',...
-              auroraData.Data.Fin.Unit,auroraData.Data.Lin.Unit));
-          titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
-          title(titleId);
-        end
-      
-        %%
-        % Plot the phase response 
-        %%      
-        if(isSegmentValid==1)   
-  
-          idxRow = (indexIntoSetOfSegments-1)*7 + 3;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-  
-          plot(segData.H.frequencyHz(segData.H.idxBW),...
-             segData.H.phase(segData.H.idxBW).*(180/pi),...
-             '-','Color',settings.colorData0);
-          hold on;
-  
-          if(~isempty(segData.H.idxBWC2))          
-            for idxMdl=1:1:length(fittedModelSeries)
-              if(~isempty(fittedModelSeries(idxMdl).model))
-                plot(fittedModelSeries(idxMdl).model.response.frequencyHz,...
-                   fittedModelSeries(idxMdl).model.response.phase.*(180/pi),...
-                   fittedModelSeries(idxMdl).model.lineType,...
-                   'Color', fittedModelSeries(idxMdl).model.color);
-                hold on;  
-              end
-            end
-            for j=1:1:2
-              plot([segData.H.bandwidthHzC2(j);...
-                  segData.H.bandwidthHzC2(j)],...
-                 [0,45],...
-                 '-','Color',lineColors.grey);
-              hold on;
-            end
-          end
-
-          box off;  
-          xlabel('Frequency (Hz)');
-          ylabel('Phase ($$^o$$)');
-      
-          titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
-          title(titleId);
-        end
-        %%
-        % Plot storage vs frequency
-        %%      
-        if(isSegmentValid==1)   
-  
-          idxRow = (indexIntoSetOfSegments-1)*7 + 4;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-  
-          plot(segData.H.frequencyHz(segData.H.idxBW),...
-             segData.H.storage(segData.H.idxBW),...
-             '-','Color',settings.colorData0);
-          hold on;
-
-  
-          if(~isempty(segData.H.idxBWC2))          
-            for j=1:1:2
-              plot([segData.H.bandwidthHzC2(j);...
-                  segData.H.bandwidthHzC2(j)],...
-                 [0,10],...
-                 '-','Color',lineColors.grey);
-              hold on;
-            end
-          end
-                         
-          box off;  
-          xlabel('Frequency (Hz)');
-          ylabel(sprintf('Storage (%s/%s)',...
-              auroraData.Data.Fin.Unit,auroraData.Data.Lin.Unit));    
-          titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
-          title(titleId);
-        end
-        
-        %%
-        % Plot storage vs frequency
-        %%      
-        if(isSegmentValid==1)   
-  
-          idxRow = (indexIntoSetOfSegments-1)*7 + 5;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-  
-          plot(segData.H.frequencyHz(segData.H.idxBW),...
-             segData.H.loss(segData.H.idxBW),...
-             '-','Color',settings.colorData0);
-          hold on;
-
-  
-          if(~isempty(segData.H.idxBWC2))          
-            for j=1:1:2
-              plot([segData.H.bandwidthHzC2(j);...
-                  segData.H.bandwidthHzC2(j)],...
-                 [0,10],...
-                 '-','Color',lineColors.grey);
-              hold on;
-            end
-          end
-          
-          
-          
-          box off;  
-          xlabel('Frequency (Hz)');
-          ylabel(sprintf('Loss (%s/(%s/%s))',...
-              auroraData.Data.Fin.Unit,auroraData.Data.Lin.Unit,'s'));    
-          titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
-          title(titleId);
-        end
-        %%
-        % Plot storage vs loss
-        %%      
-        if(isSegmentValid==1)   
-  
-          idxRow = (indexIntoSetOfSegments-1)*7 + 6;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-  
-          plot(segData.H.storage(segData.H.idxBW),...
-             segData.H.loss(segData.H.idxBW),...
-             '-','Color',settings.colorData0);
-          hold on;
-          
-          
-          box off;  
-          xlabel('Storage (mm/mN)');
-          ylabel('Loss (mN/(mm/s))');
-      
-          titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
-          title(titleId);
-        end
-  
-        %%
-        % Plot the coherence-sq response 
-        %%      
-        if(isSegmentValid==1)
-          idxRow = (indexIntoSetOfSegments-1)*7 + 7;
-          subplot('Position',reshape(...
-            subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4));
-  
-          plot(segData.H.frequencyHz(segData.H.idxBW),...
-            segData.H.coherenceSq(segData.H.idxBW),...
-            '-','Color',settings.colorData0);
-          hold on;
-
-          if(~isempty(segData.H.idxBWC2))                    
-            for j=1:1:2
-              plot([segData.H.bandwidthHzC2(j);...
-                  segData.H.bandwidthHzC2(j)],...
-                 [min(segData.H.coherenceSq(segData.H.idxBW)),...
-                  max(segData.H.coherenceSq(segData.H.idxBW))],...
-                 '-','Color',lineColors.grey);
-              hold on;
-            end
-          end
-  
-          box off;  
-          xlabel('Frequency (Hz)');
-          ylabel('Coherence-Sq');
-      
-          titleId = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);
-          title(titleId);  
-        end
-    
         
       end
     
+      %
+      % Save the segment plot
+      %  
+      figSegments=configPlotExporter(figSegments, ...
+                pageWidthSegment, pageHeightSegment);
+
+      figSegmentName = ['fig',analysisKeywordsFileName,...
+                      'FrequencyResponse_',...
+                      experimentJson.measurements{idxTrial}];      
+
+      print('-dpdf', fullfile(outputPlotDir,[figSegmentName,'.pdf']));  
+      saveas(figSegments,fullfile(outputPlotDir,[figSegmentName,'.fig']));      
+      close(figSegments);
       
+
+      %
+      % Save the json file
+      %  
+
       outputJsonDir = fullfile(projectFolders.output600A_json,folderName);
       if(~exist(outputJsonDir,'dir'))
         mkdir(outputJsonDir);
       end
       
       
+      setSinusoidStr = jsonencode(setSinusoidJson);
 
-
-      jsonFileName = [settings.prependToJsonFileName,...
+      jsonFileName = ['analysis',analysisKeywordsFileName,...
                       experimentJson.measurements{idxTrial}];
       jsonFilePath=fullfile(outputJsonDir,jsonFileName);
 
-
-      if(exist(jsonFilePath,'file'))
-        mainStr   = fileread(jsonFilePath);
-        mainJson  = jsondecode(mainStr); 
-
-        mainJson.ImpedanceIndividualLengthSine = setSinusoidJson;
-        mainJsonEncode  = jsonencode(mainJson);
-
-        fidJson               = fopen(jsonFilePath,'w');
-        fprintf(fidJson,mainJsonEncode);
-        fclose(fidJson);       
-
-      else
-        mainJson.ImpedanceIndividualLengthSine = setSinusoidJson;
-        mainJsonEncode  = jsonencode(mainJson);
-        fidJson         = fopen(jsonFilePath,'w');
-        fprintf(fidJson,mainJsonEncode);
-        fclose(fidJson);  
-      end      
+      fidJson         = fopen(jsonFilePath,'w');
+      fprintf(fidJson,setSinusoidStr);
+      fclose(fidJson);  
+   
     
       clear('setSinusoidJson');
       clear('sinusoidJson');
@@ -1210,23 +1194,11 @@ if(settings.processData==1)
   
   fclose(fidLogFile);
   
-  outputPlotDir = fullfile(projectFolders.output600A_plots,folderName);
-  if(~exist(outputPlotDir,'dir'))
-    mkdir(outputPlotDir);
-  end
-  
-  
-  figSegments=configPlotExporter(figSegments, ...
-            pageWidthSegment, pageHeightSegment);
-  fileName =  ['fig_Sinusoid_FrequencyResponse_',folderName];
-  print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
-  saveas(figSegments,fullfile(outputPlotDir,[fileName,'.fig']));
-  close(figSegments);
-
 
   figTimeSeries=configPlotExporter(figTimeSeries, ...
             pageWidthTimeSeries, pageHeightTimeSeries);
-  fileName =  ['fig_Sinusoid_TimeSeries_',folderName];
+  fileName =  ['fig',analysisKeywordsFileName,...
+               'TimeSeries_',folderName];
   print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figTimeSeries,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figTimeSeries);  

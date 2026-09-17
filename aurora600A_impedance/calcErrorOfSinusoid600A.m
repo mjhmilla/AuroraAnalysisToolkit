@@ -2,10 +2,10 @@ function [errV, mdl] = calcErrorOfSinusoid600A(params,settings)
 
 paramsUpd=params.*settings.paramScaling;
 
-t0           = paramsUpd(1);
-y0           = paramsUpd(2);
-frequency_Hz = paramsUpd(3);
-amplitudeNorm    = paramsUpd(4);
+t0            = paramsUpd(1)+settings.paramOffset(1);
+y0            = paramsUpd(2)+settings.paramOffset(2);
+frequency_Hz  = paramsUpd(3)+settings.paramOffset(3);
+amplitudeNorm = paramsUpd(4)+settings.paramOffset(4);
 
 amplitude=nan;
 if(strcmp(settings.var,'length'))
@@ -26,10 +26,10 @@ if(flag_debug==1)
   fig_debug=figure;
   plot( settings.time,...
         settings.(settings.var),...
-        '-','Color',[1,1,1].*0.5);
+        '-','Color',[1,1,1].*0.75,'LineWidth',1.5);
   hold on;
 
-  plot(mdl.x,mdl.y,'-','Color',[0,0,0]);
+  plot(mdl.x,mdl.y,'-','Color',[0,0,1]);
   hold on;
   xlabel('Time (ms)');
   ylabel((settings.var));
