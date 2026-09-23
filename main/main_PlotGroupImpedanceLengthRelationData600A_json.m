@@ -16,7 +16,8 @@ flag_0Presentation_1Publication = 1;
 flag_makeCalibrationPlots         =0;
 flag_makeFrequencyResponsePlots   =0;
 flag_makeForceLengthImpedancePlots=0;
-flag_makeImpedanceModelPlots      =1;
+flag_makeImpedanceModelPlots      =0;
+flag_makeImpedanceLengthArbSinusoidPlots=1;
 
 flag_savePlot=1;
 
@@ -175,6 +176,14 @@ if(flag_makeImpedanceModelPlots==1)
                         flag_savePlot);
   close(figZLM);
 
+end
 
+if(flag_makeImpedanceLengthArbSinusoidPlots==1)
+  experimentList = {  '20260827_impedance_calibration_rigor_fixation_01'};  
+
+  segmentId = 1;
+  categories.active.str   ={'active','passive'};
+
+  figZArbSinsoid=figure;
 
 end

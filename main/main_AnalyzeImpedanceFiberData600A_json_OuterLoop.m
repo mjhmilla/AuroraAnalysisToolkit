@@ -60,15 +60,13 @@ experimentsToProcess = ...
 passiveBiasTrialKeyword='zcal_01_screen';
 activeBiasTrialKeyword ='zcal_01_screen';
 
-skipToTrialWithKeyword = [];%['_active_145Lo_'];
+skipToTrialWithKeyword = [];
  
-flag_processImpedanceLengthArb  = 0;
+flag_processImpedanceLengthArb  = 1;
 flag_processImpedanceLengthSine = 1;
-
 
 checkSha256Sum=0; 
 checkFileOrder=1;
-
 
 settingsImpedanceAnalysis = ...
   getImpedanceAnalysisSettings600A(...
