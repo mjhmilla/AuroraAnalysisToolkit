@@ -60,15 +60,17 @@ for idxExp = 1:1:length(experimentsToProcess)
   subplotIndex.storage      =7;
   subplotIndex.loss         =8;
   subplotIndex.loss_storage =9;
+  subplotIndex.hk1          =10;
+  subplotIndex.D            =11;
 
   numberOfHorizontalPlotColumnsGeneric    = nMeasurements;
-  numberOfVerticalPlotRowsGeneric         = 9;
+  numberOfVerticalPlotRowsGeneric         = 11;
   
   plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*6;
   plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*6;
-  plotHorizMarginCm                       = 2;
+  plotHorizMarginCm                       = 3;
   plotVertMarginCm                        = 2.5;
-  baseFontSize                            = 12;
+  baseFontSize                            = 6;
   
   [subPlotPanelIndividual, ...
     pageWidthIndividual,   ...
@@ -117,6 +119,8 @@ for idxExp = 1:1:length(experimentsToProcess)
         break;
       end
     end
+    trialNameShort=sprintf('%s (%s)',...
+      metaDataJson.experiment.title,trialNameShort);
 
     if(hasLengthArbData==1)
       larbFileName = ['analysis_ImpedanceLengthArb_',...
@@ -279,10 +283,10 @@ for idxExp = 1:1:length(experimentsToProcess)
         sinData.phase(idxS)       = sinJson(idxS).sinusoid.FS.phase(1);
         sinData.storage(idxS)     = sinJson(idxS).sinusoid.FS.storage(1);
         sinData.loss(idxS)        = sinJson(idxS).sinusoid.FS.loss(1);
-        sinData.length_hk1        = sinJson(idxS).sinusoid.FS.length.hk(1);
-        sinData.length_D          = sinJson(idxS).sinusoid.FS.length.D;      
-        sinData.force_hk1         = sinJson(idxS).sinusoid.FS.force.hk(1);
-        sinData.force_D           = sinJson(idxS).sinusoid.FS.force.D;
+        sinData.length_hk1(idxS)  = sinJson(idxS).sinusoid.FS.length.hk(1);
+        sinData.length_D(idxS)    = sinJson(idxS).sinusoid.FS.length.D;      
+        sinData.force_hk1(idxS)   = sinJson(idxS).sinusoid.FS.force.hk(1);
+        sinData.force_D(idxS)     = sinJson(idxS).sinusoid.FS.force.D;
         
       end
 
@@ -459,6 +463,54 @@ for idxExp = 1:1:length(experimentsToProcess)
                larbJson.segment(idxSeg).unit.length)); 
         here=1;
 
+      %hk1 
+      axH=subplot('Position',reshape(subPlotPanelIndividual(...
+                                 subplotIndex.hk1,idxM,:),1,4));
+        yyaxis left;
+        plot(sinData.frequencyHz, ...
+             sinData.length_hk1,'-');
+        hold on;
+        xlabel('Frequency (Hz)');
+        ylabel(sprintf('hk(1)/sqrt(I) (%s/%s)',...
+               larbJson.segment(idxSeg).unit.length,...
+               larbJson.segment(idxSeg).unit.length));
+
+        axH.XScale='log';
+        yyaxis right;
+
+        plot(sinData.frequencyHz, ...
+             sinData.force_hk1,'-');
+        hold on;
+        ylabel(sprintf('hk(1)/sqrt(I) (%s/%s)',...
+               larbJson.segment(idxSeg).unit.force,...
+               larbJson.segment(idxSeg).unit.force));
+
+        
+        box off;
+      %D
+      axD=subplot('Position',reshape(subPlotPanelIndividual(...
+                                 subplotIndex.D,idxM,:),1,4));
+        yyaxis left;
+        plot(sinData.frequencyHz, ...
+             sinData.length_D,'-');
+        hold on;
+        xlabel('Frequency (Hz)');
+        ylabel(sprintf('D (%s/%s)',...
+               larbJson.segment(idxSeg).unit.length,...
+               larbJson.segment(idxSeg).unit.length));
+        axD.XScale='log';
+        yyaxis right;
+
+        plot(sinData.frequencyHz, ...
+             sinData.force_D,'-');
+        hold on;
+        ylabel(sprintf('D (%s/%s)',...
+               larbJson.segment(idxSeg).unit.force,...
+               larbJson.segment(idxSeg).unit.force));
+
+        
+        box off;
+
     end
 
   end
@@ -474,12 +526,18 @@ for idxExp = 1:1:length(experimentsToProcess)
                         pageWidthIndividual, ...
                         pageHeightIndividual);
   
-  fileName =    ['fig_Impedance_LengthArb_Sinusoid_'];
+  fileName =    ['fig_Impedance_LengthArb_Sinusoid_',];
   
-  print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
+  print('-dpdf', fullfile(outputPlotDir,...
+    [fileName,experimentsToProcess{idxExp},'.pdf']));    
   
   saveas(figImpedanceLengthIndividual,...
-         fullfile(outputPlotDir,[fileName,'.fig']));
+         fullfile(outputPlotDir,...
+          [fileName,experimentsToProcess{idxExp},'.fig']));
+
+  saveas(figImpedanceLengthIndividual,...
+         fullfile(outputPlotDir,...
+          [fileName,experimentsToProcess{idxExp},'.png']));  
   
   close(figImpedanceLengthIndividual);
 end

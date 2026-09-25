@@ -192,83 +192,85 @@ for idxExp = 1:1:length(experimentList)
         fprintf('\n\n(%i,%i)\t%s\n\t%s\n',...
             idxExp,idxTrialA,aFilePath,pFilePath);
         
-        assert(size(aJsonData(segId).segment.model.K3.componentImpedance,1)==4,...
-               'Error: expected to see 4 components in the K3 model');
+        if(~isempty(aJsonData(segId).segment.model.K3))
 
-        for j=1:1:4
-          for k=1:1:2
-            trialType='';
-            isModelValid=0;
-            a=nan;
-            b=nan;
-            c=nan;
-            d=nan;
-            forceNominal=nan;
-            switch k
-              case 1
-                if(isfield(aJsonData(segId).segment,'model'))
-                  if(isfield(aJsonData(segId).segment.model,'K3'))
-                    if(~isempty(aJsonData(segId).segment.model.K3))                
-                      a = aJsonData(segId).segment.model.K3.componentImpedance(j,2);
-                      b = aJsonData(segId).segment.model.K3.componentImpedance(j,3);
-                      c = aJsonData(segId).segment.model.K3.componentImpedance(j,4);
-                      d = aJsonData(segId).segment.model.K3.componentImpedance(j,5);                      
-                      isModelValid=1;
-                    end
-                  end
-                end
-                forceNominal=mean(aJsonData(segId).segment.force);                
-                trialType='active';      
-
-              case 2
-                if(isfield(pJsonData(segId).segment,'model'))
-                  if(isfield(pJsonData(segId).segment.model,'K3'))
-                    if(~isempty(pJsonData(segId).segment.model.K3))
-                      a = pJsonData(segId).segment.model.K3.componentImpedance(j,2);
-                      b = pJsonData(segId).segment.model.K3.componentImpedance(j,3);
-                      c = pJsonData(segId).segment.model.K3.componentImpedance(j,4);
-                      d = pJsonData(segId).segment.model.K3.componentImpedance(j,5);
-                      isModelValid=1;                    
-                    end
-                  end
-                end
-                forceNominal=mean(pJsonData(segId).segment.force);                
-                trialType='passive';                
-
-              otherwise
-                assert(0,'Error: k must be 1 or 2, active or passive');
-            end
-
-            trialDataSet(idxL).(trialType).isValid = ...
-              trialDataSet(idxL).(trialType).isValid && isModelValid;
-
-            trialDataSet(idxL).(trialType).forceNominal=forceNominal;
-            if(isModelValid==1)
-              switch j
-                case 1
-                  assert(abs(a)<1e-6);
-                  trialDataSet(idxL).(trialType).A    = b/d;
-                  trialDataSet(idxL).(trialType).alpha= c/d;
-                case 2                
-                  assert(abs(a)<1e-6);
-                  trialDataSet(idxL).(trialType).B    = b/d;
-                  trialDataSet(idxL).(trialType).beta = c/d;              
+          assert(size(aJsonData(segId).segment.model.K3.componentImpedance,1)==4,...
+                 'Error: expected to see 4 components in the K3 model');
   
-                case 3
-                  assert(abs(a)<1e-6);              
-                  trialDataSet(idxL).(trialType).C    = b/d;
-                  trialDataSet(idxL).(trialType).gamma = c/d;
-                case 4
-                  assert(abs(b)<1e-6);              
-                  assert(abs(d)<1e-6);              
-                  trialDataSet(idxL).(trialType).k    = a/c;  
+          for j=1:1:4
+            for k=1:1:2
+              trialType='';
+              isModelValid=0;
+              a=nan;
+              b=nan;
+              c=nan;
+              d=nan;
+              forceNominal=nan;
+              switch k
+                case 1
+                  if(isfield(aJsonData(segId).segment,'model'))
+                    if(isfield(aJsonData(segId).segment.model,'K3'))
+                      if(~isempty(aJsonData(segId).segment.model.K3))                
+                        a = aJsonData(segId).segment.model.K3.componentImpedance(j,2);
+                        b = aJsonData(segId).segment.model.K3.componentImpedance(j,3);
+                        c = aJsonData(segId).segment.model.K3.componentImpedance(j,4);
+                        d = aJsonData(segId).segment.model.K3.componentImpedance(j,5);                      
+                        isModelValid=1;
+                      end
+                    end
+                  end
+                  forceNominal=mean(aJsonData(segId).segment.force);                
+                  trialType='active';      
+  
+                case 2
+                  if(isfield(pJsonData(segId).segment,'model'))
+                    if(isfield(pJsonData(segId).segment.model,'K3'))
+                      if(~isempty(pJsonData(segId).segment.model.K3))
+                        a = pJsonData(segId).segment.model.K3.componentImpedance(j,2);
+                        b = pJsonData(segId).segment.model.K3.componentImpedance(j,3);
+                        c = pJsonData(segId).segment.model.K3.componentImpedance(j,4);
+                        d = pJsonData(segId).segment.model.K3.componentImpedance(j,5);
+                        isModelValid=1;                    
+                      end
+                    end
+                  end
+                  forceNominal=mean(pJsonData(segId).segment.force);                
+                  trialType='passive';                
+  
                 otherwise
-                  assert(0,'Error: attempted to access an invalid component');
+                  assert(0,'Error: k must be 1 or 2, active or passive');
+              end
+  
+              trialDataSet(idxL).(trialType).isValid = ...
+                trialDataSet(idxL).(trialType).isValid && isModelValid;
+  
+              trialDataSet(idxL).(trialType).forceNominal=forceNominal;
+              if(isModelValid==1)
+                switch j
+                  case 1
+                    assert(abs(a)<1e-6);
+                    trialDataSet(idxL).(trialType).A    = b/d;
+                    trialDataSet(idxL).(trialType).alpha= c/d;
+                  case 2                
+                    assert(abs(a)<1e-6);
+                    trialDataSet(idxL).(trialType).B    = b/d;
+                    trialDataSet(idxL).(trialType).beta = c/d;              
+    
+                  case 3
+                    assert(abs(a)<1e-6);              
+                    trialDataSet(idxL).(trialType).C    = b/d;
+                    trialDataSet(idxL).(trialType).gamma = c/d;
+                  case 4
+                    assert(abs(b)<1e-6);              
+                    assert(abs(d)<1e-6);              
+                    trialDataSet(idxL).(trialType).k    = a/c;  
+                  otherwise
+                    assert(0,'Error: attempted to access an invalid component');
+                end
               end
             end
           end
         end
-
       end
     end
   end

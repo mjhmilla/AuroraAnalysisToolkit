@@ -19,8 +19,9 @@ experimentsToProcess = ...
 
 outputFolder = 'degredation_larb';
 
-flag_subtractReferenceForce=1;
+flag_subtractReferenceForce=0;
 timeUnit = 'ms';
+s2ms = 0.001;
 
 %%
 % Plot configuration
@@ -53,11 +54,10 @@ degradationColors = [0,0,0;...
 fpreNormStd = zeros(length(experimentsToProcess),1);
 fpreStd = zeros(length(experimentsToProcess),1);
 maxIter = 0;
-actTime = [];
 timeSeriesFiber=0;
 
 for i = 1:1:length(experimentsToProcess)
-    expFolder = fullfile(projectFolders.output,'json',...
+    expFolder = fullfile(projectFolders.output600A,'json',...
                          experimentsToProcess{i});
 
     folderContents = dir(expFolder);
@@ -84,23 +84,25 @@ for i = 1:1:length(experimentsToProcess)
             dataStr =fileread(fullfile(expFolder,folderContents(j).name));
             dataJson=jsondecode(dataStr);
 
-            tdur = dataJson(1).segment.pre.time(end) ...
-                  -dataJson(1).segment.pre.time(1);
+            dataPath=projectFolders.data600A;
+            for k=1:1:length(dataJson(1).segment.dataFile)
+              dataPath = [dataPath,filesep,...
+                          dataJson(1).segment.dataFile{k}];
+            end
+            flag_readHeader=1;
+            auroraData = readAuroraData600A(dataPath,flag_readHeader);
+            
+            timeA=dataJson(1).segment.bias.time;
+            timeB=dataJson(1).segment.pre.time(1);
+
+            actTime = timeB-timeA;
             if(strcmp(timeUnit,'ms'))
-              tdur = tdur.*0.001;
+              actTime = actTime.*s2ms;
             end
 
-            fiso = dataJson(1).segment.pre.force(end);
-            if(flag_subtractReferenceForce==1)
-                fiso=fiso-dataJson(1).segment.forceReference;
-            end
+            fiso = dataJson(1).segment.pre.force(1);
             
-            if(isempty(actTime))
-              actTime=tdur;
-            end
-            if(abs(actTime-tdur) > 1)
-              fprintf('(%i, %i). %1.2f s - %1.2f s\n',i,j,tdur, actTime);
-            end
+            fprintf('(%i, %i). %1.2f s - %1.2f s\n',i,j,timeA*s2ms, timeB*s2ms);
 
 
             fpre = [fpre;fiso];
@@ -126,29 +128,19 @@ for i = 1:1:length(experimentsToProcess)
                 colorB = [0,0,1];
                 nj=(trialCount-1)/(numTrials-1);
                 lineColorj = colorA.*(1-nj) + colorB.*nj;
-                if(flag_subtractReferenceForce==1)
-                  plot( (dataJson(1).segment.pre.time...
-                        -dataJson(1).segment.pre.time(1)).*0.001,...
-                        dataJson(1).segment.pre.force...
-                       -dataJson(1).segment.forceReference,...
-                       '-',...
-                       'Color',lineColorj,'LineWidth',0.5);
-                  hold on;
-                  xyEnd = [(dataJson(1).segment.pre.time(end)...
-                            -dataJson(1).segment.pre.time(1)).*0.001,...
-                            dataJson(1).segment.pre.force(end)...
-                            -dataJson(1).segment.forceReference];
-                else
-                  plot( (dataJson(1).segment.pre.time ...
-                         -dataJson(1).segment.pre.time(1)).*0.001,...
-                        dataJson(1).segment.pre.force,...
-                       '-',...
-                       'Color',lineColorj,'LineWidth',0.5);
-                  hold on;
-                  xyEnd = [(dataJson(1).segment.pre.time(end)...
-                            -dataJson(1).segment.pre.time(1)).*0.001,...
-                            dataJson(1).segment.pre.force(end)];                  
-                end
+                
+                idxAB = find(auroraData.Data.Time.Values >= timeA ...
+                             & auroraData.Data.Time.Values <= timeB);
+
+
+
+                plot( auroraData.Data.Time.Values(idxAB).*s2ms,...
+                      auroraData.Data.Fin.Values(idxAB),...
+                     '-',...
+                     'Color',lineColorj,'LineWidth',0.5);
+                hold on;
+                xyEnd = [(auroraData.Data.Time.Values(idxAB(end))).*s2ms,...
+                          auroraData.Data.Fin.Values(idxAB(end))];                  
                 if(trialCount ==1)
                   text(xyEnd(1,1),xyEnd(1,2),...
                        sprintf('%i.',trialCount),...
@@ -302,7 +294,7 @@ subplot('Position',reshape(subPlotPanelDegradation(2,1,:),1,4));
     title({'C. Example time-series data',...
            sprintf('from fiber %i',timeSeriesFiber)});  
 
-outputPlotDir = fullfile(projectFolders.output_plots,outputFolder);
+outputPlotDir = fullfile(projectFolders.output600A_plots,outputFolder);
 if(~exist(outputPlotDir))
     mkdir(outputPlotDir);
 end

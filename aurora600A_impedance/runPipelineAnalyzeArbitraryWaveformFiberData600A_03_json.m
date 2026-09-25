@@ -357,46 +357,69 @@ if(settings.processData==1)
   fprintf('%s\n','Extracting the passive and active bias forces');
   fprintf(fidLogFile,'%s\n','Extracting the passive and active bias forces');
   
-  biasForce.passive.indexWindow=[];
+
   biasForce.passive.time  = nan;
   biasForce.passive.force = nan;
-  biasForce.active.indexWindow = [];  
+  biasForce.passive.method = nan;
+  biasForce.passive.file = nan;
+  
   biasForce.active.time   = nan;
   biasForce.active.force  = nan;
-  biasForce.active.forceThreshold=nan;
+  biasForce.active.threshold=nan;
+  biasForce.active.method=nan;
+  biasForce.active.file=nan;
+  
   biasForce.trials=[];
   biasForce.trialIndex=[];  
   biasForce.isActive=[];
 
-  foundBiasTrials=1;
-  for indexSetOfTrials = 1:1:length(setOfTrials)
-  
-    idxTrial = setOfTrials(indexSetOfTrials);
-
-    found=0;
-    for indexKeyword =1:1:length(settings.biasForce.keywords)
-      if(~isempty(settings.biasForce.keywords{indexKeyword}))
-        if(contains(experimentJson.measurements{idxTrial},...
-                    settings.biasForce.keywords{indexKeyword}))
-          assert(found==0,'Error: 1 bias force keyword has matched to two files');
-          found=1;
-          biasForce.trials = ...
-            [biasForce.trials,experimentJson.measurements(idxTrial)];
-          biasForce.isActive= ...
-            [biasForce.isActive,settings.biasForce.isActive(indexKeyword)];
-          biasForce.trialIndex = ...
-            [biasForce.trialIndex,idxTrial];          
-        end
-      end
+  doBiasKeywordsExist=0;
+  for indexKeyword =1:1:length(settings.biasForce.keywords)
+    if(~isempty(settings.biasForce.keywords{indexKeyword}))
+      doBiasKeywordsExist=1;
     end
-    foundBiasTrials=foundBiasTrials & found;
   end
-  if(foundBiasTrials==1)
-    biasForce=extractBiasForce600A(biasForce,experimentJson,...
-                                   dataFolder,settings,fidLogFile);
-  else
-    fprintf('%s\n','Warning: cound not find passive and active bias files');
-    fprintf(fidLogFile,'%s\n','Warning: cound not find passive and active bias files');
+
+  if(doBiasKeywordsExist==0)
+    biasForce.active.force=0;
+    biasForce.passive.force=0;
+  end
+
+  if(doBiasKeywordsExist==1)
+    foundBiasTrials=0;
+    found=0;  
+    for indexSetOfTrials = 1:1:length(setOfTrials)
+    
+      idxTrial = setOfTrials(indexSetOfTrials);
+  
+  
+      for indexKeyword =1:1:length(settings.biasForce.keywords)
+        if(~isempty(settings.biasForce.keywords{indexKeyword}))
+          if(contains(experimentJson.measurements{idxTrial},...
+                      settings.biasForce.keywords{indexKeyword}))
+            %assert(found==0,'Error: 1 bias force keyword has matched to two files');
+            found=1;
+            biasForce.trials = ...
+              [biasForce.trials,experimentJson.measurements(idxTrial)];
+            biasForce.isActive= ...
+              [biasForce.isActive,settings.biasForce.isActive(indexKeyword)];
+            biasForce.trialIndex = ...
+              [biasForce.trialIndex,idxTrial];          
+          end
+        end
+      end    
+      foundBiasTrials=foundBiasTrials+found;
+      found=0;
+    end
+    %assert(foundBiasTrials==2,'Error: could not find bias trials'); 
+    
+    if(foundBiasTrials>0)
+      biasForce=extractBiasForce600A(biasForce,experimentJson,...
+                                     dataFolder,settings,fidLogFile);
+    else
+      fprintf('%s\n','Warning: cound not find passive and active bias files');
+      fprintf(fidLogFile,'%s\n','Warning: cound not find passive and active bias files');
+    end
   end
 
   %%
@@ -543,15 +566,29 @@ if(settings.processData==1)
   
       intraSegmentData(length(setOfSegments)) = ...
         struct('time',[],'model',[],'xyMax',[],...
-        'filtered',[],'forceReference',0);
+        'filtered',[],'raw',[]);
       for j=1:1:length(setOfSegments)
         intraSegmentData(j).filtered.time = [];
         intraSegmentData(j).filtered.length = [];
         intraSegmentData(j).filtered.force = [];
+        intraSegmentData(j).raw.time = [];
+        intraSegmentData(j).raw.length = [];
+        intraSegmentData(j).raw.force = [];
+        
       end
       
       if(~isempty(setOfSegments))
-  
+
+        nyquistFrequency = ...
+          auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
+        cutoffFrequency = settings.isometricNoiseFilterCutoffFrequencyHz;
+
+        [b,a]=butter(2,cutoffFrequency/nyquistFrequency);
+        filteredForce =...
+          filtfilt(b,a, auroraData.Data.Fin.Values(:,1));
+        filteredLength =...
+          filtfilt(b,a, auroraData.Data.Lin.Values(:,1));
+
         for j=1:1:(length(setOfSegments))
           
           t0              = nan;
@@ -559,73 +596,42 @@ if(settings.processData==1)
           forceReference  = nan;
           fref            = nan;
           
-          if(~isempty(activeIntervals) && j==1)
-            assert(strcmp(auroraData.Data.Time.Unit,'ms'),...
-                 ['Error: Assumed time unit is ms, not ',...
-                   auroraData.Data.Time.Unit]);
-  
-            idSeg=setOfSegments(j,1);
-            t0 = activeIntervals(1,1);          
-            t1 = trialJson.segments(idSeg).time_ms(1,1);
-          
-  %           We want to find the first measured force that does
-  %           not contain any vibration. This will be our
-  %           refernence force for this trial
-  %           
-            intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
-                                    & auroraData.Data.Time.Values <= t1);
-  
-  
-            flagPlotReference=0;
-            [forceReference, indexReference] ...
-              = identifyActiveFiberReferenceForce600A(...
-                  auroraData.Data.Fin.Values(intraSegmentIndex,1), ...
-                  settings.forceNoiseThresholdmN,...
-                  settings.isometricNoiseFilterCutoffFrequencyHz,...
-                  auroraData.Setup_Parameters.A_D_Sampling_Rate.Value,...
-                  flagPlotReference);
-  
-            f0 = forceReference;
-            t0 = auroraData.Data.Time.Values(intraSegmentIndex(indexReference));  
-          elseif( j > 1)
-              idSeg=setOfSegments(j-1,1);
-              t0 = trialJson.segments(idSeg).time_ms(2,1);
-              idSeg=setOfSegments(j,1);        
-              t1 = trialJson.segments(idSeg).time_ms(1,1);
-          else
-              t0 = nan; 
-              t1 = nan;
-          end
-    
-  
+          idSeg=setOfSegments(j,1);
+          t0 = trialJson.segments(idSeg).time_ms(1,1);
+          t1 = t0 + settings.wavePaddingTimeMS; 
+      
           intraSegmentData(j).time=[t0,t1];
           intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
                                   & auroraData.Data.Time.Values <= t1);
-  
-          
+            
           intraSegmentData(j).filtered.time   = zeros(size(intraSegmentIndex,1),1);
           intraSegmentData(j).filtered.length = zeros(size(intraSegmentIndex,1),1);
           intraSegmentData(j).filtered.force  = zeros(size(intraSegmentIndex,1),1);
   
           intraSegmentData(j).filtered.time = ...
             auroraData.Data.Time.Values(intraSegmentIndex,1);
-  
-          nyquistFrequency = ...
-            auroraData.Setup_Parameters.A_D_Sampling_Rate.Value*0.5;
-          cutoffFrequency = settings.isometricNoiseFilterCutoffFrequencyHz;
-  
-          [b,a]=butter(2,cutoffFrequency/nyquistFrequency);
-          intraSegmentData(j).filtered.force =...
-            filtfilt(b,a, auroraData.Data.Fin.Values(intraSegmentIndex,1));
-          intraSegmentData(j).filtered.length =...
-            filtfilt(b,a, auroraData.Data.Lin.Values(intraSegmentIndex,1));
-  
-          if(isempty(activeIntervals))
-            forceReference = mean(intraSegmentData(j).filtered.force);
+   
+          forceOffset=biasForce.passive.force;
+          if(~isempty(activeIntervals))
+            for idxA=1:1:size(activeIntervals,1)
+              if(t0 >= activeIntervals(idxA,1) && t1 <= activeIntervals(idxA,2))
+                forceOffset=biasForce.active.force;
+              end
+            end
           end
- 
 
-          intraSegmentData(j).forceReference=forceReference;
+          intraSegmentData(j).filtered.force =...
+            filteredForce(intraSegmentIndex)-forceOffset;
+
+          intraSegmentData(j).filtered.length =...
+            filteredLength(intraSegmentIndex);
+
+          intraSegmentData(j).raw.force =...
+            auroraData.Data.Fin.Values(intraSegmentIndex,1)-forceOffset;
+
+          intraSegmentData(j).raw.length =...
+            auroraData.Data.Lin.Values(intraSegmentIndex,1);
+          
           here=1;
           
         end
@@ -654,30 +660,30 @@ if(settings.processData==1)
       hold on;
   
   
-      if(~isempty(activeIntervals))
-        for j=1:1:length(intraSegmentData)
-          n = 0;
-          if(length(intraSegmentData)>1)
-            n = (j-1)/(length(intraSegmentData)-1);
-          end
-          
-          plot(intraSegmentData(j).filtered.time,...
-             intraSegmentData(j).filtered.force,...
-             '-','Color',lineColors.cyan);
-          hold on;
-  
-          text(intraSegmentData(j).filtered.time(1),...
-             intraSegmentData(j).filtered.force(1),...
-             sprintf('%1.3e = yMax', ...
-               intraSegmentData(j).forceReference),...
-               'HorizontalAlignment','right',...
-               'VerticalAlignment','top',...
-               'FontSize',8,...
-               'Rotation',45);
-          hold on;
-  
+      %if(~isempty(activeIntervals))
+      for j=1:1:length(intraSegmentData)
+        n = 0;
+        if(length(intraSegmentData)>1)
+          n = (j-1)/(length(intraSegmentData)-1);
         end
+        
+        plot(intraSegmentData(j).filtered.time,...
+           intraSegmentData(j).filtered.force,...
+           '-','Color',lineColors.cyan);
+        hold on;
+
+%         text(intraSegmentData(j).filtered.time(1),...
+%            intraSegmentData(j).filtered.force(1),...
+%            sprintf('%1.3e = yMax', ...
+%              intraSegmentData(j).forceReference),...
+%              'HorizontalAlignment','right',...
+%              'VerticalAlignment','top',...
+%              'FontSize',8,...
+%              'Rotation',45);
+        hold on;
+
       end
+      %end
   
       ylabel(['Force (',auroraData.Data.Fin.Unit,')']);
       titleStr = strrep(experimentJson.measurements{idxTrial},'_','\_');        
@@ -730,9 +736,8 @@ if(settings.processData==1)
         plot(indexSetOfTrials,intraSegmentData(1).filtered.force(end),...
            'o','Color',lineColor,'MarkerFaceColor',lineColor);
         hold on;
-        forceReference = intraSegmentData(1).forceReference; 
         plot(indexSetOfTrials,...
-          (intraSegmentData(1).filtered.force(end)-forceReference),...
+          (intraSegmentData(1).filtered.force(end)),...
            'x','Color',[1,0,0],'MarkerFaceColor',[1,0,0]);
         hold on;
         box off;
@@ -760,14 +765,6 @@ if(settings.processData==1)
         timeEnd   = trialJson.segments(idxSeg).time_ms(2);
         dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
                 & auroraData.Data.Time.Values <= timeEnd); 
-        preTimeStart = timeStart-settings.paddingTimeMS;
-        preTimeEnd   = timeStart;
-        preDataIndex = [];
-  
-        if(preTimeEnd > 0)
-          preDataIndex = find( auroraData.Data.Time.Values >= preTimeStart ...
-                  & auroraData.Data.Time.Values <= preTimeEnd); 
-        end
         
         %%
         %Find the wave number
@@ -845,19 +842,7 @@ if(settings.processData==1)
         yMean = mean(y);
         y = y-yMean;
         
-        xPre=[];
-        yPre=[];
-        timePre=[];
-        if(~isempty(preDataIndex))
-          timePre = auroraData.Data.Time.Values(preDataIndex,1);
-          xPre = auroraData.Data.Lin.Values(preDataIndex,1);
-          yPre = auroraData.Data.Fin.Values(preDataIndex,1);
-        end
         xyDataIsValid =0;
-  
-  
-  
-  
     
         if(length(y)>10 && length(x)>10)
           xyDataIsValid=1;
@@ -875,9 +860,9 @@ if(settings.processData==1)
           segData.xMean  = xMean;
           segData.yMean  = yMean;        
           
-          segData.timePrior=timePre;
-          segData.xPrior = xPre;
-          segData.yPrior = yPre;
+          %segData.timePrior=timePre;
+          %segData.xPrior = xPre;
+          %segData.yPrior = yPre;
   
           segData.time=timeVec;
           segData.bandwidth_Hz = bandwidth;
@@ -1000,21 +985,10 @@ if(settings.processData==1)
             % For now, I'm not compensating for any of the delay
             % that is present in the fiber for two reasons:
             %
-            % 1. Between 0-90 Hz the delay is negligible. It is 
+            %  Between 0-90 Hz the delay is negligible. It is 
             %  negligible for the fiber but not the spring because
             %  the fiber is ~1/100th the mass of the spring.
             %
-            % 2. The delay varies with frequency. To correctly 
-            %  capture this delay you need to have an accurate
-            %  model of the frequency response of the fiber,
-            %  which I currently do not have: a Kelvin-Voigt
-            %  model captures the gain, but not the phase correctly
-            %
-            %  A muscle fiber is viscoelastic, and the damping causes
-            %  the higher frequency waves to travel faster. To
-            %  correctly compensate for this dispersion, you need an
-            %  accurate model of the frequency response of the fiber, 
-            %  which I currently do not have.
             %%
             segData.H1=segData.H0;
             delayModel.phaseDelayCompensated=0;
@@ -1617,7 +1591,12 @@ if(settings.processData==1)
           temperatureSummary.min = temp;
           temperatureSummary.max = temp;
         end
-    
+
+        segmentJson.dataFile = ...
+          [{folderName};trialJson.data.file];
+        segmentJson.metaDataFile = ...
+          [{folderName};experimentJson.measurements(idxTrial)];
+
         segmentJson.interval= [timeStart,timeEnd];
         segmentJson.index   = idxSeg;
         segmentJson.type  = trialJson.segments(idxSeg).type; 
@@ -1625,25 +1604,29 @@ if(settings.processData==1)
         segmentJson.time  = auroraData.Data.Time.Values(dataIndex,1);
         segmentJson.length  = auroraData.Data.Lin.Values(dataIndex,1);
         segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);  
-        segmentJson.lengthMean  = segData.xMean;
-        segmentJson.forceMean   = segData.yMean;
-        segmentJson.forceBias   = segData.yBias;      
-        segmentJson.nominal.time    = segData.timePrior;
-        segmentJson.nominal.length  = segData.xPrior;
-        segmentJson.nominal.force   = segData.yPrior;
+
+        if(isempty(activeIntervals))
+          segmentJson.bias    = biasForce.passive;
+        else
+          segmentJson.bias    = biasForce.active;
+        end
+        %segmentJson.lengthMean  = segData.xMean;
+        %segmentJson.forceMean   = segData.yMean;
+        %segmentJson.forceBias   = segData.yBias;      
+        %segmentJson.nominal.time    = segData.timePrior;
+        %segmentJson.nominal.length  = segData.xPrior;
+        %segmentJson.nominal.force   = segData.yPrior;
         
-        segmentJson.forceReference = nan;
+        %segmentJson.forceReference = nan;
   
-        if(~isempty(activeIntervals))
-          segmentJson.forceReference = ...
-            intraSegmentData(indexIntoSetOfSegments).forceReference;          
+        %if(~isempty(activeIntervals))      
           segmentJson.pre.filterFrequencyHz=settings.isometricNoiseFilterCutoffFrequencyHz;
           segmentJson.pre.fitlerType = 'Dual-pass 2nd order Butterworth low-pass filter';
-          segmentJson.pre.time_ms= intraSegmentData(indexIntoSetOfSegments).time;
+          %segmentJson.pre.time_ms= intraSegmentData(indexIntoSetOfSegments).time;
           segmentJson.pre.time  = intraSegmentData(indexIntoSetOfSegments).filtered.time;
           segmentJson.pre.length  = intraSegmentData(indexIntoSetOfSegments).filtered.length;
           segmentJson.pre.force   = intraSegmentData(indexIntoSetOfSegments).filtered.force;        
-        end
+        %end
   
         segmentJson.summary.length    = lengthSummary;
         segmentJson.summary.force     = forceSummary;
@@ -1655,7 +1638,7 @@ if(settings.processData==1)
         segmentJson.channel.length    = 'Lin';
         segmentJson.channel.force     = 'Fin';
         segmentJson.channel.temperature = 'Aux 1';
-    
+
         scaleTime = 1;
         if(strcmp(auroraData.Data.Time.Unit,'ms'))
           scaleTime=1000;
