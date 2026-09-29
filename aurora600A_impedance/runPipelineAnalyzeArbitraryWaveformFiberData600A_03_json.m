@@ -1784,9 +1784,13 @@ if(settings.processData==1)
         ylabel(sprintf('Force (%s)',auroraData.Data.Fin.Unit));
         
         titleStrA = trialJson.experiment.title;
+        idxC = strfind(titleStrA,':');
+        if(isempty(idxC))
+          idxC=20;
+        end
         titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);    
         titleId   = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);    
-        title([titleId, titleStrA,':', titleStrB]);
+        title({[titleId, titleStrA(1:idxC)], titleStrB});
       
         %%
         % Plot the gain response 

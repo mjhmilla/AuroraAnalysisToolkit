@@ -543,86 +543,177 @@ if(settings.processData==1)
           fittingSettings.var          = 'length';
           fittingSettings.scaling      = 1;
           fittingSettings.paramScaling = [];
+          fittingSettings.lambda       = 0.1;
 
-          xMiddle=0.5*(max(fittingSettings.length)...
+
+          %
+          % Identify a good initial solution for mean length
+          %
+          lengthMiddle=0.5*(max(fittingSettings.length)...
                       +min(fittingSettings.length));
-          xDelta = 0.5*(max(fittingSettings.length)...
-                       -min(fittingSettings.length));
 
-          frequency_Hz = trialJson.segments(idxSeg).meta_data.frequency_Hz;
-          period_ms = (1/frequency_Hz)*s2ms;
+          %
+          % Identify a good initial solution for the starting time
+          %          
+          lengthDelta = 0.5*(max(fittingSettings.length)...
+                       -min(fittingSettings.length));       
 
           idxStart = ...
             find(auroraData.Data.Lin.Values(dataIndex,1) ...
-                                  > (xMiddle+0.1*xDelta),1,'first');
+                 > (lengthMiddle+0.1*lengthDelta),1,'first');
 
           idxStart=max(idxStart-1,1);
 
-          timeStartA=auroraData.Data.Time.Values(dataIndex(idxStart));
-          timeStartB=trialJson.segments(idxSeg).time_ms(1);
+          frequency_Hz=trialJson.segments(idxSeg).meta_data.frequency_Hz;
+          period=1/frequency_Hz;
+          period_ms=(1/frequency_Hz).*s2ms;
 
-          timeStart=timeStartB;
-          if(timeStartA<timeStartB)
-            timeStart=timeStartA;
-          end
 
           fittingSettings.paramOffset = ...
             [auroraData.Data.Time.Values(dataIndex(idxStart)),...
-            xMiddle,...
+            lengthMiddle,...
             trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-            trialJson.segments(idxSeg).meta_data.length_Lo];
+            trialJson.segments(idxSeg).meta_data.length_Lo,...
+            fittingSettings.number_of_elements];
+
+          numberOfElementsPerPeriod = ...
+            round(period*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
 
           fittingSettings.paramScaling = [ ...
             period_ms,...
-            xMiddle*0.5,...
-            trialJson.segments(idxSeg).meta_data.frequency_Hz*0.10,...
-            trialJson.segments(idxSeg).meta_data.length_Lo*0.10];  
+            lengthMiddle,...
+            trialJson.segments(idxSeg).meta_data.frequency_Hz,...
+            trialJson.segments(idxSeg).meta_data.length_Lo,...
+            numberOfElementsPerPeriod];  
 
-          params = [0,0,0,0];
+          timeDelta = max(250,period_ms);
+
+          lbTime =...
+            max(auroraData.Data.Time.Values(dataIndex(idxStart))-timeDelta,...
+                auroraData.Data.Time.Values(dataIndex(1)));
+
+
+          lb = [lbTime,...
+                lengthMiddle*0.5,...
+                trialJson.segments(idxSeg).meta_data.frequency_Hz.*0.5,...
+                trialJson.segments(idxSeg).meta_data.length_Lo*0,...
+                (fittingSettings.number_of_elements-numberOfElementsPerPeriod)];
+
+          lbS = (lb-fittingSettings.paramOffset)./fittingSettings.paramScaling;
+
+          idxTimeMax = length(fittingSettings.time)...
+                      -fittingSettings.number_of_elements;
+
+          ubTime = min(fittingSettings.paramOffset(1)+timeDelta,...
+                       fittingSettings.time(idxTimeMax));
+          ub = [ubTime,...
+                lengthMiddle*1.5,...
+                trialJson.segments(idxSeg).meta_data.frequency_Hz.*2,...
+                trialJson.segments(idxSeg).meta_data.length_Lo.*5,...
+                (fittingSettings.number_of_elements+numberOfElementsPerPeriod)];
+
+          ubS = (ub-fittingSettings.paramOffset)./fittingSettings.paramScaling;
           
-          fittingSettings.var = 'length';                
 
-          if(idxSeg==42)
+          %
+          % Use the bisection method to identify a frequency of best fit.
+          % In my experience, this problem will not converge if the 
+          % desired frequency differs from the actual one by a full period
+          % over the interval. Unfortunately this case can happen.
+          %
+          % I'm using the bisection method over the entire time span 
+          % because at higher frequencies the signal is sampled very 
+          % sparsely: any direct time domain methods to identify the
+          % frequency will, I think, fall apart at these higher
+          % frequencies.
+          %
+          fittingSettings.var = 'length';   
+          optVar = 0;
+          optVarDelta=0.5;
+
+          idxOpt=3;
+          fittingSettings.optVarIndex=idxOpt;  
+
+          errFcn = @(argX)calcErrorOfSinusoid600A(argX,fittingSettings); 
+          [errV,mdl]=errFcn(optVar);
+          optVarBest=optVar;
+          errBest = norm(errV);
+
+          %
+          % Grid
+          %
+          gridDelta=...
+            0.5*(numberOfElementsPerPeriod/fittingSettings.number_of_elements);
+          gridValue=[-25:1:25].*gridDelta;
+          for idxG=1:1:length(gridValue)
+            optVar=gridValue(idxG);
+            [errV,mdl]=errFcn(optVar);
+            if(norm(errV)<errBest)
+              errBest=norm(errV);
+              optVarBest=optVar;
+            end
+          end          
+          %
+          % Bisection
+          %
+          optVarDelta = 2*gridDelta;
+          for idxBS=1:1:12
+            for idxSign=1:1:2
+              switch idxSign
+                case 1
+                  optVar=optVarBest-optVarDelta;
+                case 2
+                  optVar=optVarBest+optVarDelta;                  
+                otherwise
+                  assert(0,'Error: invalid idxSign');
+              end
+              [errV,mdl]=errFcn(optVar);
+              if(norm(errV)<errBest)
+                errBest=norm(errV);
+                optVarBest=optVar;
+              end
+            end
+            optVarDelta=optVarDelta*0.5;
+          end
+
+          frequency_Hz=...
+            optVarBest*fittingSettings.paramScaling(idxOpt)...
+            +fittingSettings.paramOffset(idxOpt);
+
+          fittingSettings.paramOffset(idxOpt)=frequency_Hz;
+
+          optVarSchedule=[2,1,4,5];
+
+          optParams=zeros(size(fittingSettings.paramOffset));
+
+          options = optimoptions('lsqnonlin','Algorithm','levenberg-marquardt','Display','off');
+
+          for i=1:1:length(optVarSchedule)
+            idxOpt=optVarSchedule(i);
+            fittingSettings.optVarIndex=idxOpt;
+            errFcn = ...
+              @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);
+            [x,resnorm,res,exitflag,output,lambda,jac] ...
+              = lsqnonlin(errFcn,optParams(idxOpt),lbS(idxOpt),ubS(idxOpt),options); 
+            [optErr,mdl]=errFcn(x);
+            fittingSettings.paramOffset(idxOpt)=...
+              x.*fittingSettings.paramScaling(idxOpt)...
+              +fittingSettings.paramOffset(idxOpt);
+            %fprintf('\t%i\t%i\t%1.2e\n',idxOpt,...
+            %  exitflag,resnorm/trialJson.segments(idxSeg).meta_data.length_Lo);
             here=1;
           end          
-          [errV,fittedSine] = ...
-            calcErrorOfSinusoid600A(params,fittingSettings);
-  
-          errFcn = @(arg)calcErrorOfSinusoid600A(arg,fittingSettings);
-          
-          x = params;
-          xDelta = 1;
-          iterLsq=1;
-          options = optimoptions('lsqnonlin','Display','off');
 
-          if(indexIntoSetOfSegments==2 && indexSetOfTrials==2)
-            here=1;
-          end
+          x=[0,0,0,0,0];
+          fittingSettings.optVarIndex=[1,2,3,4,5];
+          [errV,fittedSine]=calcErrorOfSinusoid600A(x,fittingSettings);
 
-          while(max(xDelta)>0.005 && iterLsq < 100)
-            [x,resnorm,res,exitflag,output,lambda,jac] ...
-              = lsqnonlin(errFcn,params,[],[],options);
-            xDelta = abs(x-params);              
-            params=x;
-            iterLsq=iterLsq+1;
-          end
-
-          assert(max(xDelta) < 0.005, ...
-            'Error: failed to fit the length sinusoid data');
-          
-
-          xUpd = x.*fittingSettings.paramScaling+fittingSettings.paramOffset;
-
-
-
-
-          [errV,fittedSine] = calcErrorOfSinusoid600A(x,fittingSettings);
 
           sinusoidFit = ...
-            struct('time_ms',xUpd(1),...
-                   'length_mm',xUpd(2),...
-                   'frequency_Hz',xUpd(3),...
-                   'amplitude_Lo',xUpd(4),...
+            struct('time_ms',fittingSettings.paramOffset(1),...
+                   'length_mm',fittingSettings.paramOffset(2),...
+                   'frequency_Hz',fittingSettings.paramOffset(3),...
+                   'amplitude_Lo',fittingSettings.paramOffset(4),...
                    'duration_ms',trialJson.segments(idxSeg).meta_data.duration_ms,...
                    'resnorm',resnorm,...
                    'exitflag',exitflag);   
