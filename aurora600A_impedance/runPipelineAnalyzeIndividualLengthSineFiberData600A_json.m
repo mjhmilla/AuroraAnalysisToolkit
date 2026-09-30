@@ -6,7 +6,7 @@ function success = ...
 success=0;
 mm2m = 0.001;
 s2ms=1000;
-
+ms2s=0.001;
 
 flag_readHeader       = 1;
 
@@ -294,7 +294,7 @@ if(settings.processData==1)
   fprintf('%s\n','Processing: gain, phase, coherence-sq + model fit');
   fprintf(fidLogFile,'%s\n','Processing: gain, phase, coherence-sq + model fit');
   
-  for indexSetOfTrials = 1:1:length(setOfTrials)
+  for indexSetOfTrials = 16:1:length(setOfTrials)
   
     idxTrial = setOfTrials(indexSetOfTrials);
     isValid=1;    
@@ -466,6 +466,133 @@ if(settings.processData==1)
                             baseFontSize); 
       figSegments = figure;
     
+      %
+      % Over the course of many segments, there is drift in the start
+      % time of each segment. For this protocol we can identify each
+      % segment using the envelope because there is some time where 
+      % nothing is done between
+      %
+
+
+      dTime = [0;diff(auroraData.Data.Time.Values)];
+      indexEnableDisable = find(dTime > 2);
+
+
+      flag_highlightSegments=0;
+      if(flag_highlightSegments==1)
+
+        nyquistFrequency=0.5*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
+  
+        [bLow,aLow]=butter(2,0.25/nyquistFrequency,'low');
+        [bMed,aMed]=butter(2,5/nyquistFrequency,'low');
+        [bHigh,aHigh]=butter(2,30/nyquistFrequency,'low');
+  
+        lengthLowFreq = filtfilt(bLow,aLow,auroraData.Data.Lin.Values);
+  
+        lengthEnvelope = filtfilt(bMed,aMed,...
+          abs(auroraData.Data.Lin.Values-lengthLowFreq));
+  
+        lengthEnvelopeFilt = filtfilt(bHigh,aHigh,...
+          lengthEnvelope);      
+  
+        dlengthEnvelope= calcCentralDifferenceDataSeries(...
+                            auroraData.Data.Time.Values,...
+                            lengthEnvelopeFilt).*1000;
+
+        figSegmentWindow=figure;
+        lmean = mean(auroraData.Data.Lin.Values); 
+        lamp  = max(auroraData.Data.Lin.Values)...
+               -min(auroraData.Data.Lin.Values);
+        fmean = mean(auroraData.Data.Fin.Values); 
+        famp  = max(auroraData.Data.Fin.Values)...
+               -min(auroraData.Data.Fin.Values);
+        tmean = mean(dTime);
+        tamp  = max(dTime)-min(dTime);
+
+        subplot(1,2,1);
+        plot(auroraData.Data.Time.Values,auroraData.Data.Lin.Values);
+        hold on;
+        plot(auroraData.Data.Time.Values,...
+             (dTime-tmean).*(lamp/tamp)+lmean,'-c');   
+        hold on
+        plot(auroraData.Data.Time.Values,...
+            lengthEnvelope+lmean,'-c');
+        hold on;
+        plot(auroraData.Data.Time.Values,...
+            dlengthEnvelope+lmean,'-m');
+        hold on;
+        xlabel('Time');
+        ylabel('Length');
+        subplot(1,2,2);
+        plot(auroraData.Data.Time.Values,auroraData.Data.Fin.Values);
+        hold on;       
+        plot(auroraData.Data.Time.Values,...
+             lengthEnvelope.*(famp/lamp)+fmean,'-c');
+        hold on;
+        plot(auroraData.Data.Time.Values,...
+             dlengthEnvelope.*(famp/lamp)+fmean,'-m');
+        hold on;
+        plot(auroraData.Data.Time.Values,...
+             (dTime-tmean).*(famp/tamp)+fmean,'-c');
+        hold on;
+        xlabel('Time');
+        ylabel('Force');
+
+        l0 = min(auroraData.Data.Lin.Values);
+        l1 = max(auroraData.Data.Lin.Values);
+        f0 = min(auroraData.Data.Fin.Values);
+        f1 = max(auroraData.Data.Fin.Values);
+        
+        idxSegStart=setOfSegments(1);
+        idxSegEnd = setOfSegments(end);
+        
+        for idxSeg = idxSegStart:1:idxSegEnd
+          t0=trialJson.segments(idxSeg).time_ms(1);
+          t1=trialJson.segments(idxSeg).time_ms(2);
+          lbox=[t0,t1,t1,t0,t0;...
+                l0,l0,l1,l1,l0];
+          fbox=[t0,t1,t1,t0,t0;...
+                f0,f0,f1,f1,f0];
+          lineType='-k';
+          switch trialJson.segments(idxSeg).type
+            case 'Length-Sine'
+              lineType='-r';
+            case 'Length-Ramp'
+              lineType='-b';              
+            otherwise
+              assert(0,'Error: unexpected segment type');
+          end
+
+          subplot(1,2,1);
+            plot(lbox(1,:),lbox(2,:),lineType);
+            hold on;            
+            plot(auroraData.Data.Time.Values,...
+                 dTime,'-k');
+            hold on;
+            text(lbox(1,3),lbox(2,3),...
+              sprintf('%i. %f ms',idxSeg,...
+              trialJson.segments(idxSeg).meta_data.duration_ms),...
+              'VerticalAlignment','bottom',...
+              'Rotation',90);
+            ylim([l0,l1]);
+          subplot(1,2,2);
+            plot(fbox(1,:),fbox(2,:),lineType);
+            hold on;
+            plot(auroraData.Data.Time.Values,...
+                 dTime,'-k');
+            hold on;
+            text(fbox(1,3),fbox(2,3),...
+              sprintf('%i. %f ms',idxSeg,...
+              trialJson.segments(idxSeg).meta_data.duration_ms), ...
+              'VerticalAlignment','bottom',...
+              'Rotation',90);
+            ylim([f0,f1]);
+
+        end
+        here=1;
+      end
+
+      
       for indexIntoSetOfSegments = 1:1:length(setOfSegments)
       
         idxSeg = setOfSegments(indexIntoSetOfSegments,1);
@@ -475,13 +602,40 @@ if(settings.processData==1)
         %%
         timeStartNoPad = trialJson.segments(idxSeg).time_ms(1);
         timeEndNoPad   = trialJson.segments(idxSeg).time_ms(2);
-        dataIndexNoPad = find( auroraData.Data.Time.Values >= timeStartNoPad ...
-                & auroraData.Data.Time.Values <= timeEndNoPad); 
 
-        timeStart = trialJson.segments(idxSeg).time_ms(1)-settings.paddingTimeMS;
-        timeEnd   = trialJson.segments(idxSeg).time_ms(2)+settings.paddingTimeMS;
-        dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
-                & auroraData.Data.Time.Values <= timeEnd); 
+        %
+        % Adjust the starting and ending times: the data enable and
+        % data disable is costing
+        %
+        timeMid = 0.5*(timeEndNoPad+timeStartNoPad);
+        indexMid = find(auroraData.Data.Time.Values > timeMid,1,'first');
+
+        indexStart=nan;
+        indexEnd=nan;
+        for idxED=2:1:length(indexEnableDisable)
+          if(   indexMid > indexEnableDisable(idxED-1)...
+             && indexMid < indexEnableDisable(idxED+1))
+            indexStart = indexEnableDisable(idxED-1)+1;
+            indexEnd   = indexEnableDisable(idxED)-1;
+          end
+        end
+
+        assert(~isnan(indexStart) && ~isnan(indexEnd),...
+               ['Error: could not refine segments using',...
+               ' the difference in time method']);
+        dataIndex = [indexStart:1:indexEnd]; 
+
+        %
+        % Solve for the no-padding interval
+        %
+        [indexStartNoPad, indexEndNoPad ] = ...
+          searchForSegmentBoundary600A(...
+             indexStart, indexEnd, auroraData);     
+
+        timeStart = auroraData.Data.Time.Values(indexStartNoPad);
+        timeEnd   = auroraData.Data.Time.Values(indexEndNoPad);
+
+        dataIndexNoPad=[indexStartNoPad:1:indexEndNoPad];
 
         isSegmentValid=nan;
         if(length(dataIndex)>10)
@@ -549,31 +703,82 @@ if(settings.processData==1)
           %
           % Identify a good initial solution for mean length
           %
-          lengthMiddle=0.5*(max(fittingSettings.length)...
-                      +min(fittingSettings.length));
+          lengthMean=mean(auroraData.Data.Lin.Values(dataIndexNoPad,1));
 
           %
-          % Identify a good initial solution for the starting time
-          %          
-          lengthDelta = 0.5*(max(fittingSettings.length)...
-                       -min(fittingSettings.length));       
+          % Identify a good initial solution for the length change
+          %
+          lengthChange= ...
+            0.5*(max(auroraData.Data.Lin.Values(dataIndexNoPad,1))...
+                -min(auroraData.Data.Lin.Values(dataIndexNoPad,1)));
+ 
+          %
+          % Scan through and pick off all of the positve peaks. Then divide
+          % the duration by the number of peaks to get an accurate initial
+          % estimate of the frequency.
+          %
+          setOfPeakIndices=[];
+          lengthAbs = ...
+            abs(auroraData.Data.Lin.Values(dataIndexNoPad)-lengthMean);
+          for idx = 2:1:(indexEndNoPad-indexStartNoPad-1)
+            dl = lengthAbs(idx) ...
+                -lengthAbs(idx-1);
+            dr = lengthAbs(idx+1) ...
+                -lengthAbs(idx);
 
-          idxStart = ...
-            find(auroraData.Data.Lin.Values(dataIndex,1) ...
-                 > (lengthMiddle+0.1*lengthDelta),1,'first');
+            if( dl < 0 && dr > 0)
+              setOfPeakIndices = [setOfPeakIndices;(idx+indexStartNoPad)];
+            end
+          end
 
-          idxStart=max(idxStart-1,1);
+          dPeak = diff(setOfPeakIndices);
+          idxValidPeak = find(dPeak > 0.75*median(dPeak) ...
+                              & dPeak < 1.25*median(dPeak));
+
+          setOfPeakIndices=setOfPeakIndices(idxValidPeak);
+          
+          flag_debugPeaks=0;
+          if(flag_debugPeaks==1)
+            figPeak=figure;
+            %plot(auroraData.Data.Time.Values(dataIndexNoPad),...
+            %     auroraData.Data.Lin.Values(dataIndexNoPad),...
+            %     '-','Color',[1,1,1].*0.5);
+            plot(auroraData.Data.Time.Values(dataIndexNoPad),...
+                 lengthAbs,'-','Color',[1,1,1].*0.5);
+            hold on;
+            plot(auroraData.Data.Time.Values(setOfPeakIndices),...
+                 lengthAbs(setOfPeakIndices-indexStartNoPad),...
+                 'or');
+            hold on;
+            xlabel('Time');
+            ylabel('Length');
+          end
+
+
+          cycleCount = round((length(setOfPeakIndices))/2);
+          duration_ms  = auroraData.Data.Time.Values(dataIndexNoPad(end))...
+                        -auroraData.Data.Time.Values(dataIndexNoPad(1));
+          duration_s=duration_ms*ms2s;
+          frequency_Hz_calc= cycleCount/duration_s;
 
           frequency_Hz=trialJson.segments(idxSeg).meta_data.frequency_Hz;
+
+          frequency_Hz_rel = abs(frequency_Hz_calc-frequency_Hz) ...
+                            /(frequency_Hz_calc+frequency_Hz);
+
+          if(frequency_Hz_rel < 0.05)
+            frequency_Hz = frequency_Hz_calc;
+          end
+
           period=1/frequency_Hz;
           period_ms=(1/frequency_Hz).*s2ms;
 
 
           fittingSettings.paramOffset = ...
-            [auroraData.Data.Time.Values(dataIndex(idxStart)),...
-            lengthMiddle,...
-            trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-            trialJson.segments(idxSeg).meta_data.length_Lo,...
+            [auroraData.Data.Time.Values(indexStartNoPad),...
+            lengthMean,...
+            frequency_Hz,...
+            lengthChange,...
             fittingSettings.number_of_elements];
 
           numberOfElementsPerPeriod = ...
@@ -581,22 +786,22 @@ if(settings.processData==1)
 
           fittingSettings.paramScaling = [ ...
             period_ms,...
-            lengthMiddle,...
-            trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-            trialJson.segments(idxSeg).meta_data.length_Lo,...
+            lengthMean,...
+            frequency_Hz,...
+            lengthChange,...
             numberOfElementsPerPeriod];  
 
-          timeDelta = max(250,period_ms);
+          timeDelta = max(settings.paddingTimeMS*0.5,period_ms);
 
           lbTime =...
-            max(auroraData.Data.Time.Values(dataIndex(idxStart))-timeDelta,...
-                auroraData.Data.Time.Values(dataIndex(1)));
+            max(auroraData.Data.Time.Values(indexStartNoPad)-timeDelta,...
+                auroraData.Data.Time.Values(indexStartNoPad));
 
 
           lb = [lbTime,...
-                lengthMiddle*0.5,...
-                trialJson.segments(idxSeg).meta_data.frequency_Hz.*0.5,...
-                trialJson.segments(idxSeg).meta_data.length_Lo*0,...
+                lengthMean*0.5,...
+                frequency_Hz.*0.8,...
+                lengthChange*0,...
                 (fittingSettings.number_of_elements-numberOfElementsPerPeriod)];
 
           lbS = (lb-fittingSettings.paramOffset)./fittingSettings.paramScaling;
@@ -607,13 +812,15 @@ if(settings.processData==1)
           ubTime = min(fittingSettings.paramOffset(1)+timeDelta,...
                        fittingSettings.time(idxTimeMax));
           ub = [ubTime,...
-                lengthMiddle*1.5,...
-                trialJson.segments(idxSeg).meta_data.frequency_Hz.*2,...
-                trialJson.segments(idxSeg).meta_data.length_Lo.*5,...
+                lengthMean*1.5,...
+                frequency_Hz.*1.2,...
+                lengthChange.*5,...
                 (fittingSettings.number_of_elements+numberOfElementsPerPeriod)];
 
           ubS = (ub-fittingSettings.paramOffset)./fittingSettings.paramScaling;
           
+
+
 
           %
           % Use the bisection method to identify a frequency of best fit.
@@ -642,9 +849,8 @@ if(settings.processData==1)
           %
           % Grid
           %
-          gridDelta=...
-            0.5*(numberOfElementsPerPeriod/fittingSettings.number_of_elements);
-          gridValue=[-25:1:25].*gridDelta;
+          gridDelta=0.25*(period_ms/duration_ms);
+          gridValue=[-50:1:50].*gridDelta;
           for idxG=1:1:length(gridValue)
             optVar=gridValue(idxG);
             [errV,mdl]=errFcn(optVar);
@@ -1243,11 +1449,16 @@ if(settings.processData==1)
       % Save the segment plot
       %  
       figSegments=configPlotExporter(figSegments, ...
-                pageWidthSegment, pageHeightSegment);
+                                     pageWidthSegment, ...
+                                     pageHeightSegment);
+
+      idxJsonExt  = strfind(experimentJson.measurements{idxTrial},'.json');
+      idxJsonExt = idxJsonExt-1;
+      figFileName = experimentJson.measurements{idxTrial}(1:idxJsonExt);
 
       figSegmentName = ['fig',analysisKeywordsFileName,...
                       'FrequencyResponse_',...
-                      experimentJson.measurements{idxTrial}];      
+                      figFileName];      
 
       print('-dpdf', fullfile(outputPlotDir,[figSegmentName,'.pdf']));  
       saveas(figSegments,fullfile(outputPlotDir,[figSegmentName,'.fig']));      
