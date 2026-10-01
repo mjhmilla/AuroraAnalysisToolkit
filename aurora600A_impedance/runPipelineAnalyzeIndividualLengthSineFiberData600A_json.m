@@ -294,7 +294,7 @@ if(settings.processData==1)
   fprintf('%s\n','Processing: gain, phase, coherence-sq + model fit');
   fprintf(fidLogFile,'%s\n','Processing: gain, phase, coherence-sq + model fit');
   
-  for indexSetOfTrials = 16:1:length(setOfTrials)
+  for indexSetOfTrials = 1:1:length(setOfTrials)
   
     idxTrial = setOfTrials(indexSetOfTrials);
     isValid=1;    
@@ -480,116 +480,8 @@ if(settings.processData==1)
 
       flag_highlightSegments=0;
       if(flag_highlightSegments==1)
-
-        nyquistFrequency=0.5*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
-  
-        [bLow,aLow]=butter(2,0.25/nyquistFrequency,'low');
-        [bMed,aMed]=butter(2,5/nyquistFrequency,'low');
-        [bHigh,aHigh]=butter(2,30/nyquistFrequency,'low');
-  
-        lengthLowFreq = filtfilt(bLow,aLow,auroraData.Data.Lin.Values);
-  
-        lengthEnvelope = filtfilt(bMed,aMed,...
-          abs(auroraData.Data.Lin.Values-lengthLowFreq));
-  
-        lengthEnvelopeFilt = filtfilt(bHigh,aHigh,...
-          lengthEnvelope);      
-  
-        dlengthEnvelope= calcCentralDifferenceDataSeries(...
-                            auroraData.Data.Time.Values,...
-                            lengthEnvelopeFilt).*1000;
-
-        figSegmentWindow=figure;
-        lmean = mean(auroraData.Data.Lin.Values); 
-        lamp  = max(auroraData.Data.Lin.Values)...
-               -min(auroraData.Data.Lin.Values);
-        fmean = mean(auroraData.Data.Fin.Values); 
-        famp  = max(auroraData.Data.Fin.Values)...
-               -min(auroraData.Data.Fin.Values);
-        tmean = mean(dTime);
-        tamp  = max(dTime)-min(dTime);
-
-        subplot(1,2,1);
-        plot(auroraData.Data.Time.Values,auroraData.Data.Lin.Values);
-        hold on;
-        plot(auroraData.Data.Time.Values,...
-             (dTime-tmean).*(lamp/tamp)+lmean,'-c');   
-        hold on
-        plot(auroraData.Data.Time.Values,...
-            lengthEnvelope+lmean,'-c');
-        hold on;
-        plot(auroraData.Data.Time.Values,...
-            dlengthEnvelope+lmean,'-m');
-        hold on;
-        xlabel('Time');
-        ylabel('Length');
-        subplot(1,2,2);
-        plot(auroraData.Data.Time.Values,auroraData.Data.Fin.Values);
-        hold on;       
-        plot(auroraData.Data.Time.Values,...
-             lengthEnvelope.*(famp/lamp)+fmean,'-c');
-        hold on;
-        plot(auroraData.Data.Time.Values,...
-             dlengthEnvelope.*(famp/lamp)+fmean,'-m');
-        hold on;
-        plot(auroraData.Data.Time.Values,...
-             (dTime-tmean).*(famp/tamp)+fmean,'-c');
-        hold on;
-        xlabel('Time');
-        ylabel('Force');
-
-        l0 = min(auroraData.Data.Lin.Values);
-        l1 = max(auroraData.Data.Lin.Values);
-        f0 = min(auroraData.Data.Fin.Values);
-        f1 = max(auroraData.Data.Fin.Values);
-        
-        idxSegStart=setOfSegments(1);
-        idxSegEnd = setOfSegments(end);
-        
-        for idxSeg = idxSegStart:1:idxSegEnd
-          t0=trialJson.segments(idxSeg).time_ms(1);
-          t1=trialJson.segments(idxSeg).time_ms(2);
-          lbox=[t0,t1,t1,t0,t0;...
-                l0,l0,l1,l1,l0];
-          fbox=[t0,t1,t1,t0,t0;...
-                f0,f0,f1,f1,f0];
-          lineType='-k';
-          switch trialJson.segments(idxSeg).type
-            case 'Length-Sine'
-              lineType='-r';
-            case 'Length-Ramp'
-              lineType='-b';              
-            otherwise
-              assert(0,'Error: unexpected segment type');
-          end
-
-          subplot(1,2,1);
-            plot(lbox(1,:),lbox(2,:),lineType);
-            hold on;            
-            plot(auroraData.Data.Time.Values,...
-                 dTime,'-k');
-            hold on;
-            text(lbox(1,3),lbox(2,3),...
-              sprintf('%i. %f ms',idxSeg,...
-              trialJson.segments(idxSeg).meta_data.duration_ms),...
-              'VerticalAlignment','bottom',...
-              'Rotation',90);
-            ylim([l0,l1]);
-          subplot(1,2,2);
-            plot(fbox(1,:),fbox(2,:),lineType);
-            hold on;
-            plot(auroraData.Data.Time.Values,...
-                 dTime,'-k');
-            hold on;
-            text(fbox(1,3),fbox(2,3),...
-              sprintf('%i. %f ms',idxSeg,...
-              trialJson.segments(idxSeg).meta_data.duration_ms), ...
-              'VerticalAlignment','bottom',...
-              'Rotation',90);
-            ylim([f0,f1]);
-
-        end
-        here=1;
+        success = inspectDataAndSegments600A(...
+                    auroraData);
       end
 
       
@@ -604,17 +496,23 @@ if(settings.processData==1)
         timeEndNoPad   = trialJson.segments(idxSeg).time_ms(2);
 
         %
-        % Adjust the starting and ending times: the data enable and
-        % data disable is costing
+        % Adjust the starting and ending times of each segment: there
+        % is drift between the desired beginning and ending of each 
+        % segment. I'm not quite sure why, but I suspect it is because the
+        % data enable and data disable commands are costing more time
+        % than I had expected.
+        %
+        % Lucky for me I can use the jump in time between the data disable
+        % and data enable to easily segment the data.
         %
         timeMid = 0.5*(timeEndNoPad+timeStartNoPad);
         indexMid = find(auroraData.Data.Time.Values > timeMid,1,'first');
 
         indexStart=nan;
         indexEnd=nan;
-        for idxED=2:1:length(indexEnableDisable)
+        for idxED=2:1:(length(indexEnableDisable))
           if(   indexMid > indexEnableDisable(idxED-1)...
-             && indexMid < indexEnableDisable(idxED+1))
+             && indexMid < indexEnableDisable(idxED))
             indexStart = indexEnableDisable(idxED-1)+1;
             indexEnd   = indexEnableDisable(idxED)-1;
           end
@@ -627,10 +525,33 @@ if(settings.processData==1)
 
         %
         % Solve for the no-padding interval
+        %   This assumes that the segment data 
+        %   - begins and end with some padding
+        %   - the signal values in the padding are much smaller than the
+        %     data
+        %   - the data has a constant mean value  
         %
+        paddingSamples=...
+          settings.paddingTimeSinusoidMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
+
         [indexStartNoPad, indexEndNoPad ] = ...
           searchForSegmentBoundary600A(...
-             indexStart, indexEnd, auroraData);     
+             indexStart, indexEnd, auroraData, paddingSamples );     
+
+        fftFrequencyHz=...
+          calcFrequencyWithPeakPower(...
+           auroraData.Data.Lin.Values(indexStart:indexEnd),...
+           auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
+
+%         indexStartInterval=[indexStart, (indexStart+paddingSamples*3)];
+%         indexSineStart = calcSinusoidStartingIndex(...
+%                             fftFrequencyHz,...
+%                             indexStartInterval,...
+%                             indexStart,...
+%                             indexStartMax,...
+%                             auroraData);
+%         
+
 
         timeStart = auroraData.Data.Time.Values(indexStartNoPad);
         timeEnd   = auroraData.Data.Time.Values(indexEndNoPad);
@@ -694,6 +615,8 @@ if(settings.processData==1)
           fittingSettings.number_of_elements = length(dataIndexNoPad);
           fittingSettings.Lo = experimentJson.experiment.length_mm;
 
+          fittingSettings.optInterval  = [dataIndexNoPad(1)-dataIndex(1),...
+                                          dataIndexNoPad(end)-dataIndex(1)];
           fittingSettings.var          = 'length';
           fittingSettings.scaling      = 1;
           fittingSettings.paramScaling = [];
@@ -717,213 +640,283 @@ if(settings.processData==1)
           % the duration by the number of peaks to get an accurate initial
           % estimate of the frequency.
           %
-          setOfPeakIndices=[];
-          lengthAbs = ...
-            abs(auroraData.Data.Lin.Values(dataIndexNoPad)-lengthMean);
-          for idx = 2:1:(indexEndNoPad-indexStartNoPad-1)
-            dl = lengthAbs(idx) ...
-                -lengthAbs(idx-1);
-            dr = lengthAbs(idx+1) ...
-                -lengthAbs(idx);
 
-            if( dl < 0 && dr > 0)
-              setOfPeakIndices = [setOfPeakIndices;(idx+indexStartNoPad)];
-            end
-          end
-
-          dPeak = diff(setOfPeakIndices);
-          idxValidPeak = find(dPeak > 0.75*median(dPeak) ...
-                              & dPeak < 1.25*median(dPeak));
-
-          setOfPeakIndices=setOfPeakIndices(idxValidPeak);
-          
-          flag_debugPeaks=0;
-          if(flag_debugPeaks==1)
-            figPeak=figure;
-            %plot(auroraData.Data.Time.Values(dataIndexNoPad),...
-            %     auroraData.Data.Lin.Values(dataIndexNoPad),...
-            %     '-','Color',[1,1,1].*0.5);
-            plot(auroraData.Data.Time.Values(dataIndexNoPad),...
-                 lengthAbs,'-','Color',[1,1,1].*0.5);
-            hold on;
-            plot(auroraData.Data.Time.Values(setOfPeakIndices),...
-                 lengthAbs(setOfPeakIndices-indexStartNoPad),...
-                 'or');
-            hold on;
-            xlabel('Time');
-            ylabel('Length');
-          end
-
-
-          cycleCount = round((length(setOfPeakIndices))/2);
-          duration_ms  = auroraData.Data.Time.Values(dataIndexNoPad(end))...
-                        -auroraData.Data.Time.Values(dataIndexNoPad(1));
-          duration_s=duration_ms*ms2s;
-          frequency_Hz_calc= cycleCount/duration_s;
 
           frequency_Hz=trialJson.segments(idxSeg).meta_data.frequency_Hz;
 
-          frequency_Hz_rel = abs(frequency_Hz_calc-frequency_Hz) ...
-                            /(frequency_Hz_calc+frequency_Hz);
+          period                = 1/frequency_Hz;
+          period_ms             = (1/frequency_Hz).*s2ms;
+          scaleOfFrequencyError = 0.2;
+          numberOfCyclesToFit   = 1;%ceil(0.5/scaleOfFrequencyError);
 
-          if(frequency_Hz_rel < 0.05)
-            frequency_Hz = frequency_Hz_calc;
-          end
+          numberOfSamplesPerPeriod = ...
+            round(period*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
 
-          period=1/frequency_Hz;
-          period_ms=(1/frequency_Hz).*s2ms;
 
+
+          fittingSettings.algorithm = {...
+            'scan',...
+            'lsqnonlin',...
+            'lsqnonlin',...
+            'lsqnonlin',...
+            'scan'};  
+
+          fittingSettings.applyAlgorithm = {...
+            'first',...
+            'all',...
+            'all',...
+            'all',...
+            'last'};            
 
           fittingSettings.paramOffset = ...
-            [auroraData.Data.Time.Values(indexStartNoPad),...
+            [indexStartNoPad-indexStart+1,...
             lengthMean,...
             frequency_Hz,...
             lengthChange,...
             fittingSettings.number_of_elements];
 
-          numberOfElementsPerPeriod = ...
-            round(period*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
+          if(numberOfSamplesPerPeriod*numberOfCyclesToFit ...
+              < diff(fittingSettings.optInterval))
+            fittingSettings.optInterval = ...
+              [fittingSettings.paramOffset(1),...
+               (fittingSettings.paramOffset(1) ...
+               + numberOfSamplesPerPeriod*numberOfCyclesToFit)];
+          end
+
 
           fittingSettings.paramScaling = [ ...
-            period_ms,...
+            1,...
             lengthMean,...
-            frequency_Hz,...
+            frequency_Hz*scaleOfFrequencyError,...
             lengthChange,...
-            numberOfElementsPerPeriod];  
+            1];  
 
           timeDelta = max(settings.paddingTimeMS*0.5,period_ms);
 
-          lbTime =...
-            max(auroraData.Data.Time.Values(indexStartNoPad)-timeDelta,...
-                auroraData.Data.Time.Values(indexStartNoPad));
+          %lbTime =...
+          %  max(auroraData.Data.Time.Values(indexStartNoPad)-timeDelta,...
+          %      auroraData.Data.Time.Values(indexStart));
 
 
-          lb = [lbTime,...
+          lb = [max(fittingSettings.paramOffset(1)...
+                   -round(0.5*numberOfSamplesPerPeriod),...
+                    1),...
                 lengthMean*0.5,...
-                frequency_Hz.*0.8,...
+                frequency_Hz.*0.75,...
                 lengthChange*0,...
-                (fittingSettings.number_of_elements-numberOfElementsPerPeriod)];
+                (fittingSettings.number_of_elements-numberOfSamplesPerPeriod)];
 
-          lbS = (lb-fittingSettings.paramOffset)./fittingSettings.paramScaling;
+          lbS = (lb-fittingSettings.paramOffset)...
+               ./fittingSettings.paramScaling;
 
           idxTimeMax = length(fittingSettings.time)...
                       -fittingSettings.number_of_elements;
 
-          ubTime = min(fittingSettings.paramOffset(1)+timeDelta,...
+          ubTime = min(fittingSettings.paramOffset(1)+2*timeDelta,...
                        fittingSettings.time(idxTimeMax));
-          ub = [ubTime,...
+          ub = [min(fittingSettings.paramOffset(1)+round(0.5*numberOfSamplesPerPeriod),...
+                   dataIndex(end)-length(dataIndexNoPad)),...
                 lengthMean*1.5,...
-                frequency_Hz.*1.2,...
+                frequency_Hz.*1.25,...
                 lengthChange.*5,...
-                (fittingSettings.number_of_elements+numberOfElementsPerPeriod)];
+                (fittingSettings.number_of_elements+numberOfSamplesPerPeriod)];
 
           ubS = (ub-fittingSettings.paramOffset)./fittingSettings.paramScaling;
           
 
+          %
+          % If the frequency is not accurately identified the rest of the
+          % fitting falls apart. However, identifying the frequency is
+          % a nasty problem:
+          %
+          % - The actual and programmed frequency might differ by 10%
+          % - At high frequencies the signal does not have a lot of samples
+          % - For long samples, there could be 1000's of cycles. As a
+          %   result, the frequency has to be identified to 1/1000th to 
+          %   avoid aliasing. If you start with a signal that is off by
+          %   1 cycle, then any grandient based method will converge to a
+          %   local minima.
+          %
+          % And so, we do this interatively:
+          %
+          % Fit the first 5 cycles. If the signal has more than five cycles
+          % then next solve for 10 cycles, then 20, etc. until the interval
+          % is completely fit.
+          %
 
+          nCycles = ceil(frequency_Hz*(fittingSettings.duration_ms*ms2s));
+          assert(nCycles > 0, 'Error: this segment has less than 1 cycle');
 
-          %
-          % Use the bisection method to identify a frequency of best fit.
-          % In my experience, this problem will not converge if the 
-          % desired frequency differs from the actual one by a full period
-          % over the interval. Unfortunately this case can happen.
-          %
-          % I'm using the bisection method over the entire time span 
-          % because at higher frequencies the signal is sampled very 
-          % sparsely: any direct time domain methods to identify the
-          % frequency will, I think, fall apart at these higher
-          % frequencies.
-          %
-          fittingSettings.var = 'length';   
-          optVar = 0;
-          optVarDelta=0.5;
-
-          idxOpt=3;
-          fittingSettings.optVarIndex=idxOpt;  
-
-          errFcn = @(argX)calcErrorOfSinusoid600A(argX,fittingSettings); 
-          [errV,mdl]=errFcn(optVar);
-          optVarBest=optVar;
-          errBest = norm(errV);
-
-          %
-          % Grid
-          %
-          gridDelta=0.25*(period_ms/duration_ms);
-          gridValue=[-50:1:50].*gridDelta;
-          for idxG=1:1:length(gridValue)
-            optVar=gridValue(idxG);
-            [errV,mdl]=errFcn(optVar);
-            if(norm(errV)<errBest)
-              errBest=norm(errV);
-              optVarBest=optVar;
-            end
-          end          
-          %
-          % Bisection
-          %
-          optVarDelta = 2*gridDelta;
-          for idxBS=1:1:12
-            for idxSign=1:1:2
-              switch idxSign
-                case 1
-                  optVar=optVarBest-optVarDelta;
-                case 2
-                  optVar=optVarBest+optVarDelta;                  
-                otherwise
-                  assert(0,'Error: invalid idxSign');
-              end
-              [errV,mdl]=errFcn(optVar);
-              if(norm(errV)<errBest)
-                errBest=norm(errV);
-                optVarBest=optVar;
-              end
-            end
-            optVarDelta=optVarDelta*0.5;
+          fitCycles = numberOfCyclesToFit;
+          if(fitCycles > nCycles)
+            fitCycles = min(1, round(nCycles/2));
           end
 
-          frequency_Hz=...
-            optVarBest*fittingSettings.paramScaling(idxOpt)...
-            +fittingSettings.paramOffset(idxOpt);
+          options = optimoptions( 'lsqnonlin',...
+                                  'Algorithm','trust-region-reflective',...
+                                  'Display','off');
+          
+          flag_completeIntervalFitted=0;
+          idxOpt=3;
+          idxSamples=5;
 
-          fittingSettings.paramOffset(idxOpt)=frequency_Hz;
+          lbSIter = lbS;
+          ubSIter = ubS;
+          optParams=zeros(1,length(ubS));
 
-          optVarSchedule=[2,1,4,5];
+          optVarSchedule=[3,2,4];
+          iterCycle=1;
 
-          optParams=zeros(size(fittingSettings.paramOffset));
 
-          options = optimoptions('lsqnonlin','Algorithm','levenberg-marquardt','Display','off');
+          while(flag_completeIntervalFitted == 0 )
+            
+            if(fitCycles==nCycles)
+              flag_completeIntervalFitted=1;
+            end
 
-          for i=1:1:length(optVarSchedule)
-            idxOpt=optVarSchedule(i);
-            fittingSettings.optVarIndex=idxOpt;
-            errFcn = ...
-              @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);
-            [x,resnorm,res,exitflag,output,lambda,jac] ...
-              = lsqnonlin(errFcn,optParams(idxOpt),lbS(idxOpt),ubS(idxOpt),options); 
-            [optErr,mdl]=errFcn(x);
-            fittingSettings.paramOffset(idxOpt)=...
-              x.*fittingSettings.paramScaling(idxOpt)...
-              +fittingSettings.paramOffset(idxOpt);
-            %fprintf('\t%i\t%i\t%1.2e\n',idxOpt,...
-            %  exitflag,resnorm/trialJson.segments(idxSeg).meta_data.length_Lo);
-            here=1;
-          end          
+            for i=1:1:length(optVarSchedule)
+              
+              idxOpt=optVarSchedule(i);
+                     
+              enableFitting=0;
+              switch fittingSettings.applyAlgorithm{idxOpt}
+                case 'first'
+                  if(iterCycle==1)
+                    enableFitting=1;
+                  end
+                case 'all'
+                  enableFitting=1;
+                case 'last'
+                  if(fitCycles==nCycles)
+                    enableFitting=1;
+                  end
+                otherwise
+                  assert(0,'Error: unrecognized application condition');
+              end
+
+              if(enableFitting==1)
+                fittingSettings.optVarIndex=idxOpt;
+    
+                errFcn = ...
+                  @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);
+    
+                x0=0;
+                [errV0,mdl0]=errFcn(x0);
+    
+                switch fittingSettings.algorithm{idxOpt}                
+                  case 'scan'
+                    %Used for discrete problems
+                    [errV0,mdl0]=errFcn(x0);
+                    errMagBest=norm(errV0);
+                    argBest=x0;
+                    indexBest=fittingSettings.paramOffset(idxOpt);
+                    for j = lb(idxOpt):1:ub(idxOpt)
+                      arg = (j-fittingSettings.paramOffset(idxOpt)) ...
+                           /fittingSettings.paramScaling(idxOpt);
+                      [errV1,mdl1]=errFcn(arg);
+                      errMag=norm(errV1);
+                      fprintf('%i\t%1.3e\n',j,errMag);
+                      if(errMag < errMagBest)
+                        errMagBest=errMag;
+                        argBest=arg;
+                        indexBest=j;
+                        fprintf('\t*%i\t%1.3e\n',j,errMag);
+                      end
+                    end
+                    fittingSettings.paramOffset(idxOpt)=indexBest;
+  
+  
+                  case 'lsqnonlin'
+                    [x,resnorm,res,exitflag,output,lambda,jac] ...
+                      = lsqnonlin(errFcn,optParams(idxOpt),...
+                                  lbSIter(idxOpt),ubSIter(idxOpt),...
+                                  options); 
+                  otherwise
+                    assert(0,'Error: unrecognized optimization algorithm')
+                end
+                [errV1,mdl1]=errFcn(x);
+    
+  
+                %Update the offset, scaling, and bounds
+                fittingSettings.paramOffset(idxOpt)=...
+                  x.*fittingSettings.paramScaling(idxOpt)...
+                  +fittingSettings.paramOffset(idxOpt);                        
+            
+                fittingSettings.paramScaling(idxOpt) = ...
+                  fittingSettings.paramScaling(idxOpt).*0.5;
+    
+                lbSIter(idxOpt) = ...
+                  (lb(idxOpt)-fittingSettings.paramOffset(idxOpt))...
+                  ./fittingSettings.paramScaling(idxOpt);
+    
+                ubSIter(idxOpt) = ...
+                  (ub(idxOpt)-fittingSettings.paramOffset(idxOpt))...
+                  ./fittingSettings.paramScaling(idxOpt);
+              end
+
+            end
+            %
+            % Update
+            %
+            if(flag_completeIntervalFitted==0)
+              fitCycles = fitCycles*2;
+              if(fitCycles > nCycles)
+                fitCycles = nCycles;              
+              end
+  
+              index1    = round(fitCycles*numberOfSamplesPerPeriod);
+              if(index1>length(dataIndexNoPad))
+                index1=length(dataIndexNoPad);
+              end
+              
+              
+              fittingSettings.optInterval(2)=...
+                   [dataIndexNoPad(index1)-dataIndex(1)];
+              
+              fittingSettings.number_of_elements = ...
+                diff(fittingSettings.optInterval)+1;
+  
+              if(idxOpt ~= idxSamples)
+                fittingSettings.paramOffset(idxSamples)=...
+                  fittingSettings.number_of_elements;
+  
+                lbSIter(idxSamples) = ...
+                  (lb(idxSamples)-fittingSettings.paramOffset(idxSamples))...
+                  ./fittingSettings.paramScaling(idxSamples);
+    
+                ubSIter(idxSamples) = ...
+                  (ub(idxSamples)-fittingSettings.paramOffset(idxSamples))...
+                  ./fittingSettings.paramScaling(idxSamples);              
+              end
+            end
+
+            iterCycle=iterCycle+1;
+          end 
+
+       
 
           x=[0,0,0,0,0];
           fittingSettings.optVarIndex=[1,2,3,4,5];
           [errV,fittedSine]=calcErrorOfSinusoid600A(x,fittingSettings);
 
+          index0 = fittingSettings.paramOffset(1);
+          index1 = index0+fittingSettings.paramOffset(5);
 
-          sinusoidFit = ...
-            struct('time_ms',fittingSettings.paramOffset(1),...
+          time0=auroraData.Data.Time.Values(index0+indexStart-1);
+          time1=auroraData.Data.Time.Values(index1+indexStart-1);
+
+          sinusoidFit = ...            
+            struct('time_ms',time0,...
+                   'indexStart',index0,...
+                   'indexEnd',index1,...
                    'length_mm',fittingSettings.paramOffset(2),...
                    'frequency_Hz',fittingSettings.paramOffset(3),...
                    'amplitude_Lo',fittingSettings.paramOffset(4),...
-                   'duration_ms',trialJson.segments(idxSeg).meta_data.duration_ms,...
+                   'duration_ms',time1-time0,...
                    'resnorm',resnorm,...
                    'exitflag',exitflag);   
 
+          %fprintf('\n%1.3f Hz Error\n',fftFrequencyHz-fittingSettings.paramOffset(3));
           
 
           if(strcmp(fittingSettings.var,'length')==1)
@@ -932,33 +925,33 @@ if(settings.processData==1)
             subplot('Position',...
               reshape(subPlotPanelSegment(indexIntoSetOfSegments,1,:),1,4));
 
-              Tperiod_ms = 1000/sinusoidFit.frequency_Hz;
-              nPeriodMax = sinusoidFit.duration_ms*(0.001)*sinusoidFit.frequency_Hz;
-              nPeriod = min(4,nPeriodMax);              
+              period_s   = 1/sinusoidFit.frequency_Hz;
+              nPeriodMax = sinusoidFit.duration_ms*ms2s*sinusoidFit.frequency_Hz;
+              nPeriod    = min(4,nPeriodMax);              
+              
+              numberOfSamplesPerPeriod = ...
+                period_s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
 
-              indexPeriod = ...
-                find(fittingSettings.time >= sinusoidFit.time_ms ... 
-                   & fittingSettings.time <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
+              indexA=sinusoidFit.indexStart;
+              indexB=indexA+round(nPeriod*numberOfSamplesPerPeriod)-1;
 
-              plot( fittingSettings.time(indexPeriod),...
-                    fittingSettings.(fittingSettings.var)(indexPeriod),...
+              plot( fittingSettings.time(indexA:indexB),...
+                    fittingSettings.(fittingSettings.var)(indexA:indexB),...
                     '-','Color',[1,1,1].*0.75,'LineWidth',1);
               hold on;
 
-              indexPeriod = ...
-                find(fittedSine.x >= sinusoidFit.time_ms ... 
-                   & fittedSine.x <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
-
-              plot(fittedSine.x(indexPeriod),...
-                   fittedSine.y(indexPeriod),'-','Color',[0,0,1]);
+              
+              plot(fittedSine.x(1:(indexB-indexA+1)),...
+                   fittedSine.y(1:(indexB-indexA+1)),'-','Color',[0,0,1]);
               hold on;
               ax = gca; 
               xlim(ax, xlim(ax) + [-1, 1] * diff(xlim(ax)) * 0.05); 
               ylim(ax, ylim(ax) + [-1, 1] * diff(ylim(ax)) * 0.05); 
               box off;
 
-              text(fittedSine.x(indexPeriod(end)),...
-                   fittedSine.y(indexPeriod(end)),...
+
+              text(fittedSine.x(indexB-indexA+1),...
+                   fittedSine.y(indexB-indexA+1),...
                    sprintf('%1.4f Hz',sinusoidFit.frequency_Hz),...
                    'HorizontalAlignment','right',...
                    'VerticalAlignment','bottom');

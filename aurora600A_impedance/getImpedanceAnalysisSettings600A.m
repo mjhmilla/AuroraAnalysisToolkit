@@ -29,6 +29,7 @@ settingsImpedanceAnalysis.wavePaddingTimeMS = 100;
 %change in the wave file
 
 settingsImpedanceAnalysis.paddingTimeMS         = 500;
+settingsImpedanceAnalysis.paddingTimeSinusoidMS = 188;
 
 settingsImpedanceAnalysis.useManuallySetDaqDelay = 1;
 settingsImpedanceAnalysis.daqDelayModel          = 'frequency-domain'; 
