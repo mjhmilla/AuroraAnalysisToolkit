@@ -1,6 +1,7 @@
 function success = ...
   runPipelineAnalyzeIndividualLengthSineFiberData600A_json(...
     folderName, fileKeyWord,settings,...
+    setOfTrialsOverride,setOfSegmentsOverride,...
     projectFolders)
 
 success=0;
@@ -120,7 +121,7 @@ fprintf(fidLogFile,'%s\n','Preprocessing: ');
 fprintf(fidLogFile,'%s\n','  Counting the number of segments to plot');
 
 
-for indexSetOfTrials=1:1:length(setOfTrialsVerified)
+for indexSetOfTrials=16:1:length(setOfTrialsVerified)
 
   i = setOfTrialsVerified(indexSetOfTrials);
 
@@ -294,6 +295,10 @@ if(settings.processData==1)
   fprintf('%s\n','Processing: gain, phase, coherence-sq + model fit');
   fprintf(fidLogFile,'%s\n','Processing: gain, phase, coherence-sq + model fit');
   
+  if(~isempty(setOfTrialsOverride))
+    setOfTrials=setOfTrialsOverride;
+  end
+
   for indexSetOfTrials = 1:1:length(setOfTrials)
   
     idxTrial = setOfTrials(indexSetOfTrials);
@@ -481,10 +486,13 @@ if(settings.processData==1)
       flag_highlightSegments=0;
       if(flag_highlightSegments==1)
         success = inspectDataAndSegments600A(...
-                    auroraData);
+                    setOfSegments,trialJson,auroraData);
       end
 
-      
+      if(~isempty(setOfSegmentsOverride))
+        setOfSegments=setOfSegmentsOverride;
+      end
+
       for indexIntoSetOfSegments = 1:1:length(setOfSegments)
       
         idxSeg = setOfSegments(indexIntoSetOfSegments,1);
@@ -536,7 +544,12 @@ if(settings.processData==1)
 
         [indexStartNoPad, indexEndNoPad ] = ...
           searchForSegmentBoundary600A(...
-             indexStart, indexEnd, auroraData, paddingSamples );     
+             indexStart, indexEnd, ...
+             trialJson.segments(idxSeg).meta_data.frequency_Hz,...
+             auroraData, ...
+             paddingSamples );     
+        
+
 
         fftFrequencyHz=...
           calcFrequencyWithPeakPower(...

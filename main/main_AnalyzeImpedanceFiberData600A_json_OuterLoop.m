@@ -69,6 +69,9 @@ skipToTrialWithKeyword = [];
 flag_processImpedanceLengthArb  = 0;
 flag_processImpedanceLengthSine = 1;
 
+sinSetOfTrialsOverride  = [];
+sinSetOfSegmentsOverride= [];
+
 checkSha256Sum=0; 
 checkFileOrder=1;
 
@@ -233,11 +236,14 @@ for i=1:1:length(experimentsToProcess)
       pause(0.1);
     end
     
+
     if(flag_processImpedanceLengthSine==1)
       success=runPipelineAnalyzeIndividualLengthSineFiberData600A_json(...
                   experimentsToProcess{i},...
                   skipToTrialWithKeyword,...
                   settingsImpedanceAnalysis,...
+                  sinSetOfTrialsOverride,...
+                  sinSetOfSegmentsOverride,...
                   projectFolders);
     end
 end
