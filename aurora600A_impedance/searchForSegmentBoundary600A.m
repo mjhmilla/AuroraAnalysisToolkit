@@ -2,10 +2,14 @@ function [indexStartNoPad, indexEndNoPad] = ...
            searchForSegmentBoundary600A(indexStart, ...
                                         indexEnd, ...
                                         approxFrequencyHz,...
-                                        auroraData,...
-                                        paddingSamples)
+                                        approxPaddingMS,...
+                                        auroraData)
+ms2s=0.001;
 
 indexDelta = round(0.25*(indexEnd-indexStart));
+
+samplesPadding=...
+  approxPaddingMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
 
 samplesPerPeriod = ...
   round(auroraData.Setup_Parameters.A_D_Sampling_Rate.Value...
@@ -13,16 +17,27 @@ samplesPerPeriod = ...
 
 dataIndexMiddle = ...
   [(indexStart+indexDelta):1:(indexEnd-indexDelta)];
+dataIndexNoise = indexStart+[1:1:round(samplesPadding*0.5)];
+
 
 lmean = mean(auroraData.Data.Lin.Values(dataIndexMiddle));
 lamp  = 0.5*(max(auroraData.Data.Lin.Values(dataIndexMiddle))...
             -min(auroraData.Data.Lin.Values(dataIndexMiddle)));
 
-ltarget = lmean;
-lwindow = [lmean-0.025*lamp,lmean+0.025*lamp];
 
-lthresh    = [lmean+0.075*lamp,lmean+0.5*lamp;...
-              lmean-0.5*lamp,lmean-0.075*lamp];
+dataNoiseYMax = max(auroraData.Data.Lin.Values(dataIndexNoise));
+dataNoiseYMin = min(auroraData.Data.Lin.Values(dataIndexNoise));
+
+ltarget = mean(auroraData.Data.Lin.Values(dataIndexNoise));
+nampPos = dataNoiseYMax-ltarget;
+nampNeg = ltarget-dataNoiseYMin;
+
+lwindow = [lmean-2*nampNeg,lmean+2*nampPos];
+
+ampSmall = max(0.1*lamp,max(nampPos,nampNeg)*3);
+
+lthresh    = [lmean+ampSmall,lmean+0.5*lamp;...
+              lmean-0.5*lamp,lmean-ampSmall];
 dlSign = [1, 1];
 
 indexBoundary  = [indexStart,indexEnd];
@@ -34,19 +49,25 @@ searchLimits   =[indexStart, indexEnd;...
 thresholdY = 0.05.*(lamp); 
 
 indexPaddingBoundary = ...
-  [(indexStart+paddingSamples),(indexEnd-paddingSamples)];
+  [(indexStart+samplesPadding),(indexEnd-samplesPadding)];
 indexAcceptableBoundary=[nan,nan];
 
 %
 % Start the debugging plot
 %
-flag_debugSegmentBoundaries=1;
+flag_debugSegmentBoundaries=0;
 if(flag_debugSegmentBoundaries==1)
   figSegBoundaries=figure;
   plot(auroraData.Data.Time.Values(indexStart:indexEnd),...
        auroraData.Data.Lin.Values(indexStart:indexEnd),...
        '-','Color',[1,1,1].*0.5);
   hold on;
+  
+  plot(auroraData.Data.Time.Values(dataIndexNoise),...
+       auroraData.Data.Lin.Values(dataIndexNoise),...
+       '-','Color',[1,0,0]);
+  hold on;
+  
   for i=1:1:size(lthresh,1)
     if(i==1)
       lineType='-r';

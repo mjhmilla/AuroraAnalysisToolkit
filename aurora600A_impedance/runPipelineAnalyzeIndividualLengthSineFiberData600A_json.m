@@ -539,31 +539,21 @@ if(settings.processData==1)
         %     data
         %   - the data has a constant mean value  
         %
-        paddingSamples=...
-          settings.paddingTimeSinusoidMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
+        %paddingSamples=...
+        %  settings.paddingTimeSinusoidMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
 
         [indexStartNoPad, indexEndNoPad ] = ...
           searchForSegmentBoundary600A(...
              indexStart, indexEnd, ...
              trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-             auroraData, ...
-             paddingSamples );     
+             settings.paddingTimeSinusoidMS,...
+             auroraData);     
         
-
-
         fftFrequencyHz=...
           calcFrequencyWithPeakPower(...
            auroraData.Data.Lin.Values(indexStart:indexEnd),...
            auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
 
-%         indexStartInterval=[indexStart, (indexStart+paddingSamples*3)];
-%         indexSineStart = calcSinusoidStartingIndex(...
-%                             fftFrequencyHz,...
-%                             indexStartInterval,...
-%                             indexStart,...
-%                             indexStartMax,...
-%                             auroraData);
-%         
 
 
         timeStart = auroraData.Data.Time.Values(indexStartNoPad);
@@ -675,7 +665,7 @@ if(settings.processData==1)
             'scan'};  
 
           fittingSettings.applyAlgorithm = {...
-            'first',...
+            'all',...
             'all',...
             'all',...
             'all',...
@@ -709,10 +699,10 @@ if(settings.processData==1)
           %lbTime =...
           %  max(auroraData.Data.Time.Values(indexStartNoPad)-timeDelta,...
           %      auroraData.Data.Time.Values(indexStart));
+    
+          indexTol = min(round(numberOfSamplesPerPeriod*0.5),20);
 
-
-          lb = [max(fittingSettings.paramOffset(1)...
-                   -round(0.5*numberOfSamplesPerPeriod),...
+          lb = [max(fittingSettings.paramOffset(1)-indexTol,...
                     1),...
                 lengthMean*0.5,...
                 frequency_Hz.*0.75,...
@@ -727,7 +717,7 @@ if(settings.processData==1)
 
           ubTime = min(fittingSettings.paramOffset(1)+2*timeDelta,...
                        fittingSettings.time(idxTimeMax));
-          ub = [min(fittingSettings.paramOffset(1)+round(0.5*numberOfSamplesPerPeriod),...
+          ub = [min(fittingSettings.paramOffset(1)+indexTol,...
                    dataIndex(end)-length(dataIndexNoPad)),...
                 lengthMean*1.5,...
                 frequency_Hz.*1.25,...
@@ -777,7 +767,7 @@ if(settings.processData==1)
           ubSIter = ubS;
           optParams=zeros(1,length(ubS));
 
-          optVarSchedule=[3,2,4];
+          optVarSchedule=[3,2,4,1,3,2,4,1];
           iterCycle=1;
 
 
@@ -786,6 +776,7 @@ if(settings.processData==1)
             if(fitCycles==nCycles)
               flag_completeIntervalFitted=1;
             end
+
 
             for i=1:1:length(optVarSchedule)
               
@@ -814,29 +805,95 @@ if(settings.processData==1)
                   @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);
     
                 x0=0;
-                [errV0,mdl0]=errFcn(x0);
+                [errV0,errDot0,mdl0]=errFcn(x0);
     
                 switch fittingSettings.algorithm{idxOpt}                
                   case 'scan'
-                    %Used for discrete problems
-                    [errV0,mdl0]=errFcn(x0);
-                    errMagBest=norm(errV0);
-                    argBest=x0;
-                    indexBest=fittingSettings.paramOffset(idxOpt);
-                    for j = lb(idxOpt):1:ub(idxOpt)
-                      arg = (j-fittingSettings.paramOffset(idxOpt)) ...
-                           /fittingSettings.paramScaling(idxOpt);
-                      [errV1,mdl1]=errFcn(arg);
-                      errMag=norm(errV1);
-                      fprintf('%i\t%1.3e\n',j,errMag);
-                      if(errMag < errMagBest)
-                        errMagBest=errMag;
-                        argBest=arg;
-                        indexBest=j;
-                        fprintf('\t*%i\t%1.3e\n',j,errMag);
+                    varName=fittingSettings.var;
+
+                    idxDataMax = fittingSettings.optInterval(2);
+
+                    idxDotMax = idxDataMax-length(mdl0.y);
+                    idxStartV=zeros(idxDotMax,1);
+                    dotStartV=zeros(idxDotMax,1);
+                    yMean = fittingSettings.paramOffset(2);
+
+                    mdlY=mdl0.y-yMean;
+                    dataY=fittingSettings.(varName)-yMean;
+
+                    for idxDot=lb(1):1:ub(1)
+                      idxStartV(idxDot)=idxDot;                      
+                      idxB=length(mdl0.y)+idxDot-1;
+                      dotStartV(idxDot)=dot(mdlY,...
+                                            dataY(idxDot:idxB));   
+                      fig_debugDot=0;
+                      if(fig_debugDot==1)
+                        figDebugDot=figure;
+                          plot(mdlY);
+                          hold on;
+                          plot(dataY(idxDot:idxB));
+                          hold on;
+                          pause(0.01);
+                        close(figDebugDot);
                       end
+
                     end
-                    fittingSettings.paramOffset(idxOpt)=indexBest;
+
+                    [maxDot, idxDotMax]=max(dotStartV);
+                    timeBest=fittingSettings.time(idxDotMax);
+
+                    fittingSettings.paramOffset(1)=idxDotMax;
+                    x=0;
+
+                    fig_debugScan=1;
+                    if(fig_debugScan==1)
+                      figScan=figure;
+                      subplot(1,2,1);
+                        plot(fittingSettings.time,...
+                             fittingSettings.(varName),...
+                             '-','Color',[1,1,1].*0.5);                        
+                        hold on;
+                        plot(fittingSettings.time(idxDotMax),...
+                             fittingSettings.(varName)(idxDotMax),...
+                             'o','Color',[1,0,0]);                        
+                        hold on;                       
+                        plot(mdl0.x-mdl0.x(1)+timeBest,...
+                             mdl0.y,'-b');
+                        xlabel('Time');
+                        ylabel(varName);
+                      subplot(1,2,2);
+                        plot(idxStartV,dotStartV);
+                        hold on;
+                        plot(idxDotMax,maxDot,'or');
+                        xlabel('Starting Index');
+                        ylabel('Dot Product');
+                      close(figScan);
+                    end                    
+
+%                     %Used for identifying the starting index of the 
+%                     %data.
+%                     errDotBest=errDot0;
+%                     argBest=x0;
+%                     indexBest=fittingSettings.paramOffset(idxOpt);
+%                     indexV = [];
+%                     errDotV=[];
+%                     for j = lb(idxOpt):1:ub(idxOpt)
+%                       arg = (j-fittingSettings.paramOffset(idxOpt)) ...
+%                            /fittingSettings.paramScaling(idxOpt);
+%                       [errV,errDot,mdl]=errFcn(arg);
+%                       indexV=[indexV,arg];
+%                       errDotV=[errDotV,errDot];
+%                       fprintf('%i\t%1.3e\n',j,errDot);
+%                       if(errDot > errDotBest)
+%                         errDotBest=errDot;
+%                         argBest=arg;
+%                         indexBest=j;
+%                         fprintf('\t*%i\t%1.3e\n',j,errDot);
+%                       end
+%                     end
+%                     fittingSettings.paramOffset(idxOpt)=indexBest;
+% 
+
   
   
                   case 'lsqnonlin'
@@ -844,27 +901,28 @@ if(settings.processData==1)
                       = lsqnonlin(errFcn,optParams(idxOpt),...
                                   lbSIter(idxOpt),ubSIter(idxOpt),...
                                   options); 
+                    %Update the offset, scaling, and bounds
+                    fittingSettings.paramOffset(idxOpt)=...
+                      x.*fittingSettings.paramScaling(idxOpt)...
+                      +fittingSettings.paramOffset(idxOpt);                        
+                
+                    fittingSettings.paramScaling(idxOpt) = ...
+                      fittingSettings.paramScaling(idxOpt).*0.5;
+        
+                    lbSIter(idxOpt) = ...
+                      (lb(idxOpt)-fittingSettings.paramOffset(idxOpt))...
+                      ./fittingSettings.paramScaling(idxOpt);
+        
+                    ubSIter(idxOpt) = ...
+                      (ub(idxOpt)-fittingSettings.paramOffset(idxOpt))...
+                      ./fittingSettings.paramScaling(idxOpt);                    
                   otherwise
                     assert(0,'Error: unrecognized optimization algorithm')
                 end
-                [errV1,mdl1]=errFcn(x);
+                [errV1,errDot1,mdl1]=errFcn(x);
     
   
-                %Update the offset, scaling, and bounds
-                fittingSettings.paramOffset(idxOpt)=...
-                  x.*fittingSettings.paramScaling(idxOpt)...
-                  +fittingSettings.paramOffset(idxOpt);                        
-            
-                fittingSettings.paramScaling(idxOpt) = ...
-                  fittingSettings.paramScaling(idxOpt).*0.5;
-    
-                lbSIter(idxOpt) = ...
-                  (lb(idxOpt)-fittingSettings.paramOffset(idxOpt))...
-                  ./fittingSettings.paramScaling(idxOpt);
-    
-                ubSIter(idxOpt) = ...
-                  (ub(idxOpt)-fittingSettings.paramOffset(idxOpt))...
-                  ./fittingSettings.paramScaling(idxOpt);
+
               end
 
             end
@@ -910,7 +968,7 @@ if(settings.processData==1)
 
           x=[0,0,0,0,0];
           fittingSettings.optVarIndex=[1,2,3,4,5];
-          [errV,fittedSine]=calcErrorOfSinusoid600A(x,fittingSettings);
+          [errV,errDot,fittedSine]=calcErrorOfSinusoid600A(x,fittingSettings);
 
           index0 = fittingSettings.paramOffset(1);
           index1 = index0+fittingSettings.paramOffset(5);

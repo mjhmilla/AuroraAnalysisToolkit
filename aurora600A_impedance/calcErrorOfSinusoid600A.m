@@ -1,4 +1,4 @@
-function [errV, mdl] = calcErrorOfSinusoid600A(params,settings)
+function [errV,errDot, mdl] = calcErrorOfSinusoid600A(params,settings)
 
 idxOptVar = settings.optVarIndex;
 
@@ -70,19 +70,37 @@ mdl.y = amplitude.*sin( ...
 errV  = mdl.y-settings.(settings.var)(index0:index1);
 errV  = (errV./settings.scaling);
 
+normDot=  dot(mdl.y,mdl.y);
+
+errDot = dot(mdl.y, settings.(settings.var)(index0:index1))...
+         /normDot;
+
 
 flag_debug=0;
 if(flag_debug==1)
   fig_debug=figure;
-  plot( settings.time,...
-        settings.(settings.var),...
-        '-','Color',[1,1,1].*0.75,'LineWidth',1.5);
-  hold on;
-
-  plot(mdl.x,mdl.y,'-','Color',[0,0,1]);
-  hold on;
-  xlabel('Time (ms)');
-  ylabel((settings.var));
+  subplot(1,2,1);
+    plot( settings.time,...
+          settings.(settings.var),...
+          '-','Color',[1,1,1].*0.75,'LineWidth',1.5);
+    hold on;
+  
+    plot(mdl.x,mdl.y,'-','Color',[0,0,1]);
+    hold on;
+    xlabel('Time (ms)');
+    ylabel((settings.var));
+  subplot(1,2,2);
+    plot(settings.time(index0:index1),...
+         settings.(settings.var)(index0:index1),...
+         '-','Color',[1,1,1].*0.75,'LineWidth',1.5);
+    hold on;
+    plot(mdl.x,mdl.y,'-','Color',[0,0,1]);
+    hold on;
+    [maxY,idxMaxY] = max(mdl.y);
+    text(mdl.x(idxMaxY),mdl.y(idxMaxY),sprintf('%1.6f',errDot));
+    hold on;
+    xlabel('Time (ms)');
+    ylabel([(settings.var), '(Dot Product)']);
   here=1;
   close(fig_debug);
 end
