@@ -52,10 +52,15 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
 % passiveBiasTrialKeyword = '_passive_055Lo_';
 % activeBiasTrialKeyword  = '_active_055Lo_';
 
+% experimentsToProcess=...
+%   {'20260926_impedance_calibration_rigor_fixation'};
+% passiveBiasTrialKeyword='zLR4__01_screen';
+% activeBiasTrialKeyword ='zLR4__01_screen';
+
 experimentsToProcess=...
-  {'20260926_impedance_calibration_rigor_fixation'};
-passiveBiasTrialKeyword='zLR4__01_screen';
-activeBiasTrialKeyword ='zLR4__01_screen';
+  {'20260930_impedance_calibration_rigor_fixation'};
+passiveBiasTrialKeyword='zC__01_screen';
+activeBiasTrialKeyword ='zC__01_screen';
 
 
 %experimentsToProcess = ...
@@ -70,9 +75,11 @@ flag_processImpedanceLengthArb  = 0;
 flag_processImpedanceLengthSine = 1;
 
 sinSetOfTrialsOverride  = [];
+%[12,14,15,17,18,20,21,24,25];
+% [2,3,5,6,8,9,11,12,14,15,17,18,20,21,24,25]
 sinSetOfSegmentsOverride= [];
 
-checkSha256Sum=0; 
+checkSha256Sum=1; 
 checkFileOrder=1;
 
 settingsImpedanceAnalysis = ...

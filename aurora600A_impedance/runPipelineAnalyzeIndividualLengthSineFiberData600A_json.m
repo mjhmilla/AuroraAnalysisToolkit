@@ -700,10 +700,14 @@ if(settings.processData==1)
           %  max(auroraData.Data.Time.Values(indexStartNoPad)-timeDelta,...
           %      auroraData.Data.Time.Values(indexStart));
     
-          indexTol = min(round(numberOfSamplesPerPeriod*0.5),20);
 
-          lb = [max(fittingSettings.paramOffset(1)-indexTol,...
-                    1),...
+          numberOfPaddingSamples = ...
+            round(auroraData.Setup_Parameters.A_D_Sampling_Rate.Value ...
+                  *settings.paddingTimeMS*ms2s);
+          indexTol = min(round(numberOfSamplesPerPeriod*0.5),...
+                         round(numberOfPaddingSamples*0.25));
+
+          lb = [1,...
                 lengthMean*0.5,...
                 frequency_Hz.*0.75,...
                 lengthChange*0,...
@@ -756,7 +760,7 @@ if(settings.processData==1)
           end
 
           options = optimoptions( 'lsqnonlin',...
-                                  'Algorithm','trust-region-reflective',...
+                                  'Algorithm','levenberg-marquardt',...
                                   'Display','off');
           
           flag_completeIntervalFitted=0;
@@ -767,8 +771,34 @@ if(settings.processData==1)
           ubSIter = ubS;
           optParams=zeros(1,length(ubS));
 
-          optVarSchedule=[3,2,4,1,3,2,4,1];
+          optVarSchedule(1).vars=1;
+          optVarSchedule(1).algorithm ='scan';
+          optVarSchedule(2).vars=[2,3,4];
+          optVarSchedule(2).algorithm ='lsqnonlin';
+          optVarSchedule(3).vars=1;
+          optVarSchedule(3).algorithm ='scan';
+          optVarSchedule(4).vars=[2,3,4];
+          optVarSchedule(4).algorithm ='lsqnonlin';
+          
           iterCycle=1;
+
+          fittingSettings.optVarIndex=[1,2,3,4,5];
+          fittingSettings.scaling=1;
+          x0=[0,0,0,0,0];
+
+          [errVA,errDotA,mdlA]=...
+            calcErrorOfSinusoid600A(x0,fittingSettings);   
+
+          varNames={'i0','y0','frequency_Hz','amplitude','numberElements'};
+
+          fprintf('Initial Guess\n');
+          fprintf('\t%1.3e\tError\n',norm(errVA));
+          xInitial=zeros(size(fittingSettings.paramOffset));
+          for idxV=1:1:length(varNames)            
+            fprintf('\t%1.3e\t%s\n',fittingSettings.paramOffset(idxV),...
+                                  varNames{idxV});
+            xInitial(idxV)=fittingSettings.paramOffset(idxV);
+          end
 
 
           while(flag_completeIntervalFitted == 0 )
@@ -780,34 +810,42 @@ if(settings.processData==1)
 
             for i=1:1:length(optVarSchedule)
               
-              idxOpt=optVarSchedule(i);
+              idxOpt=optVarSchedule(i).vars;
+              fittingSettings.optVarIndex=idxOpt;
                      
-              enableFitting=0;
-              switch fittingSettings.applyAlgorithm{idxOpt}
-                case 'first'
-                  if(iterCycle==1)
-                    enableFitting=1;
-                  end
-                case 'all'
-                  enableFitting=1;
-                case 'last'
-                  if(fitCycles==nCycles)
-                    enableFitting=1;
-                  end
-                otherwise
-                  assert(0,'Error: unrecognized application condition');
-              end
+              enableFitting=1;
+%               switch fittingSettings.applyAlgorithm{idxOpt}
+%                 case 'first'
+%                   if(iterCycle==1)
+%                     enableFitting=1;
+%                   end
+%                 case 'all'
+%                   enableFitting=1;
+%                 case 'last'
+%                   if(fitCycles==nCycles)
+%                     enableFitting=1;
+%                   end
+%                 otherwise
+%                   assert(0,'Error: unrecognized application condition');
+%               end
 
               if(enableFitting==1)
                 fittingSettings.optVarIndex=idxOpt;
-    
+
+                x0=zeros(size(idxOpt));                
+
+                [errVA,errDotA,mdlA]=...
+                  calcErrorOfSinusoid600A(x0,fittingSettings);
+                fittingSettings.scaling=norm(errVA);
                 errFcn = ...
                   @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);
     
-                x0=0;
+
                 [errV0,errDot0,mdl0]=errFcn(x0);
+                
+                
     
-                switch fittingSettings.algorithm{idxOpt}                
+                switch optVarSchedule(i).algorithm 
                   case 'scan'
                     varName=fittingSettings.var;
 
@@ -819,6 +857,7 @@ if(settings.processData==1)
                     yMean = fittingSettings.paramOffset(2);
 
                     mdlY=mdl0.y-yMean;
+                    
                     dataY=fittingSettings.(varName)-yMean;
 
                     for idxDot=lb(1):1:ub(1)
@@ -843,9 +882,12 @@ if(settings.processData==1)
                     timeBest=fittingSettings.time(idxDotMax);
 
                     fittingSettings.paramOffset(1)=idxDotMax;
-                    x=0;
+                    %lb(1) = max(fittingSettings.paramOffset(1)-indexTol,1);                  
+                    %ub(1) =  min(fittingSettings.paramOffset(1)+indexTol,...
+                    %             dataIndex(end)-length(dataIndexNoPad));
 
-                    fig_debugScan=1;
+
+                    fig_debugScan=0;
                     if(fig_debugScan==1)
                       figScan=figure;
                       subplot(1,2,1);
@@ -869,36 +911,15 @@ if(settings.processData==1)
                         ylabel('Dot Product');
                       close(figScan);
                     end                    
-
-%                     %Used for identifying the starting index of the 
-%                     %data.
-%                     errDotBest=errDot0;
-%                     argBest=x0;
-%                     indexBest=fittingSettings.paramOffset(idxOpt);
-%                     indexV = [];
-%                     errDotV=[];
-%                     for j = lb(idxOpt):1:ub(idxOpt)
-%                       arg = (j-fittingSettings.paramOffset(idxOpt)) ...
-%                            /fittingSettings.paramScaling(idxOpt);
-%                       [errV,errDot,mdl]=errFcn(arg);
-%                       indexV=[indexV,arg];
-%                       errDotV=[errDotV,errDot];
-%                       fprintf('%i\t%1.3e\n',j,errDot);
-%                       if(errDot > errDotBest)
-%                         errDotBest=errDot;
-%                         argBest=arg;
-%                         indexBest=j;
-%                         fprintf('\t*%i\t%1.3e\n',j,errDot);
-%                       end
-%                     end
-%                     fittingSettings.paramOffset(idxOpt)=indexBest;
-% 
-
   
   
                   case 'lsqnonlin'
+                    
+
+                    optParams=zeros(1,length(idxOpt));
+
                     [x,resnorm,res,exitflag,output,lambda,jac] ...
-                      = lsqnonlin(errFcn,optParams(idxOpt),...
+                      = lsqnonlin(errFcn,optParams,...
                                   lbSIter(idxOpt),ubSIter(idxOpt),...
                                   options); 
                     %Update the offset, scaling, and bounds
@@ -919,7 +940,7 @@ if(settings.processData==1)
                   otherwise
                     assert(0,'Error: unrecognized optimization algorithm')
                 end
-                [errV1,errDot1,mdl1]=errFcn(x);
+                [errV1,errDot1,mdl1]=errFcn(zeros(1,length(idxOpt)));
     
   
 
@@ -964,11 +985,20 @@ if(settings.processData==1)
             iterCycle=iterCycle+1;
           end 
 
-       
+          fittingSettings.scaling=1;
 
           x=[0,0,0,0,0];
           fittingSettings.optVarIndex=[1,2,3,4,5];
           [errV,errDot,fittedSine]=calcErrorOfSinusoid600A(x,fittingSettings);
+
+          fprintf('Fitting\n');
+          fprintf('\t%1.3e\tError\n',norm(errV));
+          for idxV=1:1:length(varNames)            
+            fprintf('\t%1.3e\t%1.3e\t%s\n',...
+              fittingSettings.paramOffset(idxV),...
+              fittingSettings.paramOffset(idxV)-xInitial(idxV),...
+                                  varNames{idxV});
+          end
 
           index0 = fittingSettings.paramOffset(1);
           index1 = index0+fittingSettings.paramOffset(5);
@@ -1166,12 +1196,22 @@ if(settings.processData==1)
             l_dot_sineWt = sineWt.*segData.x;
             f_dot_sineWt = sineWt.*segData.y;
 
-            fcnSineL = @(argX)interp1(timeSeg,l_dot_sineWt,argX,'linear');
-            L_real = integral(fcnSineL,timeSeg(1),timeSeg(end)); 
+            flag_useIntegrate=0;
+
+            if(flag_useIntegrate==1)
+              fcnSineL = @(argX)interp1(timeSeg,l_dot_sineWt,argX,'linear');
+              L_real = integral(fcnSineL,timeSeg(1),timeSeg(end)); 
+            else
+              L_real = trapz(timeSeg,l_dot_sineWt);
+            end
             L_real = A.*L_real;
 
-            fcnSineF = @(argX)interp1(timeSeg,f_dot_sineWt,argX,'linear');
-            F_real = integral(fcnSineF,timeSeg(1),timeSeg(end)); 
+            if(flag_useIntegrate==1)
+              fcnSineF = @(argX)interp1(timeSeg,f_dot_sineWt,argX,'linear');
+              F_real = integral(fcnSineF,timeSeg(1),timeSeg(end)); 
+            else
+              F_real = trapz(timeSeg,f_dot_sineWt);
+            end
             F_real = A.*F_real;
 
             %Complex component
@@ -1179,12 +1219,20 @@ if(settings.processData==1)
             l_dot_cosWt = cosWt.*segData.x;
             f_dot_cosWt = cosWt.*segData.y;
 
-            fcnCosL = @(argX)interp1(timeSeg,l_dot_cosWt,argX,'linear');
-            L_imag = integral(fcnCosL,timeSeg(1),timeSeg(end)); 
+            if(flag_useIntegrate==1)
+              fcnCosL = @(argX)interp1(timeSeg,l_dot_cosWt,argX,'linear');
+              L_imag = integral(fcnCosL,timeSeg(1),timeSeg(end)); 
+            else
+              L_imag = trapz(timeSeg,l_dot_cosWt);
+            end
             L_imag = A.*L_imag;
 
-            fcnCosF = @(argX)interp1(timeSeg,f_dot_cosWt,argX,'linear');
-            F_imag = integral(fcnCosF,timeSeg(1),timeSeg(end)); 
+            if(flag_useIntegrate==1)
+              fcnCosF = @(argX)interp1(timeSeg,f_dot_cosWt,argX,'linear');
+              F_imag = integral(fcnCosF,timeSeg(1),timeSeg(end)); 
+            else
+              F_imag = trapz(timeSeg,f_dot_cosWt);
+            end
             F_imag = A.*F_imag;        
             
             %Save the complex coefficients
