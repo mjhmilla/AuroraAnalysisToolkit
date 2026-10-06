@@ -1,5 +1,5 @@
 function success = ...
-  runPipelineAnalyzeIndividualLengthSineFiberData600A_json(...
+  runPipelineAnalyzeIndividualLengthSineFiberData600A_01_json(...
     folderName, fileKeyWord,settings,...
     setOfTrialsOverride,setOfSegmentsOverride,...
     projectFolders)
@@ -609,6 +609,7 @@ if(settings.processData==1)
         if(isSegmentValid==1)
 
     
+          fittingSettings.indexSegment=[dataIndex(1),dataIndex(end)];
           fittingSettings.time        = auroraData.Data.Time.Values(dataIndex);
           fittingSettings.length      = auroraData.Data.Lin.Values(dataIndex,1);
           fittingSettings.force       = auroraData.Data.Fin.Values(dataIndex,1);
@@ -621,10 +622,31 @@ if(settings.processData==1)
           fittingSettings.optInterval  = [dataIndexNoPad(1)-dataIndex(1),...
                                           dataIndexNoPad(end)-dataIndex(1)];
           fittingSettings.var          = 'length';
-          fittingSettings.scaling      = 1;
           fittingSettings.paramScaling = [];
           fittingSettings.lambda       = 0.1;
 
+          numberOfPaddingSamples = ...
+            round(auroraData.Setup_Parameters.A_D_Sampling_Rate.Value ...
+                  *settings.paddingTimeMS*ms2s);
+
+          numberOfNoiseSamples=round(0.25*numberOfPaddingSamples);
+
+          fittingSettings.lengthNoiseFit = ...
+            polyfit(fittingSettings.time(1:numberOfNoiseSamples),...
+                    fittingSettings.length(1:numberOfNoiseSamples),1);
+
+          fittingSettings.lengthNoiseStd = ...
+            std(fittingSettings.length(1:numberOfNoiseSamples));
+
+          fittingSettings.forceNoiseFit = ...
+            polyfit(fittingSettings.time(1:numberOfNoiseSamples),...
+                    fittingSettings.force(1:numberOfNoiseSamples),1);
+
+          fittingSettings.forceNoiseStd = ...
+            std(fittingSettings.force(1:numberOfNoiseSamples));
+          
+
+          fittingSettings.scaling      = 1;
 
           %
           % Identify a good initial solution for mean length
@@ -653,7 +675,7 @@ if(settings.processData==1)
           numberOfCyclesToFit   = 1;%ceil(0.5/scaleOfFrequencyError);
 
           numberOfSamplesPerPeriod = ...
-            round(period*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
+            ceil(period*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value);
 
 
 
@@ -700,10 +722,9 @@ if(settings.processData==1)
           %  max(auroraData.Data.Time.Values(indexStartNoPad)-timeDelta,...
           %      auroraData.Data.Time.Values(indexStart));
     
+          
 
-          numberOfPaddingSamples = ...
-            round(auroraData.Setup_Parameters.A_D_Sampling_Rate.Value ...
-                  *settings.paddingTimeMS*ms2s);
+
           indexTol = min(round(numberOfSamplesPerPeriod*0.5),...
                          round(numberOfPaddingSamples*0.25));
 
@@ -751,7 +772,7 @@ if(settings.processData==1)
           % is completely fit.
           %
 
-          nCycles = ceil(frequency_Hz*(fittingSettings.duration_ms*ms2s));
+          nCycles = round(frequency_Hz*(fittingSettings.duration_ms*ms2s));
           assert(nCycles > 0, 'Error: this segment has less than 1 cycle');
 
           fitCycles = numberOfCyclesToFit;
@@ -762,7 +783,7 @@ if(settings.processData==1)
           options = optimoptions( 'lsqnonlin',...
                                   'Algorithm','levenberg-marquardt',...
                                   'Display','off',...
-                                  'FunctionTolerance',1e-8);
+                                  'FunctionTolerance',1e-9);
           
           flag_completeIntervalFitted=0;
           idxOpt=3;
@@ -774,29 +795,48 @@ if(settings.processData==1)
 
           optVarSchedule(1).vars=1;
           optVarSchedule(1).algorithm ='scan';
+          optVarSchedule(1).exitflag=nan;
+          optVarSchedule(1).resnorm=nan;
+
           optVarSchedule(2).vars=[2,3,4];
           optVarSchedule(2).algorithm ='lsqnonlin';
+          optVarSchedule(2).exitflag=nan;   
+          optVarSchedule(2).resnorm=nan;
+
           optVarSchedule(3).vars=1;
           optVarSchedule(3).algorithm ='scan';
+          optVarSchedule(3).exitflag=nan;
+          optVarSchedule(3).resnorm=nan;
+
           optVarSchedule(4).vars=[2,3,4];
           optVarSchedule(4).algorithm ='lsqnonlin';
+          optVarSchedule(4).exitflag=nan;   
+          optVarSchedule(4).resnorm=nan;          
           
           iterCycle=1;
 
           fittingSettings.optVarIndex=[1,2,3,4,5];
-          fittingSettings.scaling=1;
+          %fittingSettings.scaling=1;
           x0=[0,0,0,0,0];
 
           [errVA,errDotA,mdlA]=...
             calcErrorOfSinusoid600A(x0,fittingSettings);   
 
+          rmseA=sqrt(mean(errVA.^2));
+
+          index0=fittingSettings.paramOffset(1);
+          index1=index0+fittingSettings.paramOffset(5);
+          lengthStd = std(fittingSettings.length(index0:index1));
+
           varNames={'i0','y0','frequency_Hz','amplitude','numberElements'};
 
-          fprintf('Initial Guess\n');
-          fprintf('\t%1.3e\tError\n',norm(errVA));
+          fprintf('\tInitial Guess\n');
+          fprintf('\t\t%1.3e\t%1.3e\tNRMSE\n',...
+              rmseA/fittingSettings.lengthNoiseStd,...
+              rmseA/lengthStd);
           xInitial=zeros(size(fittingSettings.paramOffset));
           for idxV=1:1:length(varNames)            
-            fprintf('\t%1.3e\t%s\n',fittingSettings.paramOffset(idxV),...
+            fprintf('\t\t%1.3e\t%s\n',fittingSettings.paramOffset(idxV),...
                                   varNames{idxV});
             xInitial(idxV)=fittingSettings.paramOffset(idxV);
           end
@@ -815,20 +855,6 @@ if(settings.processData==1)
               fittingSettings.optVarIndex=idxOpt;
                      
               enableFitting=1;
-%               switch fittingSettings.applyAlgorithm{idxOpt}
-%                 case 'first'
-%                   if(iterCycle==1)
-%                     enableFitting=1;
-%                   end
-%                 case 'all'
-%                   enableFitting=1;
-%                 case 'last'
-%                   if(fitCycles==nCycles)
-%                     enableFitting=1;
-%                   end
-%                 otherwise
-%                   assert(0,'Error: unrecognized application condition');
-%               end
 
               if(enableFitting==1)
                 fittingSettings.optVarIndex=idxOpt;
@@ -837,7 +863,6 @@ if(settings.processData==1)
 
                 [errVA,errDotA,mdlA]=...
                   calcErrorOfSinusoid600A(x0,fittingSettings);
-                fittingSettings.scaling=norm(errVA)*0.01;
                 errFcn = ...
                   @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);
     
@@ -850,28 +875,36 @@ if(settings.processData==1)
                   case 'scan'
                     varName=fittingSettings.var;
 
-                    idxDataMax = fittingSettings.optInterval(2);
+                    frequency_Hz=fittingSettings.paramOffset(3);
+                    period_S = 1/frequency_Hz;
+                    samplesPerPeriod = ...
+                      period_S*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
 
-                    idxDotMax = idxDataMax-length(mdl0.y);
-                    idxStartV=zeros(idxDotMax,1);
-                    dotStartV=zeros(idxDotMax,1);
-                    yMean = fittingSettings.paramOffset(2);
+                    idxMdlA = 1;
+                    idxMdlB = max(2,round(samplesPerPeriod*(45/360)));
 
-                    mdlY=mdl0.y-yMean;
-                    
-                    dataY=fittingSettings.(varName)-yMean;
 
-                    for idxDot=lb(1):1:ub(1)
-                      idxStartV(idxDot)=idxDot;                      
-                      idxB=length(mdl0.y)+idxDot-1;
-                      dotStartV(idxDot)=dot(mdlY,...
-                                            dataY(idxDot:idxB));   
+                    lsqV = zeros(ub(1)-lb(1)+1,1);
+                    idxLsqV=zeros(size(lsqV));
+
+                    for idxLUB=1:1:((ub(1)-lb(1))+1)
+                      idxOffset=lb(1)-1+idxLUB;
+
+                      idxDataA = idxOffset;
+                      idxDataB = idxOffset + (idxMdlB-idxMdlA);
+                      
+                      ydiff = mdl0.y(idxMdlA:idxMdlB) ...
+                             -fittingSettings.(varName)(idxDataA:idxDataB);
+
+                      idxLsqV(idxLUB)=idxOffset;
+                      lsqV(idxLUB)=norm(ydiff);
+
                       fig_debugDot=0;
-                      if(fig_debugDot==1)
+                      if(fig_debugDot==1 && mod(idxLUB,100)==0)
                         figDebugDot=figure;
-                          plot(mdlY);
+                          plot(mdl0.y(idxMdlA:idxMdlB));
                           hold on;
-                          plot(dataY(idxDot:idxB));
+                          plot(fittingSettings.(varName)(idxDataA:idxDataB));
                           hold on;
                           pause(0.01);
                         close(figDebugDot);
@@ -879,13 +912,32 @@ if(settings.processData==1)
 
                     end
 
-                    [maxDot, idxDotMax]=max(dotStartV);
-                    timeBest=fittingSettings.time(idxDotMax);
+                    [maxLsq, idxLsqMax]=min(lsqV);
+                    timeBest=fittingSettings.time(idxLsqMax);
 
-                    fittingSettings.paramOffset(1)=idxDotMax;
-                    %lb(1) = max(fittingSettings.paramOffset(1)-indexTol,1);                  
-                    %ub(1) =  min(fittingSettings.paramOffset(1)+indexTol,...
-                    %             dataIndex(end)-length(dataIndexNoPad));
+                    fittingSettings.paramOffset(1)=idxLsqMax;
+
+
+                    idxStart=idxLsqMax;
+                    idxEnd  = idxLsqMax+diff(fittingSettings.optInterval);
+                    duration_ms = fittingSettings.time(idxEnd) ...
+                                - fittingSettings.time(idxStart);
+                    duration_S = duration_ms*ms2s;
+
+                    frequency_Hz = fittingSettings.paramOffset(3);
+                    period_S=1/frequency_Hz;
+                    
+                    idxEnd = idxStart + round(samplesPerPeriod*fitCycles);
+
+                    fittingSettings.optInterval = [idxLsqMax,idxEnd];
+                    fittingSettings.paramOffset(5)=(idxEnd-idxLsqMax)+1;
+
+                    errFcn = ...
+                      @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);                    
+
+                    x0=zeros(size(idxOpt));
+
+                    [errV0,errDot0,mdl0]=errFcn(x0);
 
 
                     fig_debugScan=0;
@@ -896,8 +948,8 @@ if(settings.processData==1)
                              fittingSettings.(varName),...
                              '-','Color',[1,1,1].*0.5);                        
                         hold on;
-                        plot(fittingSettings.time(idxDotMax),...
-                             fittingSettings.(varName)(idxDotMax),...
+                        plot(fittingSettings.time(idxLsqMax),...
+                             fittingSettings.(varName)(idxLsqMax),...
                              'o','Color',[1,0,0]);                        
                         hold on;                       
                         plot(mdl0.x-mdl0.x(1)+timeBest,...
@@ -905,11 +957,11 @@ if(settings.processData==1)
                         xlabel('Time');
                         ylabel(varName);
                       subplot(1,2,2);
-                        plot(idxStartV,dotStartV);
+                        plot(idxLsqV,lsqV);
                         hold on;
-                        plot(idxDotMax,maxDot,'or');
+                        plot(idxLsqV(idxLsqMax),lsqV(idxLsqMax),'or');
                         xlabel('Starting Index');
-                        ylabel('Dot Product');
+                        ylabel('Norm(err)');
                       close(figScan);
                     end                    
   
@@ -923,6 +975,7 @@ if(settings.processData==1)
                       = lsqnonlin(errFcn,optParams,...
                                   lbSIter(idxOpt),ubSIter(idxOpt),...
                                   options); 
+                    optVarSchedule(i).exitflag=exitflag;
                     %Update the offset, scaling, and bounds
                     fittingSettings.paramOffset(idxOpt)=...
                       x.*fittingSettings.paramScaling(idxOpt)...
@@ -937,12 +990,19 @@ if(settings.processData==1)
         
                     ubSIter(idxOpt) = ...
                       (ub(idxOpt)-fittingSettings.paramOffset(idxOpt))...
-                      ./fittingSettings.paramScaling(idxOpt);                    
+                      ./fittingSettings.paramScaling(idxOpt); 
+
                   otherwise
                     assert(0,'Error: unrecognized optimization algorithm')
                 end
-                [errV1,errDot1,mdl1]=errFcn(zeros(1,length(idxOpt)));
+
+                errFcn = ...
+                  @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);                    
+
+                x0=zeros(size(idxOpt));                
+                [errV1,errDot1,mdl1]=errFcn(x0);
     
+                here=1;
   
 
               end
@@ -986,37 +1046,56 @@ if(settings.processData==1)
             iterCycle=iterCycle+1;
           end 
 
-          fittingSettings.scaling=1;
+          %fittingSettings.scaling=1;
 
           x=[0,0,0,0,0];
           fittingSettings.optVarIndex=[1,2,3,4,5];
           [errV,errDot,fittedSine]=calcErrorOfSinusoid600A(x,fittingSettings);
 
-          fprintf('Fitting\n');
-          fprintf('\t%1.3e\tError\n',norm(errV));
+          rmseB=sqrt(mean(errV.^2));
+
+          index0 = fittingSettings.paramOffset(1);
+          index1 = index0+fittingSettings.paramOffset(5);
+
+          lengthStd = std(fittingSettings.length(index0:index1));
+
+          fprintf('\tFitting\n');
+          fprintf('\t\t%1.3e\t%1.3e\tError\n',...
+            rmseB/fittingSettings.lengthNoiseStd,...
+            rmseB/lengthStd);
           for idxV=1:1:length(varNames)            
-            fprintf('\t%1.3e\t%1.3e\t%s\n',...
+            fprintf('\t\t%1.3e\t%1.3e\t%s\n',...
               fittingSettings.paramOffset(idxV),...
               fittingSettings.paramOffset(idxV)-xInitial(idxV),...
                                   varNames{idxV});
           end
 
-          index0 = fittingSettings.paramOffset(1);
-          index1 = index0+fittingSettings.paramOffset(5);
 
-          time0=auroraData.Data.Time.Values(index0+indexStart-1);
-          time1=auroraData.Data.Time.Values(index1+indexStart-1);
+
+          indexA0=index0+indexStart-1;
+          indexA1=index1+indexStart-1;
+
+          time0=auroraData.Data.Time.Values(indexA0);
+          time1=auroraData.Data.Time.Values(indexA1);
 
           sinusoidFit = ...            
             struct('time_ms',time0,...
-                   'indexStart',index0,...
-                   'indexEnd',index1,...
+                   'indexSegment',fittingSettings.indexSegment,...
+                   'indexSine',[indexA0,indexA1],...  
+                   'indexSineLocal',[index0,index1],...
                    'length_mm',fittingSettings.paramOffset(2),...
                    'frequency_Hz',fittingSettings.paramOffset(3),...
                    'amplitude_Lo',fittingSettings.paramOffset(4),...
                    'duration_ms',time1-time0,...
-                   'resnorm',resnorm,...
-                   'exitflag',exitflag);   
+                   'rmse',rmseB,...
+                   'rmse_noise_std',rmseB/fittingSettings.lengthNoiseStd,...
+                   'rmse_signal_std',rmseB/lengthStd,...                   
+                   'noise_std',fittingSettings.lengthNoiseStd,...
+                   'signal_std',lengthStd,...
+                   'snr',lengthStd.^2 / fittingSettings.lengthNoiseStd.^2,...
+                   'snr_db',10*log10(lengthStd.^2 / fittingSettings.lengthNoiseStd.^2),...                   
+                   'objscale',fittingSettings.scaling,...
+                   'exitflag',optVarSchedule(end).exitflag);   
 
           %fprintf('\n%1.3f Hz Error\n',fftFrequencyHz-fittingSettings.paramOffset(3));
           
@@ -1034,7 +1113,7 @@ if(settings.processData==1)
               numberOfSamplesPerPeriod = ...
                 period_s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
 
-              indexA=sinusoidFit.indexStart;
+              indexA=sinusoidFit.indexSineLocal(1);
               indexB=indexA+round(nPeriod*numberOfSamplesPerPeriod)-1;
 
               plot( fittingSettings.time(indexA:indexB),...
@@ -1081,19 +1160,15 @@ if(settings.processData==1)
 
         if(isSegmentValid==1)
 
-          timeStart = sinusoidFit.time_ms;
-          timeEnd   = timeStart+sinusoidFit.duration_ms;
+          timeStart= auroraData.Data.Time.Values(sinusoidFit.indexSine(1));
+          timeEnd  = auroraData.Data.Time.Values(sinusoidFit.indexSine(2));
 
-          dataIndex = find( auroraData.Data.Time.Values >= timeStart ...
-                          & auroraData.Data.Time.Values <= timeEnd); 
+          dataIndex =[sinusoidFit.indexSine(1):1:sinusoidFit.indexSine(2)]; 
 
-          preTimeStart = timeStart-settings.paddingTimeMS;
-          preTimeEnd   = timeStart;
-          preDataIndex = [];
-    
-          if(preTimeEnd > 0)
-            preDataIndex = find( auroraData.Data.Time.Values >= preTimeStart ...
-                    & auroraData.Data.Time.Values <= preTimeEnd); 
+          preDataIndex=[];
+          if(sinusoidFit.indexSine(1)>sinusoidFit.indexSegment(1))
+            preDataIndex = ...
+              [sinusoidFit.indexSegment(1):1:sinusoidFit.indexSine(1)];
           end
 
           x     = auroraData.Data.Lin.Values(dataIndex,1);
@@ -1146,7 +1221,7 @@ if(settings.processData==1)
           % Evaluate the frequency response using Welch's method
           %
           %%
-          segData.H = evaluateGainPhaseCoherenceSq(...
+          segData.H0 = evaluateGainPhaseCoherenceSq(...
                           segData.time,...
                           segData.x,...
                           segData.y,...
@@ -1156,136 +1231,285 @@ if(settings.processData==1)
                           0);
 
 
+
+          if(settings.useManuallySetDaqDelay==1)
+            assert(strcmp(settings.daqDelayModel,'frequency-domain')==1,...
+                   ['Error: Only the frequency-domain delay',...
+                   ' model has been evaluated']);
+          end    
+
+          delayModel.phaseDelayElasticRod=0;
+          delayModel.daqDelay    = settings.daqDelay; %in seconds
+          delayModel.daqFilterFrequencyHz = settings.daqFilterFrequencyHz;
+          delayModel.daqDelayModel   = settings.daqDelayModel;          
+
+          %%
+          % Compensate for the propagation delay
+          %
+          %
+          % Compensating for the delay changes the gain
+          % and thus the estimated stiffness of the spring. 
+          % Here we iterate over candidate delays until
+          % the difference between subsequent delays is small
+          %
+          % This delay is also present in a muscle fiber, but it is
+          % so small (2.27 e-5 s) that it does not really affect the 
+          % phase in our bandwidth of 0-90 Hz: at 90 Hz one period is
+          % 11 ms, and the biggest delay incurred by the
+          % viscoelascity of the fiber is 0.0227 ms which amounts to
+          % 0.11 degrees.
+          %
+          % Note, however, that there are publications in the
+          % literature that examine the frequency response of fibers
+          % upto 40 kHz. At such high frequencies these delays would 
+          % be noticeable: at 40,000 Hz one period is 0.025 ms, and
+          % the transmission delay would amount to 52 degrees
+          %
+          % De Winkel ME, Blangé T, Treijtel BW. The complex Young's 
+          % modulus of skeletal muscle fibre segments in the high 
+          % frequency range determined from tension transients. 
+          % Journal of Muscle Research & Cell Motility. 1993 
+          % Jun;14(3):302-10.
+          %%
+  
+          
+          H = segData.H0;
+          delayError = inf;
+          delayP = 0;
+          delay = 0;
+          iter=1;
+  
+          while delayError > settings.phaseDelayTolerance ...
+              && iter < settings.phaseDelayMaxIteration ...
+              && ~isnan(delay)
+  
+            idxFit =find(H.frequencyHz >= segData.bandwidth_Hz(1,1)...
+                   & H.frequencyHz <= segData.bandwidth_Hz(1,2));
+  
+            delay = calcPhaseDelayOfThinElasticRod(...
+                        H.frequencyHz(idxFit),...
+                        H.gain(idxFit),...
+                        H.phase(idxFit),...
+                        auroraData.Data.Lin.Values(dataIndex,1),...
+                        experimentJson,...
+                        mm2m);
+  
+            if(~isnan(delay))
+              timeDelayedVec  = segData.time + delay;
+              y01    = interp1( segData.time, ...
+                                segData.y,...
+                                timeDelayedVec,...
+                                'linear','extrap');
+              
+              H = evaluateGainPhaseCoherenceSq(  ...
+                      timeDelayedVec,...
+                      segData.x,...
+                      y01,...
+                      segData.bandwidth_Hz,...
+                      segData.sampleFrequency,...
+                      settings.coherenceSquaredThreshold,...
+                      settings.minAcceptableBandwidthFraction);
+    
+              if(iter > 1)
+                delayError = abs(delay-delayP);
+              end
+              delayP = delay;
+            end
+            iter=iter+1;
+          end
+          if(iter > settings.phaseDelayMaxIteration)
+            fprintf(['  Warning: delay tolerance not met\n',...
+                 '  %1.2e > %1.2e\t error\n',...
+                 '  %i \t iterations'],...
+                 delayError, ...
+                 settings.phaseDelayTolerance,...
+                 settings.phaseDelayMaxIteration);
+          end      
+  
+          if(strcmp(experimentJson.experiment.material,'stainless steel'))    
+            segData.H1=H;
+            delayModel.phaseDelayCompensated=1;
+          else
+            %%
+            % For now, I'm not compensating for any of the delay
+            % that is present in the fiber for two reasons:
+            %
+            %  Between 0-90 Hz the delay is negligible. It is 
+            %  negligible for the fiber but not the spring because
+            %  the fiber is ~1/100th the mass of the spring.
+            %
+            %%
+            segData.H1=segData.H0;
+            delayModel.phaseDelayCompensated=0;
+          end
+
+          delayModel.phaseDelayElasticRod = delay;
+
+          assert(settings.useManuallySetDaqDelay==1 ...
+                 && strcmp(settings.daqDelayModel,'frequency-domain'),...
+                 ['Error: this script is not setup to solve for the ',...
+                  'inverse filter of best fit to the DAQ system']);
+
+          delayModel.daqFilterFrequencyHz = settings.daqFilterFrequencyHz;
+
+          %
+          % Compensate for the filtering effect of the DAQ
+          %
+          n = length(segData.H1.x);
+          omega = delayModel.daqFilterFrequencyHz*2*pi;
+          frequencyHz = [0:(1/(n)): (1-(1/n)) ]'...
+                          .* (segData.sampleFrequency);
+          frequency=frequencyHz.*(2*pi);
+          lpfInv = ((omega + complex(0,1).*frequency)./omega);
+          yUpd = ifft(lpfInv.*fft(segData.H1.y),...
+              'symmetric');
+          
+          segData.H2 = evaluateGainPhaseCoherenceSq(  ...
+                          segData.H1.time,...
+                          segData.H1.x,...
+                          yUpd,...
+                          segData.bandwidth_Hz,...
+                          segData.sampleFrequency,...
+                          settings.coherenceSquaredThreshold,...
+                          settings.minAcceptableBandwidthFraction);
+  
+          delayModel.daqDelayCompensated=1;
+
+
           %%
           %
           % Use Kawai's approach of just extracting out the Fourier
           % coefficients directly
           %
           %%          
-          
-          ms2s = 0.001;          
-          segData.FS.frequency   = zeros(nHarmonics,1);
-          segData.FS.frequencyHz = zeros(nHarmonics,1);          
-          segData.FS.length.L    = zeros(nHarmonics,1);
-          segData.FS.length.hk   = zeros(nHarmonics,1);
-          segData.FS.length.I    = 0;          
-          segData.FS.length.D    = 0;
-          segData.FS.length.LinvFT = [];
+          setOfSignals={'H0','H1','H2'};
 
-          segData.FS.force.F     = zeros(nHarmonics,1);
-          segData.FS.force.hk    = zeros(nHarmonics,1);
-          segData.FS.force.I     = 0;          
-          segData.FS.force.D     = 0;
-          segData.FS.force.FinvFT = [];
-          
-          for idxN =1:1:nHarmonics
-            segData.FS.frequency(idxN)   = ...
-              sinusoidFit.frequency_Hz*(2*pi)*idxN;
-            segData.FS.frequencyHz(idxN) = ...
-              sinusoidFit.frequency_Hz*idxN;
+          for idxS=1:1:length(setOfSignals)
+            ms2s = 0.001;        
+            Hs = setOfSignals{idxS};
+            segData.FS.(Hs).frequency   = zeros(nHarmonics,1);
+            segData.FS.(Hs).frequencyHz = zeros(nHarmonics,1);          
+            segData.FS.(Hs).length.L    = zeros(nHarmonics,1);
+            segData.FS.(Hs).length.hk   = zeros(nHarmonics,1);
+            segData.FS.(Hs).length.I    = 0;          
+            segData.FS.(Hs).length.D    = 0;
+            segData.FS.(Hs).length.LinvFT = [];
+  
+            segData.FS.(Hs).force.F     = zeros(nHarmonics,1);
+            segData.FS.(Hs).force.hk    = zeros(nHarmonics,1);
+            segData.FS.(Hs).force.I     = 0;          
+            segData.FS.(Hs).force.D     = 0;
+            segData.FS.(Hs).force.FinvFT = [];
             
-            omega_Hz= sinusoidFit.frequency_Hz*idxN;
-            omega   = omega_Hz*(2*pi);
-            
-            Tcyc    = 1/omega_Hz;
-            nCycles = (sinusoidFit.duration_ms.*ms2s)/Tcyc;
-            A      = (2/(nCycles*Tcyc));
-            timeSeg = (segData.time-sinusoidFit.time_ms).*ms2s;
-
-            %Real component
-            sineWt = sin( omega.*(timeSeg) );
-            l_dot_sineWt = sineWt.*segData.x;
-            f_dot_sineWt = sineWt.*segData.y;
-
-            flag_useIntegrate=0;
-
-            if(flag_useIntegrate==1)
-              fcnSineL = @(argX)interp1(timeSeg,l_dot_sineWt,argX,'linear');
-              L_real = integral(fcnSineL,timeSeg(1),timeSeg(end)); 
-            else
-              L_real = trapz(timeSeg,l_dot_sineWt);
+            for idxN =1:1:nHarmonics
+              segData.FS.(Hs).frequency(idxN)   = ...
+                sinusoidFit.frequency_Hz*(2*pi)*idxN;
+              segData.FS.(Hs).frequencyHz(idxN) = ...
+                sinusoidFit.frequency_Hz*idxN;
+              
+              omega_Hz= sinusoidFit.frequency_Hz*idxN;
+              omega   = omega_Hz*(2*pi);
+              
+              Tcyc    = 1/omega_Hz;
+              nCycles = (sinusoidFit.duration_ms.*ms2s)/Tcyc;
+              A      = (2/(nCycles*Tcyc));
+              timeSeg = (segData.time-sinusoidFit.time_ms).*ms2s;
+  
+              %Real component
+              sineWt = sin( omega.*(timeSeg) );
+              l_dot_sineWt = sineWt.*segData.(Hs).x;
+              f_dot_sineWt = sineWt.*segData.(Hs).y;
+  
+              flag_useIntegrate=0;
+  
+              if(flag_useIntegrate==1)
+                fcnSineL = @(argX)interp1(timeSeg,l_dot_sineWt,argX,'linear');
+                L_real = integral(fcnSineL,timeSeg(1),timeSeg(end)); 
+              else
+                L_real = trapz(timeSeg,l_dot_sineWt);
+              end
+              L_real = A.*L_real;
+  
+              if(flag_useIntegrate==1)
+                fcnSineF = @(argX)interp1(timeSeg,f_dot_sineWt,argX,'linear');
+                F_real = integral(fcnSineF,timeSeg(1),timeSeg(end)); 
+              else
+                F_real = trapz(timeSeg,f_dot_sineWt);
+              end
+              F_real = A.*F_real;
+  
+              %Complex component
+              cosWt = cos( omega.*(timeSeg) );
+              l_dot_cosWt = cosWt.*segData.(Hs).x;
+              f_dot_cosWt = cosWt.*segData.(Hs).y;
+  
+              if(flag_useIntegrate==1)
+                fcnCosL = @(argX)interp1(timeSeg,l_dot_cosWt,argX,'linear');
+                L_imag = integral(fcnCosL,timeSeg(1),timeSeg(end)); 
+              else
+                L_imag = trapz(timeSeg,l_dot_cosWt);
+              end
+              L_imag = A.*L_imag;
+  
+              if(flag_useIntegrate==1)
+                fcnCosF = @(argX)interp1(timeSeg,f_dot_cosWt,argX,'linear');
+                F_imag = integral(fcnCosF,timeSeg(1),timeSeg(end)); 
+              else
+                F_imag = trapz(timeSeg,f_dot_cosWt);
+              end
+              F_imag = A.*F_imag;        
+              
+              %Save the complex coefficients
+              segData.FS.(Hs).length.L(idxN) = complex(L_real,L_imag);
+              segData.FS.(Hs).force.F(idxN)  = complex(F_real,F_imag);
+              
+              segData.FS.(Hs).length.I= ...
+                segData.FS.(Hs).length.I + (L_real*L_real + L_imag*L_imag);
+  
+              segData.FS.(Hs).force.I= ...
+                segData.FS.(Hs).force.I + (F_real*F_real + F_imag*F_imag);
+  
+              %Build the FS time domain signals
+              if(isempty(segData.FS.(Hs).length.LinvFT))
+                segData.FS.(Hs).length.LinvFT = L_real.*sineWt + L_imag.*cosWt;
+              else
+                segData.FS.(Hs).length.LinvFT =  segData.FS.(Hs).length.LinvFT ...
+                                          + L_real.*sineWt + L_imag.*cosWt;
+              end
+  
+              if(isempty(segData.FS.(Hs).force.FinvFT))
+                segData.FS.(Hs).force.FinvFT = F_real.*sineWt + F_imag.*cosWt;
+              else
+                segData.FS.(Hs).force.FinvFT =  segData.FS.(Hs).force.FinvFT ...
+                                          + F_real.*sineWt + F_imag.*cosWt;
+              end
+  
+  
             end
-            L_real = A.*L_real;
-
-            if(flag_useIntegrate==1)
-              fcnSineF = @(argX)interp1(timeSeg,f_dot_sineWt,argX,'linear');
-              F_real = integral(fcnSineF,timeSeg(1),timeSeg(end)); 
-            else
-              F_real = trapz(timeSeg,f_dot_sineWt);
+  
+            for idxN=1:1:nHarmonics
+              segData.FS.(Hs).force.hk(idxN) = abs(segData.FS.(Hs).force.F(idxN))...
+                                          ./sqrt(segData.FS.(Hs).force.I);
+              segData.FS.(Hs).length.hk(idxN) = abs(segData.FS.(Hs).length.L(idxN))...
+                                           ./sqrt(segData.FS.(Hs).length.I);
             end
-            F_real = A.*F_real;
-
-            %Complex component
-            cosWt = cos( omega.*(timeSeg) );
-            l_dot_cosWt = cosWt.*segData.x;
-            f_dot_cosWt = cosWt.*segData.y;
-
-            if(flag_useIntegrate==1)
-              fcnCosL = @(argX)interp1(timeSeg,l_dot_cosWt,argX,'linear');
-              L_imag = integral(fcnCosL,timeSeg(1),timeSeg(end)); 
-            else
-              L_imag = trapz(timeSeg,l_dot_cosWt);
-            end
-            L_imag = A.*L_imag;
-
-            if(flag_useIntegrate==1)
-              fcnCosF = @(argX)interp1(timeSeg,f_dot_cosWt,argX,'linear');
-              F_imag = integral(fcnCosF,timeSeg(1),timeSeg(end)); 
-            else
-              F_imag = trapz(timeSeg,f_dot_cosWt);
-            end
-            F_imag = A.*F_imag;        
-            
-            %Save the complex coefficients
-            segData.FS.length.L(idxN) = complex(L_real,L_imag);
-            segData.FS.force.F(idxN)  = complex(F_real,F_imag);
-            
-            segData.FS.length.I= ...
-              segData.FS.length.I + (L_real*L_real + L_imag*L_imag);
-
-            segData.FS.force.I= ...
-              segData.FS.force.I + (F_real*F_real + F_imag*F_imag);
-
-            %Build the FS time domain signals
-            if(isempty(segData.FS.length.LinvFT))
-              segData.FS.length.LinvFT = L_real.*sineWt + L_imag.*cosWt;
-            else
-              segData.FS.length.LinvFT =  segData.FS.length.LinvFT ...
-                                        + L_real.*sineWt + L_imag.*cosWt;
-            end
-
-            if(isempty(segData.FS.force.FinvFT))
-              segData.FS.force.FinvFT = F_real.*sineWt + F_imag.*cosWt;
-            else
-              segData.FS.force.FinvFT =  segData.FS.force.FinvFT ...
-                                        + F_real.*sineWt + F_imag.*cosWt;
-            end
-
+  
+            h1F = segData.FS.(Hs).force.hk(1);
+            segData.FS.(Hs).force.D = sqrt(1-h1F'*h1F);
+  
+            h1L = segData.FS.(Hs).length.hk(1);
+            segData.FS.(Hs).length.D = sqrt(1-h1L'*h1L);
+  
+  
+            segData.FS.(Hs).H = (segData.FS.(Hs).force.F .* segData.FS.(Hs).length.L)...
+                         ./(segData.FS.(Hs).length.L .* segData.FS.(Hs).length.L);
+  
+            segData.FS.(Hs).gain = abs(segData.FS.(Hs).H);
+            segData.FS.(Hs).phase= angle(segData.FS.(Hs).H);
+            segData.FS.(Hs).storage = segData.FS.(Hs).gain .* cos(segData.FS.(Hs).phase);
+            segData.FS.(Hs).loss    = segData.FS.(Hs).gain .* sin(segData.FS.(Hs).phase);
 
           end
-
-          for idxN=1:1:nHarmonics
-            segData.FS.force.hk(idxN) = abs(segData.FS.force.F(idxN))...
-                                        ./sqrt(segData.FS.force.I);
-            segData.FS.length.hk(idxN) = abs(segData.FS.length.L(idxN))...
-                                         ./sqrt(segData.FS.length.I);
-          end
-
-          h1F = segData.FS.force.hk(1);
-          segData.FS.force.D = sqrt(1-h1F'*h1F);
-
-          h1L = segData.FS.length.hk(1);
-          segData.FS.length.D = sqrt(1-h1L'*h1L);
-
-
-          segData.FS.H = (segData.FS.force.F .* segData.FS.length.L)...
-                       ./(segData.FS.length.L .* segData.FS.length.L);
-
-          segData.FS.gain = abs(segData.FS.H);
-          segData.FS.phase= angle(segData.FS.H);
-          segData.FS.storage = segData.FS.gain .* cos(segData.FS.phase);
-          segData.FS.loss    = segData.FS.gain .* sin(segData.FS.phase);
-
           %%
           % Populate and save the json structure
           %%
@@ -1294,37 +1518,86 @@ if(settings.processData==1)
             sinusoidJson.interval = [timeStart,timeEnd];
             sinusoidJson.index    = idxSeg;
             sinusoidJson.type     = trialJson.segments(idxSeg).type;
-            sinusoidJson.time     = auroraData.Data.Time.Values(dataIndex,1);
-            sinusoidJson.length   = auroraData.Data.Lin.Values(dataIndex,1);
-            sinusoidJson.force    = auroraData.Data.Fin.Values(dataIndex,1);  
+            sinusoidJson.indexData= [dataIndex(1),dataIndex(end)];
+
+            %sinusoidJson.time     = [auroraData.Data.Time.Values(dataIndex(1),1)];
+            %sinusoidJson.length   = auroraData.Data.Lin.Values(dataIndex,1);
+            %sinusoidJson.force    = auroraData.Data.Fin.Values(dataIndex,1);  
+
+            sinusoidJson.lengthFit= sinusoidFit;
             sinusoidJson.lengthMean  = segData.xMean;
             sinusoidJson.forceMean   = segData.yMean;
-            sinusoidJson.forceBias   = segData.yBias;      
-            sinusoidJson.nominal.time    = segData.timePrior;
-            sinusoidJson.nominal.length  = segData.xPrior;
-            sinusoidJson.nominal.force   = segData.yPrior; 
+            sinusoidJson.forceBias   = segData.yBias; 
+            sinusoidJson.indexNominal=[preDataIndex(1),preDataIndex(end)];
+            
+            %sinusoidJson.nominal.time    = segData.timePrior;
+            %sinusoidJson.nominal.length  = segData.xPrior;
+            %sinusoidJson.nominal.force   = segData.yPrior; 
+
+            analysisNames ={'H0','H1','H2'};
+
+            fieldsToRemove = {'H','x','y','time'};
+            fieldsToUpdate = {'frequency',...
+                              'frequencyHz',...
+                              'H',...
+                              'gain',...
+                              'phase',...
+                              'storage',...
+                              'loss',...
+                              'coherenceSq'};
 
 
-            sinusoidJson.H  = segData.H;   
+
+            for idxH=1:1:length(analysisNames)
+              Hs=analysisNames{idxH};
+              sinusoidJson.(Hs)  = segData.(Hs);   
+  
+              idxBW = sinusoidJson.(Hs).idxBW;
+              for idxF=1:1:length(fieldsToUpdate)
+                sinusoidJson.(Hs).(fieldsToUpdate{idxF}) = ...
+                  sinusoidJson.(Hs).(fieldsToUpdate{idxF})(idxBW);
+              end
+
+              for idxR=1:1:length(fieldsToRemove)
+                Fr=fieldsToRemove{idxR};
+                sinusoidJson.(Hs) = rmfield(sinusoidJson.(Hs),Fr);
+              end              
+            end
+
             %Remove the H field, since we cannot encode complex numbers 
             %into json
-            sinusoidJson.H = rmfield(sinusoidJson.H,'H');
+            for idxH=1:1:length(analysisNames)
+              Hs=analysisNames{idxH};
 
-            sinusoidJson.H.units.gain = ...
-              [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
-            sinusoidJson.H.units.phase = 'radians';
-            sinusoidJson.H.units.storage = ...
-              [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
-            sinusoidJson.H.units.loss = ...
-              [auroraData.Data.Fin.Unit,'s/',auroraData.Data.Lin.Unit];
-            sinusoidJson.H.units.coherenceSq = '';
 
-            sinusoidJson.FS = segData.FS;
-            sinusoidJson.FS = rmfield(sinusoidJson.FS,'H');
-            sinusoidJson.FS.length = rmfield(sinusoidJson.FS.length,'L');
-            sinusoidJson.FS.force  = rmfield(sinusoidJson.FS.force,'F');
-            sinusoidJson.FS.lengthSinusoidFit = sinusoidFit;
-            
+              sinusoidJson.(Hs).units.gain = ...
+                [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
+              sinusoidJson.(Hs).units.phase = 'radians';
+              sinusoidJson.(Hs).units.storage = ...
+                [auroraData.Data.Fin.Unit,'/',auroraData.Data.Lin.Unit];
+              sinusoidJson.(Hs).units.loss = ...
+                [auroraData.Data.Fin.Unit,'s/',auroraData.Data.Lin.Unit];
+              sinusoidJson.(Hs).units.coherenceSq = '';
+            end
+
+            for idxH=1:1:length(analysisNames)
+              Hs=analysisNames{idxH};
+              sinusoidJson.FS.(Hs) = segData.FS.(Hs);
+              sinusoidJson.FS.(Hs) = rmfield(sinusoidJson.FS.(Hs),'H');
+
+
+              
+              sinusoidJson.FS.(Hs).length = ...
+                rmfield(sinusoidJson.FS.(Hs).length,'L');
+              sinusoidJson.FS.(Hs).length = ...
+                rmfield(sinusoidJson.FS.(Hs).length,'LinvFT');
+              
+              sinusoidJson.FS.(Hs).force  = ...
+                rmfield(sinusoidJson.FS.(Hs).force,'F');
+              sinusoidJson.FS.(Hs).force  = ...
+                rmfield(sinusoidJson.FS.(Hs).force,'FinvFT');
+            end
+
             lengthSummary = ...
               getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
             forceSummary = ...
@@ -1352,6 +1625,7 @@ if(settings.processData==1)
           % Inspect Fourier series
           %%
           flag_inspectFourierFit=0;
+          Hs='H2';
           if(flag_inspectFourierFit==1)
             fig_FS=figure;
 
@@ -1364,24 +1638,24 @@ if(settings.processData==1)
                  & segData.time <= (sinusoidFit.time_ms+nPeriod*Tperiod_ms));
 
             subplot(1,2,1)
-              plot(segData.time(indexPeriod),segData.x(indexPeriod),...
+              plot(segData.time(indexPeriod),segData.(Hs).x(indexPeriod),...
                 '-','Color',[1,1,1].*0.75,...
                 'LineWidth',1);
               hold on;
               plot(segData.time(indexPeriod),...
-                   segData.FS.length.LinvFT(indexPeriod),'-k');
+                   segData.FS.(Hs).length.LinvFT(indexPeriod),'-k');
               hold on;
               box off;
               xlabel(sprintf(  'Time (%s)',auroraData.Data.Time.Unit));
               ylabel(sprintf('Length (%s)',auroraData.Data.Lin.Unit));
 
             subplot(1,2,2);
-              plot(segData.time(indexPeriod),segData.y(indexPeriod),'-',...
+              plot(segData.time(indexPeriod),segData.(Hs).y(indexPeriod),'-',...
                 'Color',[1,1,1].*0.75,...
                  'LineWidth',1);
               hold on;
               plot(segData.time(indexPeriod),...
-                   segData.FS.force.FinvFT(indexPeriod),'-k');
+                   segData.FS.(Hs).force.FinvFT(indexPeriod),'-k');
               hold on;
               box off;
               xlabel(sprintf(  'Time (%s)',auroraData.Data.Time.Unit));
@@ -1395,7 +1669,8 @@ if(settings.processData==1)
             figure(figSegments)
 
             Tperiod_ms = 1000/sinusoidFit.frequency_Hz;
-            nPeriodMax = sinusoidFit.duration_ms*(0.001)*sinusoidFit.frequency_Hz;
+            nPeriodMax = sinusoidFit.duration_ms...
+                        *ms2s*sinusoidFit.frequency_Hz;
             nPeriod = min(4,nPeriodMax);            
 
             indexPeriod = ...
@@ -1410,7 +1685,7 @@ if(settings.processData==1)
                    'LineWidth',1);
               hold on;
               plot(segData.time(indexPeriod),...
-                   segData.FS.length.LinvFT(indexPeriod),'-k');
+                   segData.FS.(Hs).length.LinvFT(indexPeriod),'-k');
               hold on;
               box off;
 
@@ -1427,11 +1702,11 @@ if(settings.processData==1)
               reshape(subPlotPanelSegment(indexIntoSetOfSegments,3,:),1,4));
 
               plot(segData.time(indexPeriod),...
-                   segData.y(indexPeriod),'-','Color',[1,1,1].*0.75,...
+                   segData.(Hs).y(indexPeriod),'-','Color',[1,1,1].*0.75,...
                    'LineWidth',1);
               hold on;
               plot(segData.time(indexPeriod),...
-                   segData.FS.force.FinvFT(indexPeriod),'-k');
+                   segData.FS.(Hs).force.FinvFT(indexPeriod),'-k');
               hold on;
               box off;
               
@@ -1447,9 +1722,11 @@ if(settings.processData==1)
             subplot('Position',...
               reshape(subPlotPanelSegment(indexIntoSetOfSegments,4,:),1,4));
 
-              idxA = find(segData.H.frequencyHz < sinusoidFit.frequency_Hz,1,'last');
+              idxA = find(segData.(Hs).frequencyHz ...
+                          < sinusoidFit.frequency_Hz,1,'last');
 
-              idxB = find(segData.H.frequencyHz > sinusoidFit.frequency_Hz,1,'first');
+              idxB = find(segData.(Hs).frequencyHz ...
+                          > sinusoidFit.frequency_Hz,1,'first');
               
               if(indexIntoSetOfSegments==15)
                 here=1;
@@ -1464,12 +1741,12 @@ if(settings.processData==1)
 
 
               yyaxis left;
-                plot(segData.H.frequencyHz(idxBWK2),...
-                     segData.H.gain(idxBWK2),...
+                plot(segData.(Hs).frequencyHz(idxBWK2),...
+                     segData.(Hs).gain(idxBWK2),...
                      'DisplayName','Welch');
                 hold on;
-                plot(segData.FS.frequencyHz(1),...
-                     segData.FS.gain(1),...
+                plot(segData.FS.(Hs).frequencyHz(1),...
+                     segData.FS.(Hs).gain(1),...
                      'o','Color',[0,0,1],'MarkerFaceColor',[0,0,1],...
                      'DisplayName','FT');
                 hold on;
@@ -1491,12 +1768,12 @@ if(settings.processData==1)
                         auroraData.Data.Lin.Unit));
               
               yyaxis right;
-                plot(segData.H.frequencyHz(idxBWK2),...
-                     segData.H.phase(idxBWK2).*(180/pi),...
+                plot(segData.(Hs).frequencyHz(idxBWK2),...
+                     segData.(Hs).phase(idxBWK2).*(180/pi),...
                      'DisplayName','Welch');
                 hold on;
-                plot(segData.FS.frequencyHz(1),...
-                     segData.FS.phase(1).*(180/pi),...
+                plot(segData.FS.(Hs).frequencyHz(1),...
+                     segData.FS.(Hs).phase(1).*(180/pi),...
                      'd','Color',[1,0,0],'MarkerFaceColor',[1,0,0],...
                      'DisplayName','FT');
                 hold on;
@@ -1520,16 +1797,17 @@ if(settings.processData==1)
             subplot('Position',...
               reshape(subPlotPanelSegment(indexIntoSetOfSegments,5,:),1,4));              
 
-              plot(segData.FS.frequencyHz,...
-                   segData.FS.force.hk,'-','Color',[0,0,0]);
+              plot(segData.FS.(Hs).frequencyHz,...
+                   segData.FS.(Hs).force.hk,'-','Color',[0,0,0]);
               hold on;
-              plot(segData.FS.frequencyHz,...
-                   segData.FS.force.hk,'o','Color',[0,0,0],...
+              plot(segData.FS.(Hs).frequencyHz,...
+                   segData.FS.(Hs).force.hk,'o','Color',[0,0,0],...
                    'MarkerFaceColor',[1,1,1]);
               hold on;
-              text(segData.FS.frequencyHz(end),...
-                   segData.FS.force.hk(1),...
-                   sprintf('hk(1): %1.3f\nD: %1.6f',segData.FS.force.hk(1),segData.FS.force.D),...
+              text(segData.FS.(Hs).frequencyHz(end),...
+                   segData.FS.(Hs).force.hk(1),...
+                   sprintf('hk(1): %1.3f\nD: %1.6f',...
+                   segData.FS.(Hs).force.hk(1),segData.FS.(Hs).force.D),...
                    'HorizontalAlignment','right',...
                    'VerticalAlignment','top',...
                    'FontSize',7);
@@ -1542,8 +1820,8 @@ if(settings.processData==1)
 
             subplot('Position',...
               reshape(subPlotPanelSegment(indexIntoSetOfSegments,6,:),1,4));                  
-              plot(segData.H.frequencyHz(idxBWK2),...
-                   segData.H.coherenceSq(idxBWK2));
+              plot(segData.(Hs).frequencyHz(idxBWK2),...
+                   segData.(Hs).coherenceSq(idxBWK2));
               box off;
               xlabel('Frequency (Hz)');
               ylabel('Coherence-Sq');

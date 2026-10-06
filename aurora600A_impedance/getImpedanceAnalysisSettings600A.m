@@ -33,8 +33,11 @@ settingsImpedanceAnalysis.paddingTimeSinusoidMS = 188;
 
 settingsImpedanceAnalysis.useManuallySetDaqDelay = 1;
 settingsImpedanceAnalysis.daqDelayModel          = 'frequency-domain'; 
-settingsImpedanceAnalysis.daqDelay               = 6.67e-4; %Only used when the delay is fixed
-settingsImpedanceAnalysis.daqFilterFrequencyHz   = 638.872;%mean([638.872,686.438]); 
+settingsImpedanceAnalysis.daqDelay               = 0;
+%Spring: 6.67e-4; %Only used when the delay is fixed
+settingsImpedanceAnalysis.daqFilterFrequencyHz   = 1.786459184338522e+02;
+%Fixed fiber: 178.6459184338522 Hz
+%Spring: 638.872;%mean([638.872,686.438]); 
 
 
 % Avg of filter-of-best-fit to the spring data from the 

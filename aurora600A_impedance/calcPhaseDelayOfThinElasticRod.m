@@ -45,14 +45,18 @@ elseif(strcmp(experimentJson.experiment.material,'nitrile'))
 
 elseif(strcmp(experimentJson.experiment.material,'muscle'))
     %Smooth out the gain signal
-    df = min(diff(frequencyHz));
-    omega = 1/(0.5*df);
-    [b,a]=butter(2,0.1);
-    gain1 = filtfilt(b,a,gain);
-   
+    if(length(gain)>10)
+      df = min(diff(frequencyHz));
+      omega = 1/(0.5*df);
+      [b,a]=butter(2,0.1);
+      gain1 = filtfilt(b,a,gain);
+
+    else
+      gain1=gain;
+    end
     %Set k to be the average of the lowest quarter of the data available
     %for fitting
-    idxMax = max(round(length(gain1)*0.25),1);
+    idxMax = max(round(length(gain1)*0.25),1);    
     k = max(mean(gain1([1:1:idxMax]')), sqrt(eps));
     aMM2      = (pi/4)*(experimentJson.experiment.width_mm...
                        *experimentJson.experiment.height_mm);
