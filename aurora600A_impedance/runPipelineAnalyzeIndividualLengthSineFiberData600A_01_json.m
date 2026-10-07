@@ -518,12 +518,17 @@ if(settings.processData==1)
 
         indexStart=nan;
         indexEnd=nan;
-        for idxED=2:1:(length(indexEnableDisable))
-          if(   indexMid > indexEnableDisable(idxED-1)...
-             && indexMid < indexEnableDisable(idxED))
-            indexStart = indexEnableDisable(idxED-1)+1;
-            indexEnd   = indexEnableDisable(idxED)-1;
+        if(indexMid < indexEnableDisable(end))
+          for idxED=2:1:(length(indexEnableDisable))
+            if(   indexMid > indexEnableDisable(idxED-1)...
+               && indexMid < indexEnableDisable(idxED))
+              indexStart = indexEnableDisable(idxED-1)+1;
+              indexEnd   = indexEnableDisable(idxED)-1;
+            end
           end
+        else
+          indexStart=indexEnableDisable(end);
+          indexEnd  = length(auroraData.Data.Time.Values);
         end
 
         assert(~isnan(indexStart) && ~isnan(indexEnd),...
@@ -541,6 +546,7 @@ if(settings.processData==1)
         %
         %paddingSamples=...
         %  settings.paddingTimeSinusoidMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
+
 
         [indexStartNoPad, indexEndNoPad ] = ...
           searchForSegmentBoundary600A(...
@@ -607,6 +613,7 @@ if(settings.processData==1)
         % exact same approach as Kawai
         %%
         if(isSegmentValid==1)
+
 
     
           fittingSettings.indexSegment=[dataIndex(1),dataIndex(end)];
@@ -737,8 +744,8 @@ if(settings.processData==1)
           lbS = (lb-fittingSettings.paramOffset)...
                ./fittingSettings.paramScaling;
 
-          idxTimeMax = length(fittingSettings.time)...
-                      -fittingSettings.number_of_elements;
+          idxTimeMax = max(1,length(fittingSettings.time)...
+                             -fittingSettings.number_of_elements);
 
           ubTime = min(fittingSettings.paramOffset(1)+2*timeDelta,...
                        fittingSettings.time(idxTimeMax));
@@ -1286,7 +1293,7 @@ if(settings.processData==1)
             idxFit =find(H.frequencyHz >= segData.bandwidth_Hz(1,1)...
                    & H.frequencyHz <= segData.bandwidth_Hz(1,2));
   
-            delay = calcPhaseDelayOfThinElasticRod(...
+            delay = calcPhaseDelayOfElasticMedium(...
                         H.frequencyHz(idxFit),...
                         H.gain(idxFit),...
                         H.phase(idxFit),...
@@ -1343,7 +1350,7 @@ if(settings.processData==1)
             delayModel.phaseDelayCompensated=0;
           end
 
-          delayModel.phaseDelayElasticRod = delay;
+          delayModel.phaseDelay = delay;
 
           assert(settings.useManuallySetDaqDelay==1 ...
                  && strcmp(settings.daqDelayModel,'frequency-domain'),...

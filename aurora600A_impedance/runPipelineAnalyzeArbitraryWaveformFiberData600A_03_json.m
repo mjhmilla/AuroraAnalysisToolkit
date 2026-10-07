@@ -27,6 +27,8 @@ for i=1:1:length(analysisKeywords)
 
 end
 
+delayData =[];
+
 
 %% 
 % Delay model
@@ -888,10 +890,11 @@ if(settings.processData==1)
       
         if(xyDataIsValid==1)
   
-          delayModel.phaseDelayElasticRod=0;
+          delayModel.phaseDelay=0;
           delayModel.daqDelay    = settings.daqDelay; %in seconds
           delayModel.daqFilterFrequencyHz = settings.daqFilterFrequencyHz;
           delayModel.daqDelayModel   = settings.daqDelayModel;
+          delayModel.filterFrequencyGuessHz=1000;
            
   
           %%
@@ -936,8 +939,11 @@ if(settings.processData==1)
   
             idxFit =find(H.frequencyHz >= segData.bandwidth_Hz(1,1)...
                    & H.frequencyHz <= segData.bandwidth_Hz(1,2));
-  
-            delay = calcPhaseDelayOfThinElasticRod(...
+            if(~isempty(H.idxBWC2))
+              idxFit =find(H.frequencyHz(H.idxBWC2) >= segData.bandwidth_Hz(1,1)...
+                     & H.frequencyHz(H.idxBWC2) <= segData.bandwidth_Hz(1,2));
+            end
+            delay = calcPhaseDelayOfElasticMedium(...
                         H.frequencyHz(idxFit),...
                         H.gain(idxFit),...
                         H.phase(idxFit),...
@@ -994,7 +1000,7 @@ if(settings.processData==1)
             delayModel.phaseDelayCompensated=0;
           end
   
-          delayModel.phaseDelayElasticRod = delay;
+          delayModel.phaseDelay = delay;
           
           %%
           % Compensate for delay introduced by the low-pass-filter
@@ -1017,17 +1023,19 @@ if(settings.processData==1)
                             settings.coherenceSquaredThreshold,...
                             settings.minAcceptableBandwidthFraction);  
             
+            
             fittingResults = ...
               calcLowPassFilterFrequencyToZeroPhaseResponseSlope(...
-                delayModel.daqFilterFrequencyHz,...
+                delayModel.filterFrequencyGuessHz,...
                 expResponse,...
-                delayModel.daqFilterFrequencyHz*0.5,...
+                delayModel.filterFrequencyGuessHz*0.5,...
                 expResponse.bandwidthHzC2,...
                 100,...
                 0);  
   
             delayModel.daqFilterFrequencyHz = ...
                 fittingResults.filterFrequencyHz;
+            
   
           end
           if(modelSettings.useManuallySetDaqDelay==1 ...
@@ -1716,8 +1724,8 @@ if(settings.processData==1)
   
     
         segmentJson.delayModel.settings = modelSettings;
-        segmentJson.delayModel.phaseDelayElasticRod  ...
-                = delayModel.phaseDelayElasticRod;
+        segmentJson.delayModel.phaseDelay  ...
+                = delayModel.phaseDelay;
   
         segmentJson.delayModel.phaseDelayCompensated ...
           = delayModel.phaseDelayCompensated;
@@ -1730,6 +1738,9 @@ if(settings.processData==1)
         segmentJson.delayModel.daqDelayCompensated ...
           = delayModel.daqDelayCompensated;
   
+        delayData=[delayData;...
+          delayModel.phaseDelayCompensated, delayModel.phaseDelay, delayModel.daqFilterFrequencyHz];
+
         if(~isempty(segData.H.idxBWC2))
           for idxMdl = 1:1:length(fittedModelSeries)
     
@@ -1786,7 +1797,7 @@ if(settings.processData==1)
         titleStrA = trialJson.experiment.title;
         idxC = strfind(titleStrA,':');
         if(isempty(idxC))
-          idxC=20;
+          idxC=length(titleStrA);
         end
         titleStrB = sprintf('%i Hz, %1.3f Lo',bandwidth(1,2),amplitude);    
         titleId   = sprintf('(%i,%i). ',idxRow,indexSetOfTrials);    
@@ -2185,6 +2196,9 @@ if(settings.processData==1)
   saveas(figTimeSeries,fullfile(outputPlotDir,[fileName,'.fig']));
   close(figTimeSeries);  
 end
+
+%disp(delayData);
+
 success=1;
 
 

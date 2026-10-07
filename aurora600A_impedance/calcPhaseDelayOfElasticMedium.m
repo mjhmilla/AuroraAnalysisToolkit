@@ -1,4 +1,4 @@
-function delay = calcPhaseDelayOfThinElasticRod(...
+function delay = calcPhaseDelayOfElasticMedium(...
                     frequencyHz,gain,phase,...
                     lengthMM,...
                     experimentJson,mm2m)
@@ -29,6 +29,11 @@ if(strcmp(experimentJson.experiment.specimen,'Spring'))
     k = springK;
     m = wireM;
     l = springL;
+
+    v = l*sqrt(k/m);
+    delay = l/v;
+    here=1;
+
 elseif(strcmp(experimentJson.experiment.material,'nitrile'))
    
     %Set k to be the average of the data available
@@ -36,12 +41,15 @@ elseif(strcmp(experimentJson.experiment.material,'nitrile'))
 
     nitrileL = experimentJson.experiment.length_mm * mm2m;
     nitrileW = experimentJson.experiment.width_mm * mm2m;
-    nitrileH = experimentJson.experiment.height_mm * mm2m;
+    nitrileH = experimentJson.experiment.height_mm * mm2m;    
     nitrileV = nitrileL*nitrileW*nitrileH;
     nitrileM = nitrileV*experimentJson.experiment.rho_kg_m3;
 
-    m=nitrileM;
-    l=nitrileL;
+    E= k*nitrileL/(nitrileW*nitrileH);
+
+    v = sqrt(E/experimentJson.experiment.rho_kg_m3);
+    delay = l/v;
+    here=1;
 
 elseif(strcmp(experimentJson.experiment.material,'muscle'))
     %Smooth out the gain signal
@@ -64,6 +72,9 @@ elseif(strcmp(experimentJson.experiment.material,'muscle'))
     m = volumeMM3*(mm2m*mm2m*mm2m)*experimentJson.experiment.rho_kg_m3;
     l = mean(lengthMM)*mm2m;
 
+    E= k*l/(aMM2*mm2m*mm2m);
+    v = sqrt(E/experimentJson.experiment.rho_kg_m3);
+    delay = l/v;
 
     flag_debug=0;
     if(flag_debug==1)
@@ -84,9 +95,3 @@ else
     assert(0,'Error: unrecognized material')
 end
 
-v=nan;
-delay=nan;
-if(~isempty(l) && ~isempty(k) && ~isempty(m))
-    v = l*sqrt(k/m);    
-    delay = l/v;
-end

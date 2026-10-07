@@ -6,7 +6,7 @@ function [indexStartNoPad, indexEndNoPad] = ...
                                         auroraData)
 ms2s=0.001;
 
-indexDelta = round(0.25*(indexEnd-indexStart));
+indexDelta = round(0.45*(indexEnd-indexStart));
 
 samplesPadding=...
   approxPaddingMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
@@ -28,20 +28,21 @@ lamp  = 0.5*(max(auroraData.Data.Lin.Values(dataIndexMiddle))...
 dataNoiseYMax = max(auroraData.Data.Lin.Values(dataIndexNoise));
 dataNoiseYMin = min(auroraData.Data.Lin.Values(dataIndexNoise));
 
-ltarget = mean(auroraData.Data.Lin.Values(dataIndexNoise));
-nampPos = dataNoiseYMax-ltarget;
-nampNeg = ltarget-dataNoiseYMin;
+lmeanNoise = mean(auroraData.Data.Lin.Values(dataIndexNoise));
+nampPos = dataNoiseYMax-lmeanNoise;
+nampNeg = lmeanNoise-dataNoiseYMin;
 
-lwindow = [lmean-2*nampNeg,lmean+2*nampPos];
+lwindow = [lmeanNoise-2*nampNeg,lmeanNoise+2*nampPos];
 
 ampSmall = max(0.1*lamp,max(nampPos,nampNeg)*3);
 
-lthresh    = [lmean+ampSmall,lmean+0.5*lamp;...
-              lmean-0.5*lamp,lmean-ampSmall];
+lthresh    = [lmeanNoise+ampSmall,lmeanNoise+0.5*lamp;...
+              lmeanNoise-0.5*lamp,lmeanNoise-ampSmall];
 dlSign = [1, 1];
 
 indexBoundary  = [indexStart,indexEnd];
 indexBoundaryUpd=[nan,nan];
+indexBoundaryLocal=[nan,nan];
 searchDirection=[1,-1];
 searchLimits   =[indexStart, indexEnd;...
                  indexStart, indexEnd];
@@ -67,6 +68,11 @@ if(flag_debugSegmentBoundaries==1)
        auroraData.Data.Lin.Values(dataIndexNoise),...
        '-','Color',[1,0,0]);
   hold on;
+
+  plot(auroraData.Data.Time.Values(dataIndexMiddle),...
+       auroraData.Data.Lin.Values(dataIndexMiddle),...
+       '-','Color',[1,0,1]);
+  hold on;  
   
   for i=1:1:size(lthresh,1)
     if(i==1)
@@ -118,7 +124,37 @@ for i=1:1:length(indexBoundary)
       idxB = find(auroraData.Data.Lin.Values(interval)...
                       < lthresh(i,2),1,'last');
 
-      if(auroraData.Data.Lin.Values(interval(idxB))<lthresh(i,1))
+      if(i==2 && idxB == length(interval))
+        %
+        % Step backwards until the middle is crossed
+        %
+        dlEnd = auroraData.Data.Lin.Values(interval(idxB))-lmeanNoise;
+        dlStart = dlEnd;
+        idxStepBack = length(interval);
+        dlP = dlEnd;
+        while idxStepBack > 1 && dlStart*dlEnd > 0
+          dlP =dlStart;
+          dlStart = auroraData.Data.Lin.Values(interval(idxStepBack))...
+                     -lmeanNoise;
+          idxStepBack=idxStepBack-1;
+        end
+        assert(dlStart*dlEnd < 0,'Error: failed to cross the midpoint');
+        %
+        % Keep stepping backwards until the points are moving down
+        %
+        while idxStepBack > 1 && (dlP < dlStart || dlStart > 0)
+          dlP =dlStart;
+          dlStart = auroraData.Data.Lin.Values(interval(idxStepBack))...
+                     -lmeanNoise;
+          idxStepBack=idxStepBack-1;
+        end
+        assert(dlStart <= 0 && dlStart < dlP,...
+               'Error: failed to step back to the end of the sine');
+
+        idxB=idxStepBack+1;
+        idxA = find(auroraData.Data.Lin.Values(interval(1):1:interval(idxB-1))...
+                        < lthresh(i,1),1,'last');
+      elseif(auroraData.Data.Lin.Values(interval(idxB))<lthresh(i,1))
         idxA=idxB-1;
       else
         idxA = find(auroraData.Data.Lin.Values(interval(1):1:interval(idxB-1))...
@@ -159,26 +195,29 @@ for i=1:1:length(indexBoundary)
             && interval(idx1) > indexStart ...
             && interval(idx1) < indexEnd )
     
-          d0 = auroraData.Data.Lin.Values(interval(idx0))-ltarget;
-          d1 = auroraData.Data.Lin.Values(interval(idx1))-ltarget;
+          d0 = auroraData.Data.Lin.Values(interval(idx0))-lmeanNoise;
+          d1 = auroraData.Data.Lin.Values(interval(idx1))-lmeanNoise;
           
           if(d0*d1 < 0)    
             isBoundFound=1;
             if(abs(d0)<abs(d1))
               indexBoundaryUpd(i)=interval(idx0);
+              indexBoundaryLocal(i)=idx0;
             else
               indexBoundaryUpd(i)=interval(idx1);            
+              indexBoundaryLocal(i)=idx1;
             end
           end
   
         end
       end
 
-      lerrBest=abs(auroraData.Data.Lin.Values(interval(idx0))-ltarget);
+      lerrBest=abs(auroraData.Data.Lin.Values(interval(idx0))-lmeanNoise);
       idxBest=idx0;
       if(samplesPerPeriod <= 10)
         isBoundFound=1;
         indexBoundaryUpd(i)=interval(idxBest);
+        indexBoundaryLocal(i)=idxBest;
       end
       while(interval(idx0) > indexStart ...
           && interval(idx0) < indexEnd ...
@@ -186,12 +225,13 @@ for i=1:1:length(indexBoundary)
           && isBoundFound==0)
 
         lval=auroraData.Data.Lin.Values(interval(idx0));
-        lerr=abs(lval-ltarget);
+        lerr=abs(lval-lmeanNoise);
         if(lval > lwindow(1,1) && lval < lwindow(1,2) && lerr<lerrBest)
           idxBest=idx0;
           lerrBest=lerr;
           isBoundFound=1;
           indexBoundaryUpd(i)=interval(idx0);
+          indexBoundaryLocal(i)=idxBest;
         end
 
         if(idx0 > 1 && idx0 < length(interval))
