@@ -564,18 +564,25 @@ if(settings.processData==1)
       % 4. Evaluate defect between segments: difference between
       %  the new starting value and the expected value from the slope
       %%
-      
+      %if(exist('intraSegmentData','var'))
+      %  clear('intraSegmentData');
+      %end
   
       intraSegmentData(length(setOfSegments)) = ...
         struct('time',[],'model',[],'xyMax',[],...
-        'filtered',[],'raw',[]);
+        'filtered',[],'raw',[],'index',[]);
       for j=1:1:length(setOfSegments)
+        intraSegmentData(j).time=[];
+        intraSegmentData(j).index=[];
+        intraSegmentData(j).model=[];
+        intraSegmentData(j).xyMax=[];
         intraSegmentData(j).filtered.time = [];
         intraSegmentData(j).filtered.length = [];
         intraSegmentData(j).filtered.force = [];
         intraSegmentData(j).raw.time = [];
         intraSegmentData(j).raw.length = [];
         intraSegmentData(j).raw.force = [];
+
         
       end
       
@@ -605,34 +612,42 @@ if(settings.processData==1)
           intraSegmentData(j).time=[t0,t1];
           intraSegmentIndex = find( auroraData.Data.Time.Values >= t0 ...
                                   & auroraData.Data.Time.Values <= t1);
-            
-          intraSegmentData(j).filtered.time   = zeros(size(intraSegmentIndex,1),1);
-          intraSegmentData(j).filtered.length = zeros(size(intraSegmentIndex,1),1);
-          intraSegmentData(j).filtered.force  = zeros(size(intraSegmentIndex,1),1);
+          if(isempty(intraSegmentIndex))
+            here=1;
+          end
+          if(~isempty(intraSegmentIndex))
+            intraSegmentData(j).index = [intraSegmentIndex(1),intraSegmentIndex(end)];
+            intraSegmentData(j).filtered.time   = zeros(size(intraSegmentIndex,1),1);
+            intraSegmentData(j).filtered.length = zeros(size(intraSegmentIndex,1),1);
+            intraSegmentData(j).filtered.force  = zeros(size(intraSegmentIndex,1),1);
+    
+            intraSegmentData(j).filtered.time = ...
+              auroraData.Data.Time.Values(intraSegmentIndex,1);
   
-          intraSegmentData(j).filtered.time = ...
-            auroraData.Data.Time.Values(intraSegmentIndex,1);
-   
-          forceOffset=biasForce.passive.force;
-          if(~isempty(activeIntervals))
-            for idxA=1:1:size(activeIntervals,1)
-              if(t0 >= activeIntervals(idxA,1) && t1 <= activeIntervals(idxA,2))
-                forceOffset=biasForce.active.force;
+            intraSegmentData(j).raw.time = ...
+              auroraData.Data.Time.Values(intraSegmentIndex,1);
+  
+            forceOffset=biasForce.passive.force;
+            if(~isempty(activeIntervals))
+              for idxA=1:1:size(activeIntervals,1)
+                if(t0 >= activeIntervals(idxA,1) && t1 <= activeIntervals(idxA,2))
+                  forceOffset=biasForce.active.force;
+                end
               end
             end
+  
+            intraSegmentData(j).filtered.force =...
+              filteredForce(intraSegmentIndex)-forceOffset;
+  
+            intraSegmentData(j).filtered.length =...
+              filteredLength(intraSegmentIndex);
+  
+            intraSegmentData(j).raw.force =...
+              auroraData.Data.Fin.Values(intraSegmentIndex,1)-forceOffset;
+  
+            intraSegmentData(j).raw.length =...
+              auroraData.Data.Lin.Values(intraSegmentIndex,1);
           end
-
-          intraSegmentData(j).filtered.force =...
-            filteredForce(intraSegmentIndex)-forceOffset;
-
-          intraSegmentData(j).filtered.length =...
-            filteredLength(intraSegmentIndex);
-
-          intraSegmentData(j).raw.force =...
-            auroraData.Data.Fin.Values(intraSegmentIndex,1)-forceOffset;
-
-          intraSegmentData(j).raw.length =...
-            auroraData.Data.Lin.Values(intraSegmentIndex,1);
           
           here=1;
           
@@ -1606,12 +1621,17 @@ if(settings.processData==1)
           [{folderName};experimentJson.measurements(idxTrial)];
 
         segmentJson.interval= [timeStart,timeEnd];
-        segmentJson.index   = idxSeg;
+        segmentJson.index   = idxSeg;     
+        segmentJson.indexData=[];
+        if(~isempty(dataIndex))
+          segmentJson.indexData = [dataIndex(1),dataIndex(end)];
+        end
         segmentJson.type  = trialJson.segments(idxSeg).type; 
   
         segmentJson.time  = auroraData.Data.Time.Values(dataIndex,1);
         segmentJson.length  = auroraData.Data.Lin.Values(dataIndex,1);
         segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);  
+        
 
         if(isempty(activeIntervals))
           segmentJson.bias    = biasForce.passive;
@@ -1628,12 +1648,25 @@ if(settings.processData==1)
         %segmentJson.forceReference = nan;
   
         %if(~isempty(activeIntervals))      
-          segmentJson.pre.filterFrequencyHz=settings.isometricNoiseFilterCutoffFrequencyHz;
-          segmentJson.pre.fitlerType = 'Dual-pass 2nd order Butterworth low-pass filter';
+          segmentJson.pre.filter.frequencyHz=settings.isometricNoiseFilterCutoffFrequencyHz;
+          segmentJson.pre.filter.type = 'Dual-pass 2nd order Butterworth low-pass filter';
           %segmentJson.pre.time_ms= intraSegmentData(indexIntoSetOfSegments).time;
-          segmentJson.pre.time  = intraSegmentData(indexIntoSetOfSegments).filtered.time;
-          segmentJson.pre.length  = intraSegmentData(indexIntoSetOfSegments).filtered.length;
-          segmentJson.pre.force   = intraSegmentData(indexIntoSetOfSegments).filtered.force;        
+
+
+          segmentJson.pre.filter.time    = intraSegmentData(indexIntoSetOfSegments).filtered.time;
+          segmentJson.pre.filter.length  = intraSegmentData(indexIntoSetOfSegments).filtered.length;
+          segmentJson.pre.filter.force   = intraSegmentData(indexIntoSetOfSegments).filtered.force;        
+          segmentJson.pre.raw.time=intraSegmentData(indexIntoSetOfSegments).raw.time;
+          segmentJson.pre.raw.length=intraSegmentData(indexIntoSetOfSegments).raw.length;
+          segmentJson.pre.raw.force=intraSegmentData(indexIntoSetOfSegments).raw.force;
+
+          segmentJson.pre.indexData=[];
+          if(~isempty(intraSegmentData(j).index))
+            segmentJson.pre.indexData=...
+              [intraSegmentData(j).index(1),...
+               intraSegmentData(j).index(end)];
+          end
+
         %end
   
         segmentJson.summary.length    = lengthSummary;

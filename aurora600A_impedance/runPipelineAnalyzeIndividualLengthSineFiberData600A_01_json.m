@@ -61,7 +61,7 @@ trialType=lower(experimentJson.experiment.type);
 idxS = strfind(trialType,' ');
 trialType(idxS)='_';
 
-setOfTrialTypes = {'impedance_calibration'};
+setOfTrialTypes = {'impedance_calibration','impedance'};
 foundTrialType=0;
 for i=1:1:length(setOfTrialTypes)
   if(strcmp(setOfTrialTypes{i},trialType))
@@ -490,7 +490,7 @@ if(settings.processData==1)
       end
 
       if(~isempty(setOfSegmentsOverride))
-        setOfSegments=setOfSegmentsOverride;
+        setOfSegments=setOfSegments(setOfSegmentsOverride);
       end
 
       for indexIntoSetOfSegments = 1:1:length(setOfSegments)
@@ -547,12 +547,13 @@ if(settings.processData==1)
         %paddingSamples=...
         %  settings.paddingTimeSinusoidMS*ms2s*auroraData.Setup_Parameters.A_D_Sampling_Rate.Value;
 
+        duration_s = diff(trialJson.segments(idxSeg).time_ms)*ms2s;
 
         [indexStartNoPad, indexEndNoPad ] = ...
           searchForSegmentBoundary600A(...
              indexStart, indexEnd, ...
              trialJson.segments(idxSeg).meta_data.frequency_Hz,...
-             settings.paddingTimeSinusoidMS,...
+             duration_s,...
              auroraData);     
         
         fftFrequencyHz=...
@@ -925,19 +926,24 @@ if(settings.processData==1)
                     fittingSettings.paramOffset(1)=idxLsqMax;
 
 
-                    idxStart=idxLsqMax;
-                    idxEnd  = idxLsqMax+diff(fittingSettings.optInterval);
-                    duration_ms = fittingSettings.time(idxEnd) ...
-                                - fittingSettings.time(idxStart);
+                    idxSegStart=idxLsqMax;
+                    idxSegEnd  = ...
+                      min(idxLsqMax+diff(fittingSettings.optInterval),...
+                          length(fittingSettings.time));
+                    duration_ms = fittingSettings.time(idxSegEnd) ...
+                                - fittingSettings.time(idxSegStart);
                     duration_S = duration_ms*ms2s;
 
                     frequency_Hz = fittingSettings.paramOffset(3);
                     period_S=1/frequency_Hz;
                     
-                    idxEnd = idxStart + round(samplesPerPeriod*fitCycles);
+                    idxSegEnd = ...
+                      min(idxSegStart + round(samplesPerPeriod*fitCycles),...
+                          length(fittingSettings.time));
+                    
 
-                    fittingSettings.optInterval = [idxLsqMax,idxEnd];
-                    fittingSettings.paramOffset(5)=(idxEnd-idxLsqMax)+1;
+                    fittingSettings.optInterval = [idxLsqMax,idxSegEnd];
+                    fittingSettings.paramOffset(5)=(idxSegEnd-idxLsqMax);
 
                     errFcn = ...
                       @(argX)calcErrorOfSinusoid600A(argX,fittingSettings);                    
@@ -1024,17 +1030,14 @@ if(settings.processData==1)
                 fitCycles = nCycles;              
               end
   
-              index1    = round(fitCycles*numberOfSamplesPerPeriod);
-              if(index1>length(dataIndexNoPad))
-                index1=length(dataIndexNoPad);
-              end
-              
+              index1    = min(round(fitCycles*numberOfSamplesPerPeriod),...
+                              length(dataIndexNoPad));              
               
               fittingSettings.optInterval(2)=...
                    [dataIndexNoPad(index1)-dataIndex(1)];
               
               fittingSettings.number_of_elements = ...
-                diff(fittingSettings.optInterval)+1;
+                diff(fittingSettings.optInterval);
   
               if(idxOpt ~= idxSamples)
                 fittingSettings.paramOffset(idxSamples)=...

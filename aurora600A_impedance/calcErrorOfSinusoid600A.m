@@ -56,10 +56,13 @@ if(isNumberOfElementsAnOptVar == 1)
     index1=length(settings.time);
   end
 elseif(isIndex0AnOptVar==1)
-  index1 = index0+diff(settings.optInterval)+1;
+  index1 = index0+diff(settings.optInterval);
 else
   index0 = settings.optInterval(1);
   index1 = settings.optInterval(2);  
+end
+if(index1 > length(settings.time))
+  here=1;
 end
 
 t0 = settings.time(index0);
