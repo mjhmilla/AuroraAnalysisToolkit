@@ -1,6 +1,8 @@
-function [figH,figHindiv] = plotForceLengthImpedance600A(...
+function [figH,figHindiv,figHPub] = ...
+            plotForceLengthImpedance600A(...
                               figH,...
                               figHindiv,...
+                              figHPub,...
                               experimentList, ...
                               segmentSeries,...
                               categories, ...
@@ -14,6 +16,8 @@ function [figH,figHindiv] = plotForceLengthImpedance600A(...
 numberOfHorizontalPlotColumnsGeneric  = 3;
 numberOfVerticalPlotRowsGeneric       = length(segmentSeries);
 nominalForceWindowInMs = 100;
+
+cs=getPaulTolColourSchemes('vibrant');
 
 switch flag_0Presentation_1Publication
   case 0
@@ -43,6 +47,10 @@ end
                       plotVertMarginCm,...
                       baseFontSize); 
 
+subPlotPanelZg = subPlotPanelZi;
+pageWidthZg    = pageWidthZi;
+pageHeightZg   = pageHeightZi;
+
 numberOfHorizontalPlotColumnsGeneric  = 2*length(segmentSeries);
 numberOfVerticalPlotRowsGeneric       = 3;
 nominalForceWindowInMs = 100;
@@ -66,7 +74,7 @@ switch flag_0Presentation_1Publication
     assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');
 end
 
-[subPlotPanelZg, pageWidthZg,pageHeightZg]= ...
+[subPlotPanelZp, pageWidthZp,pageHeightZp]= ...
   plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
                       numberOfVerticalPlotRowsGeneric,...
                       plotWidth,...
@@ -82,7 +90,7 @@ end
 fieldsToPlot = {'storageActive','lossActive'};
   
   xySeries(8)=struct('x','','y','',...
-                    'segment',2,...
+                    'segment',nan,...
                     'row',nan,'col',nan,...
                     'xTicks',[],'yTicks',[],...
                     'xLim',[],'yLim',[],...
@@ -183,6 +191,123 @@ fieldsToPlot = {'storageActive','lossActive'};
   end
 
 
+  %
+  %
+  %
+  xySeriesPub(6)=struct('segment',nan,'row',nan,'col',nan,...
+                  'x','','xTicks',[],'xLim',[],'xLabel','',...
+                  'left',[],'right',[],...
+                  'title',[],'color',[]);
+
+  for i=1:1:6
+
+    xySeriesPub(i)=struct('segment',nan,'row',nan,'col',nan,...
+                  'x','','xTicks',[],'xLim',[],'xLabel','',...
+                  'left',[],'right',[],...
+                  'title',[],'color',[]);
+
+    xySeriesPub(i).left  = ...
+      struct('y','','yTicks',[],'yLim',[],'yLabel','',...
+             'color',[],'legend','');
+
+    xySeriesPub(i).right = ...
+      struct('y','','yTicks',[],'yLim',[],'yLabel','',...
+             'color',[],'legend','');    
+  end
+
+  idx=1;
+  %
+  % Total active storage
+  %
+  xySeriesPub(idx).segment=nan;
+  xySeriesPub(idx).row=1;
+  xySeriesPub(idx).col=nan;  
+
+  xySeriesPub(idx).x      = 'lengthNominal';
+  xySeriesPub(idx).xTicks = categories.length.value;
+  xySeriesPub(idx).xLim   = [min(categories.length.value),...
+                             max(categories.length.value)] + [-1,1].*0.05;
+  xySeriesPub(idx).xLabel = 'Norm. Length ($$\ell/\ell_o^M$$)';
+
+  xySeriesPub(idx).left.y      = 'storage';
+  xySeriesPub(idx).left.yTicks = [0:0.2:1.6];
+  xySeriesPub(idx).left.yLim   = [0,1.6] + [-1,1].*sqrt(eps);
+  xySeriesPub(idx).left.yLabel = 'Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
+  xySeriesPub(idx).left.color  = cs.magenta;
+  xySeriesPub(idx).left.legend = '$$\tilde{S}^A + \tilde{S}^P$$';
+  
+  xySeriesPub(idx).right.y      = 'force';
+  xySeriesPub(idx).right.yTicks = [0:0.2:1.6];
+  xySeriesPub(idx).right.yLim   = [0,1.6] + [-1,1].*sqrt(eps);
+  xySeriesPub(idx).right.yLabel = 'Norm. Force ($$\mathrm{mN}/f_o^M$$)';
+  xySeriesPub(idx).right.color  = [0,0,0];  
+  xySeriesPub(idx).right.legend = '$$\tilde{f}^L+\tilde{f}^{PE}$$';
+
+  %
+  % Total active loss
+  %  
+  idx=idx+1;
+  xySeriesPub(idx)=xySeriesPub(idx-1);
+  xySeriesPub(idx).row=1;
+  xySeriesPub(idx).col=nan;
+
+  xySeriesPub(idx).left.y      = 'loss';
+  xySeriesPub(idx).left.yTicks = [0:0.2:1.6];
+  xySeriesPub(idx).left.yLim   = [0,1.6] + [-1,1].*sqrt(eps);
+  xySeriesPub(idx).left.yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
+  xySeriesPub(idx).left.color  = cs.magenta;
+  xySeriesPub(idx).left.legend = '$$\tilde{L}^A + \tilde{L}^P$$';
+  
+  %
+  % Passive storage
+  %  
+  idx=idx+1;
+  xySeriesPub(idx)=xySeriesPub(idx-1);
+  xySeriesPub(idx).row=2;
+  xySeriesPub(idx).col=nan;
+  xySeriesPub(idx).left.y      = 'storagePassive';
+  xySeriesPub(idx).left.legend = '$$\tilde{S}^{P}$$';
+  xySeriesPub(idx).left.color  = cs.blue;
+  xySeriesPub(idx).right.y      = 'forcePassive';
+  xySeriesPub(idx).right.legend = '$$\tilde{f}^{PE}$$';
+  %
+  % Passive loss
+  %  
+  idx=idx+1;
+  xySeriesPub(idx)=xySeriesPub(idx-1);
+  xySeriesPub(idx).row=2;
+  xySeriesPub(idx).col=nan;
+  xySeriesPub(idx).left.y      = 'lossPassive';
+  xySeriesPub(idx).left.color  = cs.blue;
+  xySeriesPub(idx).left.legend = '$$\tilde{L}^{P}$$';
+  xySeriesPub(idx).right.y      = 'forcePassive';
+  xySeriesPub(idx).right.legend = '$$\tilde{f}^{PE}$$';
+
+  %
+  % Active storage
+  %  
+  idx=idx+1;
+  xySeriesPub(idx)=xySeriesPub(idx-1);
+  xySeriesPub(idx).row=3;
+  xySeriesPub(idx).col=nan;
+  xySeriesPub(idx).left.y      = 'storageActive';
+  xySeriesPub(idx).left.color  = cs.red;
+  xySeriesPub(idx).left.legend = '$$\tilde{S}^{A}$$';
+  xySeriesPub(idx).right.y      = 'forceActive';
+  xySeriesPub(idx).right.legend = '$$\tilde{f}^{L}$$';
+  %
+  % Active loss
+  %  
+  idx=idx+1;
+  xySeriesPub(idx)=xySeriesPub(idx-1);
+  xySeriesPub(idx).row=3;
+  xySeriesPub(idx).col=nan;
+  xySeriesPub(idx).left.y      = 'lossActive';
+  xySeriesPub(idx).left.color  = cs.red;  
+  xySeriesPub(idx).left.legend = '$$\tilde{L}^{A}$$';
+  xySeriesPub(idx).right.y      = 'forceActive';
+  xySeriesPub(idx).right.legend = '$$\tilde{f}^{L}$$';
+
 
 
 %%
@@ -226,9 +351,9 @@ for indexSegment=1:1:length(segmentSeries)
                            'lengthPassive',[],...
                            'forcePassive',[],...
                            'storage',[],...
-                           'loss',[],...
+                           'loss',[], ...
                            'storageActive',[],...
-                           'lossActive',[],...
+                           'lossActive',[], ...
                            'storagePassive',[],...
                            'lossPassive',[]);
   end
@@ -251,9 +376,9 @@ for indexSegment=1:1:length(segmentSeries)
                        'lengthPassive',[],...
                        'forcePassive',[],...
                        'storage',[],...
-                       'loss',[],...                 
+                       'loss',[], ...
                        'storageActive',[],...
-                       'lossActive',[],...
+                       'lossActive',[], ...
                        'storagePassive',[],...
                        'lossPassive',[]);  
     
@@ -270,9 +395,9 @@ for indexSegment=1:1:length(segmentSeries)
                    'lengthPassive',[],...
                    'forcePassive',[],...
                    'storage',[],...
-                   'loss',[],...
+                   'loss',[], ...
                    'storageActive',[],...
-                   'lossActive',[],...
+                   'lossActive',[], ...
                    'storagePassive',[],...
                    'lossPassive',[]);  
     end
@@ -300,12 +425,7 @@ for indexSegment=1:1:length(segmentSeries)
                               trialList(idxTrialA).name);
           aFileData = fileread(aFilePath);
           aJsonData = jsondecode(aFileData);
-  
-          %Fetch the meta data
-
-          %Fetch the auroraData
-
-
+ 
   
           %Go and get the passive data
           idxTrialP=nan;
@@ -775,7 +895,7 @@ for indexSegment=1:1:length(segmentSeries)
   
   for i=1:1:length(xySeries)
     figure(figH);
-    subplot('Position',reshape(subPlotPanelZi(xySeries(i).row,xySeries(i).col,:),1,4));
+    subplot('Position',reshape(subPlotPanelZg(xySeries(i).row,xySeries(i).col,:),1,4));
     
     %Plot the force-length relation in the background
 
@@ -910,6 +1030,258 @@ for indexSegment=1:1:length(segmentSeries)
     box off;
     here=1;
   end
+
+  %%
+  % Update the plotting struct
+  %%
+  titleMod = {'A. Total','B. Total','C. Passive','D. Passive','E. Active','F. Active'};
+
+  for i=1:2:length(xySeriesPub)
+
+    xySeriesPub(i).col   = 2*(indexSegment-1)+1;
+    xySeriesPub(i).title = sprintf([titleMod{i},' Storage-Length-Relation',...
+                                  ' (%1.1f Hz, %1.4f Lo)'],...
+                                  bandwidthHz,amplitudeLo);
+     
+    xySeriesPub(i+1).col   = xySeriesPub(i).col+1;
+    xySeriesPub(i+1).title = sprintf([titleMod{i+1},' Loss-Length-Relation',...
+                                  ' (%1.1f Hz, %1.4f Lo)'],...
+                                  bandwidthHz,amplitudeLo);    
+  end  
+
+
+  dataSeries(2)=struct('median',[],'all',[]);
+  idxLRData=1;
+  idxLRForce=2;
+  for idxD=1:1:2
+    dataSeries(idxD).median=struct('x',[],'y',[]);
+    dataSeries(idxD).all=struct('x',[],'y',[]);    
+  end
+
+  for idxLR=1:1:2
+    side='';
+    switch idxLR
+      case 1
+        side ='left';     
+      case 2
+        side ='right';          
+      otherwise
+        assert(0,'Error: idxLR must be [1,2]');
+    end
+
+    %Plot the median line
+    dataSeries(idxLR).median=struct('x',[],'y',[]);
+    dataSeries(idxLR).all=struct('x',[],'y',[]);    
+    
+    for j=1:1:length(expDataSet)
+      if(~isempty(expDataSet(j).(xySeriesPub(i).(side).y)))
+        dataSeries(idxLR).median.x=[dataSeries(idxLR).median.x;...
+                            expDataSet(j).lengthNominal];
+  
+        yM = median(expDataSet(j).(xySeriesPub(i).(side).y));
+        if(isempty(yM))
+          yM=nan;
+        end
+        dataSeries(idxLR).median.y=[dataSeries(idxLR).median.y;...
+                                    yM];
+  
+        yS=expDataSet(j).(xySeriesPub(i).(side).y);
+        if(isempty(yS))
+          yS=nan;
+        end
+        dataSeries(idxLR).all.x=[dataSeries(idxLR).all.x;...
+              ones(size(yS)).*expDataSet(j).lengthNominal];
+        dataSeries(idxLR).all.y=[dataSeries(idxLR).all.y;...
+                                 yS];          
+      end
+    end
+  end
+
+
+  %Box and whisker plots
+  for i=1:1:length(xySeriesPub)
+    figure(figHPub);
+    subplot('Position',...
+      reshape(subPlotPanelZp(xySeriesPub(i).row,...
+                             xySeriesPub(i).col,:),1,4));
+
+
+
+    for idxLR=1:1:2
+      
+      side='';
+      addCorrelation=0;
+      switch idxLR
+        case 1
+          side ='left';
+          yyaxis left;          
+        case 2
+          side ='right';          
+          yyaxis right;
+          addCorrelation=1;
+        otherwise
+          assert(0,'Error: idxLR must be [1,2]');
+      end
+      
+
+      if(~isempty(dataSeries(idxLR).median.x))
+
+        idxV = find(~isnan(dataSeries(idxLR).median.y));
+
+        if(~isempty(idxV))
+          plot(dataSeries(idxLR).median.x(idxV),...
+               dataSeries(idxLR).median.y(idxV),...
+               '-','Color',xySeriesPub(i).(side).color);
+          hold on;
+        end
+      end
+
+      if(addCorrelation==1)
+
+        flag_checkScatterPlot=0;
+        if(flag_checkScatterPlot==1)
+          figScatter=figure;
+          plot(dataSeries(1).median.y,dataSeries(2).median.y,'.');
+          hold on;
+          xlabel('Norm. Storage/Loss');
+          ylabel('Norm. Force');
+          here=1;
+        end
+
+        dx = diff(xySeriesPub(i).xLim).*0.05;
+        dy = diff(xySeriesPub(i).(side).yLim).*0.05;
+        xR = xySeriesPub(i).xTicks(end)-3*dx;
+        yR = xySeriesPub(i).(side).yTicks(end);
+
+
+        y1 = [];
+        y2 = [];
+        for idxY=1:1:length(dataSeries(1).median.x)
+          if(~isnan(dataSeries(1).median.y(idxY)) ...
+               && ~isnan(dataSeries(2).median.y(idxY)))
+            y1=[y1;dataSeries(1).median.y(idxY)];
+            y2=[y2;dataSeries(2).median.y(idxY)];
+          end
+        end
+
+        if(length(y1) > 2)
+
+          [rho,pval] = corr(y1,y2,'Type','Pearson');
+          text(xR,yR,...
+               sprintf('%s=%1.4f\n%s=%1.2e\nn=%i','$$\rho$$',rho,'$$p$$',pval,length(y1)),...
+               'FontSize',8,...
+               'HorizontalAlignment','left',...
+               'VerticalAlignment','top');
+  
+          hold on;
+        end
+
+      end
+
+      %Add the box and whisker plot
+      for j=1:1:length(expDataSet)  
+        if(~isempty(expDataSet(j).(xySeriesPub(i).(side).y)))
+          lineColor = xySeriesPub(i).(side).color;
+          boxColor  = [1,1,1].*0.5 + lineColor.*0.5;
+          bwWidth   = 0.025;          
+          addBoxWhiskerPlot   = 1;
+          switch side
+            case 'left'
+              bwOffset  = -bwWidth;
+            case 'right'
+              bwOffset  = bwWidth;
+            otherwise
+              assert(0,'Error: side must be either left or right');
+          end         
+  
+          if(addBoxWhiskerPlot==1)
+
+            summaryStatistics = ...
+              getSummaryStatistics(expDataSet(j).(xySeriesPub(i).(side).y));
+            plotBoxWhiskerData(expDataSet(j).lengthNominal+bwOffset,...
+                               summaryStatistics,...
+                               bwWidth,lineColor,boxColor);            
+            hold on;
+            
+            xL=expDataSet(j).lengthNominal+bwOffset;
+            yL=summaryStatistics.y(1,2);
+            text(xL,yL,...
+              sprintf('%i',length((expDataSet(j).(xySeriesPub(i).(side).y)))),...
+              'VerticalAlignment','top',...
+              'HorizontalAlignment','center',...
+              'FontSize',6);
+            hold on;
+
+            if(~isempty(expDataSet(j).(xySeriesPub(i).(side).y)) ...
+               && ~isnan(dataSeries(idxLRForce).median.y(j)))
+              if(strcmp(side,'left'))
+                xL=expDataSet(j).lengthNominal+bwOffset;
+                yL=summaryStatistics.y(1,6);              
+  
+                [psr,hsr,statssr]=...
+                    signrank(expDataSet(j).(xySeriesPub(i).(side).y),...
+                             dataSeries(idxLRForce).median.y(j));
+                here=1;
+                text(xL,yL,...
+                  sprintf('%1.2e',psr),...
+                  'VerticalAlignment','bottom',...
+                  'HorizontalAlignment','center',...
+                  'FontSize',6);
+                hold on;                
+              end
+            end
+          end
+        end
+      end
+      
+      dyLegend=0;
+      switch idxLR
+        case 1
+          ax=gca;
+          ax.YAxis(idxLR).Color=xySeriesPub(i).(side).color;          
+          xlabel(xySeriesPub(i).xLabel);
+          xticks(xySeriesPub(i).xTicks);
+          xlim(xySeriesPub(i).xLim);
+
+          ylabel(xySeriesPub(i).(side).yLabel,...
+            'Color',xySeriesPub(i).(side).color);
+          yticks(xySeriesPub(i).(side).yTicks);
+          ylim(xySeriesPub(i).(side).yLim);
+          title(xySeriesPub(i).title);
+          dyLegend=0;
+        case 2
+          ax=gca;
+          ax.YAxis(idxLR).Color=xySeriesPub(i).(side).color;            
+          ylabel(xySeriesPub(i).(side).yLabel,...
+            'Color',xySeriesPub(i).(side).color);
+          yticks(xySeriesPub(i).(side).yTicks);
+          ylim(xySeriesPub(i).(side).yLim);
+          dyLegend=-3;
+        otherwise
+          assert(0,'Error: idxLR must be [1,2]');
+      end
+
+      dx = diff(xySeriesPub(i).xLim).*0.05;
+      dy = diff(xySeriesPub(i).(side).yLim).*0.05;
+      xL = xySeriesPub(i).xTicks(1);
+      yL = xySeriesPub(i).(side).yTicks(end);
+      dyLegend = dyLegend*dy;
+      plot([xL,xL+dx],...
+           [yL-dy+dyLegend,yL-dy+dyLegend],...
+           '-','Color',xySeriesPub(i).(side).color);
+      hold on;
+      text(xL+1.5*dx,yL-dy+dyLegend,...
+           xySeriesPub(i).(side).legend,...
+           'FontSize',8,...
+           'HorizontalAlignment','left',...
+           'VerticalAlignment','middle');
+      hold on;
+      box off;
+    end
+
+  end
+
+
 end
 
 
@@ -920,26 +1292,6 @@ end
 if(flag_savePlot==1)
   outputPlotDir = fullfile(projectFolders.output600A_plots,...
                            'impedance_length_relation_larb');
-  
-  %
-  % Group plots
-  %
-  figH=configPlotExporter(figH, ...
-            pageWidthZi, pageHeightZi);
-  fileName =  ['fig_impedance_length',appendToFileName];
-
-  switch flag_0Presentation_1Publication
-    case 0
-      fileName =  [fileName,'_pres'];
-    case 1
-      fileName =  [fileName,'_pub'];      
-    otherwise
-      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
-  end
-
-  print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
-  saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));  
-
   %
   % Individual plots
   %
@@ -955,9 +1307,49 @@ if(flag_savePlot==1)
     otherwise
       assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
   end
-
+  figure(figHindiv);
   print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
   saveas(figHindiv,fullfile(outputPlotDir,[fileName,'.fig']));  
+  
+  %
+  % Group plots
+  %
 
+  figH=configPlotExporter(figH, ...
+            pageWidthZi, pageHeightZi);
+  fileName =  ['fig_impedance_length',appendToFileName];
+
+  switch flag_0Presentation_1Publication
+    case 0
+      fileName =  [fileName,'_pres'];
+    case 1
+      fileName =  [fileName,'_pub'];      
+    otherwise
+      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+  end
+
+  figure(figH);
+  print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
+  saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));  
+
+  %
+  % Pub plots
+  %
+  figHPub=configPlotExporter(figHPub, ...
+            pageWidthZp, pageHeightZp);
+  fileName =  ['fig_impedance_length_split',appendToFileName];
+
+  switch flag_0Presentation_1Publication
+    case 0
+      fileName =  [fileName,'_pres'];
+    case 1
+      fileName =  [fileName,'_pub'];      
+    otherwise
+      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+  end
+
+  figure(figHPub);
+  print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
+  saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));  
 
 end

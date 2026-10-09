@@ -33,7 +33,10 @@ box = [ x+boxWidth*0.5, y25;...
 plot([x;x],[y05;y95],'-','Color',lineColor);
 hold on;
 
-fill(box(:,1),box(:,2),boxColor,'EdgeColor',lineColor);
+fill(box(:,1),box(:,2),boxColor,'EdgeColor','none');
+hold on;
+
+plot(box(:,1),box(:,2),'-','Color',lineColor);
 hold on;
 
 plot([x-0.5*boxWidth;x+0.5*boxWidth],...
