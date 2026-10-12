@@ -25,12 +25,13 @@ settingsImpedanceAnalysis.isometricNoiseFilterCutoffFrequencyHz  = 30;
 settingsImpedanceAnalysis.coherenceSquaredThreshold              = 0.8;
 settingsImpedanceAnalysis.forceNoiseThresholdmN                  = 0.025;
 
-settingsImpedanceAnalysis.wavePaddingTimeMS = 100;
+settingsImpedanceAnalysis.wavePaddingTimeMS = 150;
 %This is the time window in which there is no numerical value
 %change in the wave file
 
 settingsImpedanceAnalysis.paddingTimeMS         = 500;
 settingsImpedanceAnalysis.paddingTimeSinusoidMS = 188;
+
 
 settingsImpedanceAnalysis.useManuallySetDaqDelay = 1;
 settingsImpedanceAnalysis.daqDelayModel          = 'frequency-domain'; 
