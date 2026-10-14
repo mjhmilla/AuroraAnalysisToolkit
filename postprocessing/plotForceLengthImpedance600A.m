@@ -10,8 +10,7 @@ function [figH,figHindiv,figHPub,figHSoLoPub] = ...
                               modeNormalization,...
                               projectFolders,... 
                               appendToFileName,...
-                              flag_0Presentation_1Publication,...
-                              flag_savePlot)
+                              settings)
 
 
 numberOfHorizontalPlotColumnsGeneric  = 3;
@@ -24,7 +23,7 @@ timeUnit='ms';
 
 cs=getPaulTolColourSchemes('vibrant');
 
-switch flag_0Presentation_1Publication
+switch settings.flag_0Presentation_1Publication
   case 0
     plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
     plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5;
@@ -40,7 +39,7 @@ switch flag_0Presentation_1Publication
     baseFontSize              = 8;
 
   otherwise
-    assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');
+    assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');
 end
 
 [subPlotPanelZi, pageWidthZi,pageHeightZi]= ...
@@ -60,7 +59,7 @@ numberOfHorizontalPlotColumnsGeneric  = 6;
 numberOfVerticalPlotRowsGeneric       = 4;
 nominalForceWindowInMs = 100;
 
-switch flag_0Presentation_1Publication
+switch settings.flag_0Presentation_1Publication
   case 0
     plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
     plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5;
@@ -76,7 +75,7 @@ switch flag_0Presentation_1Publication
     baseFontSize              = 8;
 
   otherwise
-    assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');
+    assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');
 end
 
 [subPlotPanelZp, pageWidthZp,pageHeightZp]= ...
@@ -92,7 +91,7 @@ numberOfHorizontalPlotColumnsGeneric  = 2;
 numberOfVerticalPlotRowsGeneric       = 1;
 nominalForceWindowInMs = 100;
 
-switch flag_0Presentation_1Publication
+switch settings.flag_0Presentation_1Publication
   case 0
     plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
     plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5;
@@ -108,7 +107,7 @@ switch flag_0Presentation_1Publication
     baseFontSize              = 8;
 
   otherwise
-    assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');
+    assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');
 end
 
 [subPlotPanelSoLo, pageWidthSoLo,pageHeightSoLo]= ...
@@ -400,7 +399,7 @@ slSeriesPub(idx).yTicks = [0:10:70];
 slSeriesPub(idx).yLim=...
   [min(slSeriesPub(idx).yTicks),...
    max(slSeriesPub(idx).yTicks)]+[-1,1].*0.5;
-slSeriesPub(idx).yLabel='Norm. Storage ($$S^A_o/(f^M/\ell_o)$$)';
+slSeriesPub(idx).yLabel='Norm. Storage ($$S^A_o/(f_o/\ell_o)$$)';
 slSeriesPub(idx).yData=[];
 slSeriesPub(idx).title={'A. Variation of normalized storage with perturbation',...
                             'bandwidth and amplitude'};
@@ -422,7 +421,7 @@ slSeriesPub(idx).yTicks = [0:5:35];
 slSeriesPub(idx).yLim=...
   [min(slSeriesPub(idx).yTicks),...
    max(slSeriesPub(idx).yTicks)]+[-1,1].*0.5;
-slSeriesPub(idx).yLabel='Norm. Loss ($$L^A_o/(f^M/\ell_o)$$)';
+slSeriesPub(idx).yLabel='Norm. Loss ($$L^A_o/(f_o/\ell_o)$$)';
 slSeriesPub(idx).yData=[];
 slSeriesPub(idx).title={'B. Variation of normalized loss with perturbation',...
                             'bandwidth and amplitude'};
@@ -1820,7 +1819,7 @@ for indexSegment=1:1:length(segmentSeries)
              [forceUnit,'/',lengthUnit],...
              min(expDataSet(1).storageAtLo),...
              max(expDataSet(1).storageAtLo),...
-             '$$f^M_o$$',...
+             '$$f_o$$',...
              mean(expDataSet(1).forceAtLo),...
              forceUnit,...
              min(expDataSet(1).forceAtLo),...
@@ -1844,7 +1843,7 @@ for indexSegment=1:1:length(segmentSeries)
              [forceUnit,'/',lengthUnit],...
              min(expDataSet(1).lossAtLo),...
              max(expDataSet(1).lossAtLo),...
-             '$$f^M_o$$',...
+             '$$f_o$$',...
              mean(expDataSet(1).forceAtLo),...
              forceUnit,...
              min(expDataSet(1).forceAtLo),...
@@ -2063,7 +2062,7 @@ end
 
 
 
-if(flag_savePlot==1)
+if(settings.savePlots==1)
   outputPlotDir = fullfile(projectFolders.output600A_plots,...
                            'impedance_length_relation_larb');
   %
@@ -2073,13 +2072,13 @@ if(flag_savePlot==1)
                                pageWidthZi, pageHeightZi);
   fileName =  ['fig_impedance_length_individual',appendToFileName];
 
-  switch flag_0Presentation_1Publication
+  switch settings.flag_0Presentation_1Publication
     case 0
       fileName =  [fileName,'_pres'];
     case 1
       fileName =  [fileName,'_pub'];      
     otherwise
-      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+      assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');      
   end
   figure(figHindiv);
   print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
@@ -2093,13 +2092,13 @@ if(flag_savePlot==1)
             pageWidthZi, pageHeightZi);
   fileName =  ['fig_impedance_length',appendToFileName];
 
-  switch flag_0Presentation_1Publication
+  switch settings.flag_0Presentation_1Publication
     case 0
       fileName =  [fileName,'_pres'];
     case 1
       fileName =  [fileName,'_pub'];      
     otherwise
-      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+      assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');      
   end
 
   figure(figH);
@@ -2113,13 +2112,13 @@ if(flag_savePlot==1)
             pageWidthZp, pageHeightZp);
   fileName =  ['fig_impedance_length_split',appendToFileName];
 
-  switch flag_0Presentation_1Publication
+  switch settings.flag_0Presentation_1Publication
     case 0
       fileName =  [fileName,'_pres'];
     case 1
       fileName =  [fileName,'_pub'];      
     otherwise
-      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+      assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');      
   end
 
   figure(figHPub);
@@ -2133,13 +2132,13 @@ if(flag_savePlot==1)
                   pageWidthSoLo, pageHeightSoLo);
   fileName =  ['fig_SoLo',appendToFileName];
 
-  switch flag_0Presentation_1Publication
+  switch settings.flag_0Presentation_1Publication
     case 0
       fileName =  [fileName,'_pres'];
     case 1
       fileName =  [fileName,'_pub'];      
     otherwise
-      assert(0,'Error: flag_0Presentation_1Publication should be 0 or 1');      
+      assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');      
   end
 
   figure(figHSoLoPub);
