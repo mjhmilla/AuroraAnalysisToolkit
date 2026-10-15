@@ -146,7 +146,7 @@ end
   xySeries(idx).yTicks = [0:0.2:1.6];  
   xySeries(idx).yLim   = [0,1.6] + [-1,1].*sqrt(eps);
   xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o$$)';
-  xySeries(idx).yLabel = 'Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
+  xySeries(idx).yLabel = 'Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(S_o)$$)';
   xySeries(idx).title  = '';
   xySeries(idx).color = [0,0,0];
   
@@ -167,9 +167,9 @@ end
   end
   xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o$$)';
   if(modeNormalization==0)
-    xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';    
+    xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(S_o)$$)';    
   else
-    xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o^M)$$)';
+    xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o)$$)';
   end
   xySeries(idx).title  = '';  
   xySeries(idx).color = [0,0,0];
@@ -211,7 +211,7 @@ end
   xySeries(idx).yTicks = [0:0.2:1.6];  
   xySeries(idx).yLim   = [0,1.6] + [-1,1].*sqrt(eps);
   xySeries(idx).xLabel = 'Norm. Length ($$\ell/\ell_o$$)';
-  xySeries(idx).yLabel = 'Norm. Force ($$\mathrm{mN}/f_o^M$$)';
+  xySeries(idx).yLabel = 'Norm. Force ($$\mathrm{mN}/f_o$$)';
   xySeries(idx).title  = '';
   xySeries(idx).color = [0,0,0];
 
@@ -227,13 +227,65 @@ end
   
   if(modeNormalization==1)
     for i=1:1:length(xySeries)
-      xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o^M)$$)';
+      xySeries(idx).yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o)$$)';
     end
   end
 
   %
   % Publication: grouped plots
   %
+
+  statisticsPub(length(experimentList)) = ...
+    struct('storage_force_nrmse', zeros(length(segmentSeries),...
+                                  length(categories.length.value),1).*nan,...
+           'loss_force_nrmse', zeros(length(segmentSeries),...
+                               length(categories.length.value),1).*nan,...
+           'storageActive_force_nrmse', zeros(length(segmentSeries),...
+                                        length(categories.length.value),1).*nan,...
+           'lossActive_force_nrmse', zeros(length(segmentSeries),...
+                                     length(categories.length.value),1).*nan,...
+           'storagePassive_forcePassive_nrmse', zeros(length(segmentSeries),...
+                                         length(categories.length.value),1).*nan,...
+           'lossPassive_forcePassive_nrmse', zeros(length(segmentSeries),...
+                                      length(categories.length.value),1).*nan,...
+           'storage_force_diffmedian', zeros(length(segmentSeries),...
+                                  length(categories.length.value),1).*nan,...
+           'loss_force_diffmedian', zeros(length(segmentSeries),...
+                               length(categories.length.value),1).*nan,...
+           'storageActive_force_diffmedian', zeros(length(segmentSeries),...
+                                        length(categories.length.value),1).*nan,...
+           'lossActive_force_diffmedian', zeros(length(segmentSeries),...
+                                     length(categories.length.value),1).*nan,...
+           'storagePassive_forcePassive_diffmedian', zeros(length(segmentSeries),...
+                                         length(categories.length.value),1).*nan,...
+           'lossPassive_forcePassive_diffmedian', zeros(length(segmentSeries),...
+                                      length(categories.length.value),1).*nan,...
+           'leftFields',{''},...
+           'rightFields',{''},...
+           'operations',{''});
+
+
+  operations = {'nrmse','diffmedian'};
+  leftFields={'storage','loss','storageActive','lossActive','storagePassive','lossPassive'};
+  rightFields={'force','force','forceActive','forceActive','forcePassive','forcePassive'};
+
+  for idxExp=1:1:length(experimentList)
+    for idxOp=1:1:length(operations)
+      for idxAB=1:1:length(leftFields)
+        nrmseField = [leftFields{idxAB},'_',rightFields{idxAB},'_',operations{idxOp}];
+  
+        statisticsPub(idxExp).(nrmseField)= ...
+          zeros(length(segmentSeries),length(categories.length.value),1).*nan;
+      end
+    end
+    statisticsPub(idxExp).leftFields=leftFields;
+    statisticsPub(idxExp).rightFields=rightFields;
+    statisticsPub(idxExp).operations=operations;
+
+  end
+
+
+
   xySeriesPub(6)=struct('segment',nan,'row',nan,'col',nan,...
                   'x','','xTicks',[],'xLim',[],'xLabel','','xData',[],...
                   'left',[],'right',[],...
@@ -273,14 +325,14 @@ end
   xySeriesPub(idx).left.y      = 'storage';
   xySeriesPub(idx).left.yTicks = [0:0.2:1.8];
   xySeriesPub(idx).left.yLim   = [-0.1,1.8] + [-1,1].*sqrt(eps);
-  xySeriesPub(idx).left.yLabel = 'Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
+  xySeriesPub(idx).left.yLabel = 'Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(S_o)$$)';
   xySeriesPub(idx).left.color  = cs.magenta;
   xySeriesPub(idx).left.legend = '$$\tilde{S}^A + \tilde{S}^P$$';
   
   xySeriesPub(idx).right.y      = 'force';
   xySeriesPub(idx).right.yTicks = xySeriesPub(idx).left.yTicks;
   xySeriesPub(idx).right.yLim   = xySeriesPub(idx).left.yLim;
-  xySeriesPub(idx).right.yLabel = 'Norm. Force ($$\mathrm{mN}/f_o^M$$)';
+  xySeriesPub(idx).right.yLabel = 'Norm. Force ($$\mathrm{mN}/f_o$$)';
   xySeriesPub(idx).right.color  = [0,0,0];  
   xySeriesPub(idx).right.legend = '$$\tilde{f}^L+\tilde{f}^{PE}$$';
 
@@ -300,9 +352,9 @@ end
   xySeriesPub(idx).right.yLim   = xySeriesPub(idx).left.yLim  ;
 
   if(modeNormalization==0)
-    xySeriesPub(idx).left.yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(S_o^M)$$)';
+    xySeriesPub(idx).left.yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(S_o)$$)';
   else
-    xySeriesPub(idx).left.yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o^M)$$)';
+    xySeriesPub(idx).left.yLabel = 'Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(L_o)$$)';
   end
   xySeriesPub(idx).left.color  = cs.magenta;
   xySeriesPub(idx).left.legend = '$$\tilde{L}^A + \tilde{L}^P$$';
@@ -1148,6 +1200,60 @@ for indexSegment=1:1:length(segmentSeries)
           end
         end
 
+        %
+        % Evaluate some basic statistics
+        %
+        idxL=nan;
+        for k=1:1:length(categories.length.value)
+          if(abs(normTrialDataSet(i).lengthNominal-categories.length.value(k))<1e-6)
+            assert(isnan(idxL));
+            idxL=k;
+          end
+        end        
+          
+
+        for idxAB=1:1:length(statisticsPub(idxExp).leftFields)
+
+          leftField =statisticsPub(idxExp).leftFields{idxAB};
+          rightField=statisticsPub(idxExp).rightFields{idxAB};
+
+          if(~isempty(normTrialDataSet(i).(leftField)))
+            rmse = ...
+              sqrt(mean(( normTrialDataSet(i).(leftField) ... 
+                         -median(normTrialDataSet(i).(rightField)) ).^2));
+
+            ss = getSummaryStatistics(normTrialDataSet(i).(leftField));
+            widthA = ss.y(5)-ss.y(3);
+            assert(abs(ss.x(3)-0.25)<1e-6 && abs(ss.x(5)-0.75)<1e-6);
+            nrmse=rmse/widthA;
+  
+            nrmseField = ...
+              [statisticsPub(idxExp).leftFields{idxAB},...
+              '_',statisticsPub(idxExp).rightFields{idxAB},...
+              '_',statisticsPub(idxExp).operations{1}]; 
+  
+            statisticsPub(idxExp).(nrmseField)(segId,idxL) = nrmse;
+
+            diffMedianField = ...
+              [statisticsPub(idxExp).leftFields{idxAB},...
+              '_',statisticsPub(idxExp).rightFields{idxAB},...
+              '_',statisticsPub(idxExp).operations{2}];   
+
+            statisticsPub(idxExp).(diffMedianField)(segId,idxL) = ...
+              median(normTrialDataSet(i).(leftField)) ...
+              -median(normTrialDataSet(i).(rightField));
+
+          end
+
+        end
+
+
+
+
+
+
+                
+
       end
     end
   
@@ -1290,7 +1396,10 @@ for indexSegment=1:1:length(segmentSeries)
         here=1;
       end
 
-      nExp = (idxExp-1)/(length(experimentList)-1);
+      nExp = 0;
+      if(length(experimentList)>1)
+        nExp=(idxExp-1)/(length(experimentList)-1);
+      end
       storageColor  = cs.red.*(1-nExp*0.5)+[1,1,1].*(nExp*0.5);
       lossColor     = cs.blue.*(1-nExp*0.5)+[1,1,1].*(nExp*0.5);
 
@@ -1324,7 +1433,7 @@ for indexSegment=1:1:length(segmentSeries)
           ylim([0,80]);
           ylabel(sprintf('Loss (%s/%s)',forceUnit,lengthUnit));
           box off;
-          title(sprintf('%1.2f %s',frSeries(idxFR).lengthNominal(idxFR)));
+          title(sprintf('%1.2f %s',frSeries(idxFR).lengthNominal(1)));
           
           ax=gca;
           ax.YAxis(1).Color=cs.red;
@@ -1333,6 +1442,7 @@ for indexSegment=1:1:length(segmentSeries)
 
 
     end
+
 
 
     %
@@ -1616,15 +1726,19 @@ for indexSegment=1:1:length(segmentSeries)
         if(~isempty(dataSeries(idxLR).median.x))
   
           idxV = find(~isnan(dataSeries(idxLR).median.y));
-  
-          if(~isempty(idxV))
+
+          flag_addMedian=1;
+          if(~isempty(idxV) && strcmp(side,'right'))
+            lightColor = ...
+              xySeriesPub(i).(side).color.*0.5 ...
+              + ([1,1,1].*0.5).*0.5;
             plot(dataSeries(idxLR).median.x(idxV),...
                  dataSeries(idxLR).median.y(idxV),...
-                 '-','Color',xySeriesPub(i).(side).color);
+                 '-','Color',lightColor);
             hold on;
           end
         end
-  
+
         if(addCorrelation==1)
   
           flag_checkScatterPlot=0;
@@ -1661,8 +1775,8 @@ for indexSegment=1:1:length(segmentSeries)
           if(length(y1) > 2)
             [rho,pval] = corr(y1,y2,'Type','Pearson');
             text(xR,yR,...
-                 sprintf('%s\n%s=%1.2f\n%s=%1.2e\nn=%i',...
-                 '\underline{Corr: median}','$$\rho$$',rho,'$$p$$',pval,length(y1)),...
+                 sprintf('%s\n%s=%1.2f\nn=%i',...
+                 '\underline{Corr. median}','$$\rho$$',rho,length(y1)),...
                  'FontSize',8,...
                  'HorizontalAlignment','left',...
                  'VerticalAlignment','top');
@@ -1691,10 +1805,15 @@ for indexSegment=1:1:length(segmentSeries)
           end
   
           if(length(y1) > 2)
+            xRUpd=xR;
+            yRUpd=yR;
+            if(~contains(xySeriesPub(i).left.y,'Passive'))
+              xRUpd=xR+1.5*dx;
+            end
             [rho,pval] = corr(y1All,y2All,'Type','Pearson');
-            text(xR,yR,...
-                 sprintf('%s\n%s=%1.2f\n%s=%1.2e\nn=%i',...
-                 '\underline{Corr. all}','$$\rho$$',rho,'$$p$$',pval,length(y1All)),...
+            text(xRUpd,yRUpd,...
+                 sprintf('%s\n%s=%1.2f\nn=%i',...
+                 '\underline{Corr. all}','$$\rho$$',rho,length(y1All)),...
                  'FontSize',8,...
                  'HorizontalAlignment','left',...
                  'VerticalAlignment','top');  
@@ -1709,7 +1828,7 @@ for indexSegment=1:1:length(segmentSeries)
           if(~isempty(expDataSet(j).(xySeriesPub(i).(side).y)))
             lineColor = xySeriesPub(i).(side).color;
             boxColor  = [1,1,1].*0.5 + lineColor.*0.5;
-            bwWidth   = 0.05;          
+            bwWidth   = 0.025;          
             addBoxWhiskerPlot   = 1;
             switch side
               case 'left'
@@ -1728,37 +1847,110 @@ for indexSegment=1:1:length(segmentSeries)
                                  summaryStatistics,...
                                  bwWidth,lineColor,boxColor);            
               hold on;
+
+
+              summaryStatisticsL = ...
+                getSummaryStatistics(expDataSet(j).(xySeriesPub(i).left.y));
+              summaryStatisticsR = ...
+                getSummaryStatistics(expDataSet(j).(xySeriesPub(i).right.y));              
               
-              xL=expDataSet(j).lengthNominal+bwOffset;
-              yL=summaryStatistics.y(1,2);
-              text(xL,yL,...
-                sprintf('%i',length((expDataSet(j).(xySeriesPub(i).(side).y)))),...
-                'VerticalAlignment','top',...
-                'HorizontalAlignment','center',...
-                'FontSize',6);
-              hold on;
-  
+
+              if(strcmp(side,'left'))
+                xL=expDataSet(j).lengthNominal;
+                yL=min([summaryStatisticsL.y(1,2),summaryStatisticsR.y(1,2)]);
+                text(xL,yL,...
+                  sprintf('%i',length((expDataSet(j).(xySeriesPub(i).(side).y)))),...
+                  'VerticalAlignment','top',...
+                  'HorizontalAlignment','center',...
+                  'FontSize',6);
+                hold on;
+              end
+
+              if(~isempty(expDataSet(j).(xySeriesPub(i).(side).y)) ...
+                 && ~isnan(dataSeries(idxLRForce).median.y(j)))                
+                xA = [1,1].*expDataSet(j).lengthNominal+[-2*bwWidth,0];
+                yA = [1,1].*summaryStatistics.y(4);
+                plot(xA,yA,'-','Color',lineColor);
+                hold on;
+              end
+
+
+
               if(~isempty(expDataSet(j).(xySeriesPub(i).(side).y)) ...
                  && ~isnan(dataSeries(idxLRForce).median.y(j)))
-                if(strcmp(side,'left'))
-                  xL=expDataSet(j).lengthNominal+bwOffset;
-                  yL=summaryStatistics.y(1,6);              
+                if(strcmp(side,'right'))
+                  
+          
     
                   [psr,hsr,statssr]=...
-                      signrank(expDataSet(j).(xySeriesPub(i).(side).y),...
+                      signrank(expDataSet(j).(xySeriesPub(i).left.y),...
                                dataSeries(idxLRForce).median.y(j));
-                  here=1;
-                  if(hsr==1)
-  %                   text(xL,yL,...
-  %                     sprintf('%1.2e\n*',psr),...
-  %                     'VerticalAlignment','bottom',...
-  %                     'HorizontalAlignment','center',...
-  %                     'FontSize',6);
-                    text(xL,yL,'*','VerticalAlignment','bottom',...
-                                   'HorizontalAlignment','center',...
-                                   'FontSize',8);
-                    hold on; 
+
+                  idxL=nan;
+                  for k=1:1:length(categories.length.value)
+                    if (abs(categories.length.value(k)-expDataSet(j).lengthNominal)<1e-6)
+                      assert(isnan(idxL))
+                      idxL=k;
+                    end
                   end
+
+                  xA = [1,1].*expDataSet(j).lengthNominal-1.5.*[bwWidth,bwWidth];
+                  yA = [summaryStatisticsL.y(4),...
+                        summaryStatisticsR.y(4)];
+  
+                  plot(xA,yA,'-','Color',[1,1,1].*0.5);
+                  hold on;
+
+                  xL=expDataSet(j).lengthNominal-1.25*bwWidth;
+                  yL=max([summaryStatisticsL.median,...
+                          summaryStatisticsR.median]);
+                  vAlign='bottom';
+
+                  nrmseV=[];
+                  nrmseField=[xySeriesPub(i).left.y,...
+                             '_',xySeriesPub(i).right.y,...
+                             '_',statisticsPub(1).operations{1}];
+
+                  for idxExp=1:1:length(statisticsPub)
+                    nrmse=statisticsPub(idxExp).(nrmseField)(segId,idxL);
+                    if(~isnan(nrmse) && ~isempty(nrmse))
+                      nrmseV=[nrmseV,nrmse];
+                    end
+                  end
+
+                  if(~isempty(nrmseV))
+                    text(xL,yL,sprintf('%1.2f',mean(nrmseV)),...
+                      'VerticalAlignment',vAlign,...
+                      'HorizontalAlignment','right',...
+                      'FontSize',6);  
+                    hold on;
+                  end
+
+                  diffMedianV=[];
+                  diffMedianField=[xySeriesPub(i).left.y,...
+                    '_',xySeriesPub(i).right.y,...
+                    '_',statisticsPub(idxExp).operations{2}];
+  
+                  for idxExp=1:1:length(statisticsPub)
+                    dm=statisticsPub(idxExp).(diffMedianField)(segId,idxL);
+                    if(~isnan(dm) && ~isempty(dm))
+                      diffMedianV=[diffMedianV,dm];
+                    end
+                  end 
+
+                  xL=expDataSet(j).lengthNominal-1.25*bwWidth;
+                  yL=min([summaryStatisticsL.y(4),...
+                          summaryStatisticsR.y(4)]);
+                  vAlign='top';                  
+
+                  if(~isempty(diffMedianV))
+                    text(xL,yL,sprintf('%1.2f',mean(diffMedianV)),...
+                      'VerticalAlignment',vAlign,...
+                      'HorizontalAlignment','right',...
+                      'FontSize',6);  
+                    hold on;
+                  end                  
+
                 end
               end
             end
@@ -1791,7 +1983,66 @@ for indexSegment=1:1:length(segmentSeries)
           otherwise
             assert(0,'Error: idxLR must be [1,2]');
         end
+
+        %
+        % Report the average nrmse
+        %
+        if(contains(side,'left'))
+          dx = diff(xySeriesPub(i).xLim).*0.05;
+          dy = diff(xySeriesPub(i).(side).yLim).*0.05;
+          xL = xySeriesPub(i).xLim(1)+0.5*dx;
+          yL = xySeriesPub(i).(side).yLim(end);
+    
+          nrmseVec=[];
+          nrmseField = [xySeriesPub(i).left.y,...
+                        '_',xySeriesPub(i).right.y,...
+                        '_',statisticsPub(idxExp).operations{1}];
   
+          for idxExp=1:1:length(experimentList)
+            for idxL=1:1:length(categories.length.value)
+              nrmse = statisticsPub(idxExp).(nrmseField)(segId,idxL);
+              if(~isnan(nrmse))
+                nrmseVec=[nrmseVec,nrmse];
+              end
+            end
+          end
+          if(~isempty(nrmseVec))
+            text(xL,yL,...
+              sprintf('%1.2f : mean NRMSE',mean(nrmseVec)),...
+              'VerticalAlignment','top',...
+              'HorizontalAlignment','left',...
+              'FontSize',8);
+            hold on;
+          end
+
+          diffMedianVec=[];
+          diffMedianField = [xySeriesPub(i).left.y,...
+                        '_',xySeriesPub(i).right.y,...
+                        '_',statisticsPub(idxExp).operations{2}];
+  
+          for idxExp=1:1:length(experimentList)
+            for idxL=1:1:length(categories.length.value)
+              diffMedian = statisticsPub(idxExp).(diffMedianField)(segId,idxL);
+              if(~isnan(diffMedian))
+                diffMedianVec=[diffMedianVec,diffMedian];
+              end
+            end
+          end
+          if(~isempty(diffMedianVec))
+            text(xL,yL-dy,...
+              sprintf('%1.2f : mean ADOM',mean(abs(diffMedianVec))),...
+              'VerticalAlignment','top',...
+              'HorizontalAlignment','left',...
+              'FontSize',8);
+            hold on;
+          end          
+
+        end
+
+
+        %
+        % Report storage and loss scaling coefficients
+        %
         dx = diff(xySeriesPub(i).xLim).*0.05;
         dy = diff(xySeriesPub(i).(side).yLim).*0.05;
         xL = xySeriesPub(i).xLim(1)+0.5*dx;
@@ -1800,11 +2051,11 @@ for indexSegment=1:1:length(segmentSeries)
      
         if(contains(xySeriesPub(i).(side).y,'storage'))    
           xA=xL;
-          if(contains(xySeriesPub(i).(side).y,'Passive'))
-            yA=xySeriesPub(i).(side).yLim(2)-2*dy;
-          else          
+          %if(contains(xySeriesPub(i).(side).y,'Passive'))
+          %  yA=xySeriesPub(i).(side).yLim(2)-2*dy;
+          %else          
             yA=xySeriesPub(i).(side).yLim(1);
-          end
+          %end
           text(xA,yA,sprintf('%s=%1.2f %s [%1.2f,%1.2f]\n%s=%1.2f %s [%1.2f,%1.2f]',...
                '$$S^A_o$$',...
                mean(expDataSet(1).storageAtLo),...
@@ -1823,11 +2074,11 @@ for indexSegment=1:1:length(segmentSeries)
         end
         if(contains(xySeriesPub(i).(side).y,'loss'))           
           xA=xL;
-          if(contains(xySeriesPub(i).(side).y,'Passive'))
-            yA=xySeriesPub(i).(side).yLim(2)-2*dy;
-          else
+          %if(contains(xySeriesPub(i).(side).y,'Passive'))
+          %  yA=xySeriesPub(i).(side).yLim(2)-2*dy;
+          %else
             yA=xySeriesPub(i).(side).yLim(1);
-          end
+          %end
   
           text(xA,yA,sprintf('%s=%1.2f %s [%1.2f,%1.2f]\n%s=%1.2f %s [%1.2f,%1.2f]',...
                '$$L^A_o$$',...
@@ -1847,6 +2098,9 @@ for indexSegment=1:1:length(segmentSeries)
           
         end      
         
+        %
+        % Add the legend
+        %        
         plot([xL,xL+dx],...
              [yL-3*dy+dyLegend,yL-3*dy+dyLegend],...
              '-','Color',xySeriesPub(i).(side).color);
@@ -2331,7 +2585,7 @@ if(settings.savePlots==1)
   
     figure(figHPub);
     print('-dpdf',fullfile(outputPlotDir,[fileName,'.pdf']));  
-    saveas(figH,fullfile(outputPlotDir,[fileName,'.fig']));  
+    saveas(figHPub,fullfile(outputPlotDir,[fileName,'.fig']));  
   end
   %
   % Pub So and Lo plots

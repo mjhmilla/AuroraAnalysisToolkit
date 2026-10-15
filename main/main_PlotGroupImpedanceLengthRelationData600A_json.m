@@ -93,9 +93,8 @@ if(flag_makeForceLengthImpedancePlots==1)
                       '20251128_impedance_larb_6',...
                       '20251203_impedance_larb_7'};
 
-%     experimentList = {'20251118_impedance_larb_1',...
-%                       '20251118_impedance_larb_2',...
-%                       '20251120_impedance_larb_3'};
+%    experimentList = {'20251118_impedance_larb_1'};
+
   categories.length.value = ...
     [0.55,0.70,0.85,1.00,1.15,1.30,1.45];
   categories.length.str   = ...
@@ -113,9 +112,9 @@ if(flag_makeForceLengthImpedancePlots==1)
 
   settingsForceLengthImpedance.flag_0Presentation_1Publication=1;
   settingsForceLengthImpedance.savePlots                      =1;
-  settingsForceLengthImpedance.addPlotBoxAndWhiskerIndividual =0;
-  settingsForceLengthImpedance.addPlotBoxAndWhiskerGroup      =0;  
-  settingsForceLengthImpedance.addPlotStorageLossMagnitude    =0;
+  settingsForceLengthImpedance.addPlotBoxAndWhiskerIndividual =1;
+  settingsForceLengthImpedance.addPlotBoxAndWhiskerGroup      =1;  
+  settingsForceLengthImpedance.addPlotStorageLossMagnitude    =1;
   settingsForceLengthImpedance.addPlotFrequencResponseGroup   =1;
   settingsForceLengthImpedance.numberOfInterpolationPoints    =100;
 

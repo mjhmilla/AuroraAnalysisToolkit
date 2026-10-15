@@ -1,6 +1,6 @@
 function success = ...
   runPipelineAnalyzeArbitraryWaveformFiberData600A_03_json(...
-    folderName, fileKeyWord,modelSeries,settings,...
+    folderName, fileKeyWord,categories,modelSeries,settings,...
     projectFolders)
 
 success=0;
@@ -359,211 +359,17 @@ if(settings.processData==1)
   fprintf('%s\n','Extracting the passive and active bias forces');
   fprintf(fidLogFile,'%s\n','Extracting the passive and active bias forces');
   
-  biasForceSet(length(setOfTrials))=...
-    struct('trialIndex',[],'isActive',[],'lengthNominal',0,...
-            'indexPassiveBias',0,'indexActiveBias',0,'biasForce',0,...
-            'passive',[],'active',[]);
-  for idxT=1:1:length(setOfTrials)
-    biasForceSet(idxT)=...
-      struct('trialIndex',[],'isActive',[],'lengthNominal',0,...
-            'indexPassiveBias',0,'indexActiveBias',0,'biasForce',0,...
-            'passive',[],'active',[]);
-    biasForceSet(idxT).passive=...
-      struct('time',[],'force',[],'method',[],'file','',...
-             'index',[],'indexWindow',[]);
-    biasForceSet(idxT).active=...
-      struct('time',[],'force',[],'method',[],'file','',...
-             'index',[],'indexWindow',[]);
-  end
-
-  nominalLengthStr={'055Lo','070Lo','085Lo','100Lo','115Lo','130Lo','145Lo'};
-  nominalLength=[0.55,0.70,0.85,1,1.15,1.30,1.45];
-
-  for indexSetOfTrials=1:1:length(setOfTrials)
-
-    idxTrial = setOfTrials(indexSetOfTrials);  
-    biasForceSet(indexSetOfTrials).trials = experimentJson.measurements(idxTrial);
-    biasForceSet(indexSetOfTrials).isActive = 0;
-    if(contains(experimentJson.measurements(idxTrial),'_active_'))
-      biasForceSet(indexSetOfTrials).isActive = 1;
-    end
-    biasForceSet(indexSetOfTrials).trialIndex = idxTrial;          
-
-    found=0;
-    for idxL=1:1:length(nominalLength)
-      if(contains(experimentJson.measurements(idxTrial),nominalLengthStr{idxL}))
-        assert(found==0);
-        biasForceSet(indexSetOfTrials).lengthNominal=nominalLength(idxL);
-        found=1;
-      end
-    end
-    assert(found==1);
-
-    biasForceSet(indexSetOfTrials)= ...
-      extractBiasForce600A(biasForceSet(indexSetOfTrials),experimentJson,...
-                           dataFolder,settings,fidLogFile);  
-    here=1;
-  end
-
-  indexActiveBias=nan;
-  indexPassiveBias=nan;
-  for indexSetOfTrials=1:1:length(setOfTrials)
-    idxTrial = setOfTrials(indexSetOfTrials); 
-    for indexKeyword =1:1:length(settings.biasForce.keywords)
-      if(~isempty(settings.biasForce.keywords{indexKeyword}))
-        if(contains(experimentJson.measurements{idxTrial},...
-                settings.biasForce.keywords{indexKeyword}))
-          if(settings.biasForce.isActive(indexKeyword))
-            indexActiveBias=indexSetOfTrials;
-          else
-            indexPassiveBias=indexSetOfTrials;          
-          end
-        end
-      end
-    end
-  end
-
-  for i=1:1:length(biasForceSet)
-    biasForceSet(i).indexActiveBias=indexActiveBias;
-    biasForceSet(i).indexPassiveBias=indexPassiveBias;
-  end
-
-
-  %Calculate the total bias force for each trial
-  for indexSetOfTrials=1:1:length(setOfTrials)
-
-    idxTrial = setOfTrials(indexSetOfTrials);  
-    %The active force bias contains the passive force at this
-    %length, so we need to add it back.
-    %
-    %Get the passive force bias
-    idxPassiveBias = biasForceSet(indexSetOfTrials).indexPassiveBias;
-    forcePassiveBias=biasForceSet(idxPassiveBias).passive.force;
-
-    if(biasForceSet(indexSetOfTrials).isActive==1)
-      %Get the passive force at the current length
-      lengthNominal = biasForceSet(indexSetOfTrials).lengthNominal;
-      found=0;
-      for idxT=1:1:length(biasForceSet)
-        if(biasForceSet(idxT).isActive == 0 ...
-            && abs(biasForceSet(idxT).lengthNominal-lengthNominal)<1e-6)
-          assert(found==0);
-          forcePassive = biasForceSet(idxT).passive.force-forcePassiveBias;
-          found=1;
-        end
-      end
-      
-      yActiveBias  = biasForceSet(indexSetOfTrials).active.force;
-      yPassiveBias = forcePassive;
-      yBias        = yActiveBias-yPassiveBias;
-      biasForceSet(indexSetOfTrials).biasForce=yBias;
-    else
-      biasForceSet(indexSetOfTrials).biasForce=forcePassiveBias;
-    end
-  end
-
-
-  activeBias=[];
-  passiveBias=[];
-  for idxNL=1:1:length(nominalLength)
-    found=0;
-    for idxT=1:1:length(biasForceSet)
-      if(abs(biasForceSet(idxT).lengthNominal-nominalLength(idxNL))<1e-6 )
-        found=1;
-        if(biasForceSet(idxT).isActive==1)
-          activeBias = [activeBias;biasForceSet(idxT).active.force];
-        else
-          passiveBias = [passiveBias;biasForceSet(idxT).passive.force];          
-        end
-      end
-    end
-    assert(found==1);
-  end
-  flag_debugBiasSet=0;
-  if(flag_debugBiasSet==1)
-    fig_debugBiasSet=figure;
-    plot(nominalLength,passiveBias,'-b');
-    hold on;
-    plot(nominalLength,activeBias,'-r');
-    hold on;
-    xlabel('Norm. Length');
-    ylabel('Force (mN)');
-    close(fig_debugBiasSet);
-  end
-
-  %
-  % Evaluate a bias force for just the single indicated trial. This should
-  % be a trial that is at a very short length so that the fiber is
-  % virtually guaranteed to be slack.
-  %
-  biasForce.passive.time  = nan;
-  biasForce.passive.force = nan;
-  biasForce.passive.method = nan;
-  biasForce.passive.file = nan;
-  
-  biasForce.active.time   = nan;
-  biasForce.active.force  = nan;
-  biasForce.active.threshold=nan;
-  biasForce.active.method=nan;
-  biasForce.active.file=nan;
-  
-  biasForce.trials=[];
-  biasForce.trialIndex=[];  
-  biasForce.isActive=[];
+  biasForceSet = calcTrialSpecificBiasForce600A(...
+                            setOfTrials,...
+                            experimentJson,...
+                            categories,...
+                            dataFolder,...
+                            settings,...
+                            fidLogFile);
 
 
 
 
-
-
-  doBiasKeywordsExist=0;
-  for indexKeyword =1:1:length(settings.biasForce.keywords)
-    if(~isempty(settings.biasForce.keywords{indexKeyword}))
-      doBiasKeywordsExist=1;
-    end
-  end
-
-  if(doBiasKeywordsExist==0)
-    biasForce.active.force=0;
-    biasForce.passive.force=0;
-  end
-
-  if(doBiasKeywordsExist==1)
-    foundBiasTrials=0;
-    found=0;  
-    for indexSetOfTrials = 1:1:length(setOfTrials)
-    
-      idxTrial = setOfTrials(indexSetOfTrials);
-  
-  
-      for indexKeyword =1:1:length(settings.biasForce.keywords)
-        if(~isempty(settings.biasForce.keywords{indexKeyword}))
-          if(contains(experimentJson.measurements{idxTrial},...
-                      settings.biasForce.keywords{indexKeyword}))
-            %assert(found==0,'Error: 1 bias force keyword has matched to two files');
-            found=1;
-            biasForce.trials = ...
-              [biasForce.trials,experimentJson.measurements(idxTrial)];
-            biasForce.isActive= ...
-              [biasForce.isActive,settings.biasForce.isActive(indexKeyword)];
-            biasForce.trialIndex = ...
-              [biasForce.trialIndex,idxTrial];          
-          end
-        end
-      end    
-      foundBiasTrials=foundBiasTrials+found;
-      found=0;
-    end
-    %assert(foundBiasTrials==2,'Error: could not find bias trials'); 
-    
-    if(foundBiasTrials>0)
-      biasForce=extractBiasForce600A(biasForce,experimentJson,...
-                                     dataFolder,settings,fidLogFile);
-    else
-      fprintf('%s\n','Warning: cound not find passive and active bias files');
-      fprintf(fidLogFile,'%s\n','Warning: cound not find passive and active bias files');
-    end
-  end
 
   %%
   % Process the gain, phase, coherence squared, and a model fit
@@ -978,43 +784,10 @@ if(settings.processData==1)
         end
 
         yBias=0;        
-        switch bathName
-          case 'active'
-            if(~isnan(biasForce.active.force))
-              %The active force bias contains the passive force at this
-              %length, so we need to add it back.
-              %
-              %Get the passive force bias
-              indexPassiveBias = biasForceSet(indexSetOfTrials).indexPassiveBias;
-              forcePassiveBias=biasForceSet(indexPassiveBias).passive.force;
-
-              %Get the passive force at the current length
-              lengthNominal = biasForceSet(indexSetOfTrials).lengthNominal;
-              found=0;
-              for idxT=1:1:length(biasForceSet)
-                if(biasForceSet(idxT).isActive == 0 ...
-                    && abs(biasForceSet(idxT).lengthNominal-lengthNominal)<1e-6)
-                  assert(found==0);
-                  found=1;
-                  forcePassive = biasForceSet(idxT).passive.force...
-                                 -forcePassiveBias;
-                end
-              end
-              assert(found==1);
-              
-              yActiveBias  = biasForceSet(indexSetOfTrials).active.force;
-              yPassiveBias = forcePassive;
-              yBias0        = yActiveBias-yPassiveBias;
-              yBias = biasForceSet(indexSetOfTrials).biasForce;
-              assert(abs(yBias-yBias0)<1e-6);
-            end
-          case 'passive'
-            if(~isnan(biasForce.passive.force))
-              yBias=  biasForceSet(indexSetOfTrials).biasForce;
-              assert(abs(biasForce.passive.force...
-                        -biasForceSet(indexSetOfTrials).biasForce)<1e-6);
-            end
+        if(~isnan(biasForceSet(indexSetOfTrials).biasForce))
+          yBias = biasForceSet(indexSetOfTrials).biasForce;
         end
+
         y=y-yBias;
         
         yMean = mean(y);
@@ -1800,41 +1573,29 @@ if(settings.processData==1)
         segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);  
 
         if(isempty(activeIntervals))
-          segmentJson.bias    = biasForce.passive;
+          segmentJson.bias= biasForceSet(indexSetOfTrials).passive;
         else
-          segmentJson.bias    = biasForce.active;
+          segmentJson.bias= biasForceSet(indexSetOfTrials).active;          
         end
-        %segmentJson.lengthMean  = segData.xMean;
-        %segmentJson.forceMean   = segData.yMean;
-        %segmentJson.forceBias   = segData.yBias;      
-        %segmentJson.nominal.time    = segData.timePrior;
-        %segmentJson.nominal.length  = segData.xPrior;
-        %segmentJson.nominal.force   = segData.yPrior;
-        
-        %segmentJson.forceReference = nan;
-  
-        %if(~isempty(activeIntervals))      
-          segmentJson.pre.filter.frequencyHz=settings.isometricNoiseFilterCutoffFrequencyHz;
-          segmentJson.pre.filter.type = 'Dual-pass 2nd order Butterworth low-pass filter';
-          %segmentJson.pre.time_ms= intraSegmentData(indexIntoSetOfSegments).time;
+
+        segmentJson.pre.filter.frequencyHz=settings.isometricNoiseFilterCutoffFrequencyHz;
+        segmentJson.pre.filter.type = 'Dual-pass 2nd order Butterworth low-pass filter';
+
+        segmentJson.pre.filter.time    = intraSegmentData(indexIntoSetOfSegments).filtered.time;
+        segmentJson.pre.filter.length  = intraSegmentData(indexIntoSetOfSegments).filtered.length;
+        segmentJson.pre.filter.force   = intraSegmentData(indexIntoSetOfSegments).filtered.force;        
+        segmentJson.pre.raw.time=intraSegmentData(indexIntoSetOfSegments).raw.time;
+        segmentJson.pre.raw.length=intraSegmentData(indexIntoSetOfSegments).raw.length;
+        segmentJson.pre.raw.force=intraSegmentData(indexIntoSetOfSegments).raw.force;
+
+        segmentJson.pre.indexData=[];
+        if(~isempty(intraSegmentData(j).index))
+          segmentJson.pre.indexData=...
+            [intraSegmentData(j).index(1),...
+             intraSegmentData(j).index(end)];
+        end
 
 
-          segmentJson.pre.filter.time    = intraSegmentData(indexIntoSetOfSegments).filtered.time;
-          segmentJson.pre.filter.length  = intraSegmentData(indexIntoSetOfSegments).filtered.length;
-          segmentJson.pre.filter.force   = intraSegmentData(indexIntoSetOfSegments).filtered.force;        
-          segmentJson.pre.raw.time=intraSegmentData(indexIntoSetOfSegments).raw.time;
-          segmentJson.pre.raw.length=intraSegmentData(indexIntoSetOfSegments).raw.length;
-          segmentJson.pre.raw.force=intraSegmentData(indexIntoSetOfSegments).raw.force;
-
-          segmentJson.pre.indexData=[];
-          if(~isempty(intraSegmentData(j).index))
-            segmentJson.pre.indexData=...
-              [intraSegmentData(j).index(1),...
-               intraSegmentData(j).index(end)];
-          end
-
-        %end
-  
         segmentJson.summary.length    = lengthSummary;
         segmentJson.summary.force     = forceSummary;
         segmentJson.summary.temperature = temperatureSummary;
