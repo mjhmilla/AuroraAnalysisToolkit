@@ -2418,8 +2418,10 @@ if(settings.addPlotFrequencResponseGroup==1)
           fieldName=fieldsToPlot{idxF};
           dataSeries=setFRSeries(segId).frSeries(idxL).(fieldName)(idxV,idxExpV);
           for idxExp=1:1:size(dataSeries,2)
-            normFactor = setFRSeries(segId).frSeries(idxL).forceAtLo ...
-                        /setFRSeries(segId).frSeries(idxL).lengthAtLo;
+              normFactor = setFRSeries(segId).frSeries(4).forceAtLo ...
+                          /setFRSeries(segId).frSeries(4).lengthAtLo;
+%             idxVN=find(~isnan(setFRSeries(segId).frSeries(4).storageActive(:,idxExp)));
+%             normFactor = median(setFRSeries(segId).frSeries(4).storageActive(idxVN,idxExp));
             dataSeries(:,idxExp)=dataSeries(:,idxExp)./normFactor;
           end
           dataMax  = max(dataSeries,[],2);
@@ -2445,7 +2447,7 @@ if(settings.addPlotFrequencResponseGroup==1)
             hold on;
             for idxE=1:1:length(idxExpV)
               plot(freqHz,...
-                   setFRSeries(segId).frSeries(idxL).(fieldName)(idxV,idxExpV(idxE)),...
+                   dataSeries(:,idxE),...
                    '-','Color',[1,1,1],'LineWidth',0.5);
               hold on;
             end            
@@ -2468,7 +2470,7 @@ if(settings.addPlotFrequencResponseGroup==1)
             hold on;            
             for idxE=1:1:length(idxExpV)
               plot(freqHz,...
-                   setFRSeries(segId).frSeries(idxL).(fieldName)(idxV,idxExpV(idxE)),...
+                   dataSeries(:,idxE),...
                    '-','Color',[1,1,1],'LineWidth',0.5);
               hold on;
             end                        
@@ -2482,7 +2484,7 @@ if(settings.addPlotFrequencResponseGroup==1)
           xlabel('Frequency (Hz)');
           xticks([0:10:90]);
           xlim([-0.01,90.01]);
-          yticks([0:20:120]);
+          yticks([0:10:120]);
           ylim([-0.01,120.01]);
 
           if(idxF==1)

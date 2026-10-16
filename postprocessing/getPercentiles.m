@@ -3,7 +3,7 @@ percentiles = [];
 if(~isempty(data))
     assert(min(percentileSet)>= 0 && max(percentileSet) <= 1);
     
-    n=percentileSet*length(data);
+    n=percentileSet*(length(data)-1)+1;
     n=round(n);
     dataOrder=sortrows(data);
     
@@ -11,4 +11,5 @@ if(~isempty(data))
     n(n>length(dataOrder))=length(dataOrder);
 
     percentiles = dataOrder(n);
+
 end

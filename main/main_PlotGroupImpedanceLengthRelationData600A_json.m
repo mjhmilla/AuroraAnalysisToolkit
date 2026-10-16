@@ -43,8 +43,8 @@ if(flag_makeFrequencyResponsePlots==1)
   colorSeries=getPaulTolColourSchemes('vibrant');
 
   impedanceExperiment={'20251118_impedance_larb_1'};
-  impedanceTrials ={'analysis_larb_07_passive_100Lo_20251118.json',...
-                   'analysis_larb_08_active_100Lo_20251118.json'};
+  impedanceTrials ={'analysis_ImpedanceLengthArb_larb_07_passive_100Lo_20251118.json',...
+                   'analysis_ImpedanceLengthArb_larb_08_active_100Lo_20251118.json'};
   activeState = [0,1];
   segmentId=2;
 
@@ -93,7 +93,8 @@ if(flag_makeForceLengthImpedancePlots==1)
                       '20251128_impedance_larb_6',...
                       '20251203_impedance_larb_7'};
 
-%    experimentList = {'20251118_impedance_larb_1'};
+%     experimentList = {'20251118_impedance_larb_1',...
+%                       '20251118_impedance_larb_2'};
 
   categories.length.value = ...
     [0.55,0.70,0.85,1.00,1.15,1.30,1.45];
@@ -105,6 +106,19 @@ if(flag_makeForceLengthImpedancePlots==1)
 
   segmentSeries = [1,2,3,4];
 
+
+  keyWords.active='active';
+  keyWords.passive='passive';
+  
+  numberOfTableRows=150; %should be bigger than the longest vector
+  dataSet = createImpedanceLengthDataSet600A(...
+                          experimentList,...
+                          segmentSeries,...
+                          categories,...
+                          keyWords,...
+                          numberOfTableRows,...
+                          projectFolders,...
+                          settings);
 
   modeNormalization=1;
 

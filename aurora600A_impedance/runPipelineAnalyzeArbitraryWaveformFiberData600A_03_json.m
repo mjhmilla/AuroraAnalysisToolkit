@@ -360,7 +360,6 @@ if(settings.processData==1)
   fprintf(fidLogFile,'%s\n','Extracting the passive and active bias forces');
   
   biasForceSet = calcTrialSpecificBiasForce600A(...
-                            setOfTrials,...
                             experimentJson,...
                             categories,...
                             dataFolder,...
@@ -576,14 +575,14 @@ if(settings.processData==1)
   
             intraSegmentData(j).filtered.force =...
               filteredForce(intraSegmentIndex)...
-                -biasForceSet(indexSetOfTrials).biasForce;
+                -biasForceSet(idxTrial).biasForce;
   
             intraSegmentData(j).filtered.length =...
               filteredLength(intraSegmentIndex);
   
             intraSegmentData(j).raw.force =...
               auroraData.Data.Fin.Values(intraSegmentIndex,1)...
-              -biasForceSet(indexSetOfTrials).biasForce;
+              -biasForceSet(idxTrial).biasForce;
   
             intraSegmentData(j).raw.length =...
               auroraData.Data.Lin.Values(intraSegmentIndex,1);
@@ -784,8 +783,8 @@ if(settings.processData==1)
         end
 
         yBias=0;        
-        if(~isnan(biasForceSet(indexSetOfTrials).biasForce))
-          yBias = biasForceSet(indexSetOfTrials).biasForce;
+        if(~isnan(biasForceSet(idxTrial).biasForce))
+          yBias = biasForceSet(idxTrial).biasForce;
         end
 
         y=y-yBias;
@@ -988,7 +987,14 @@ if(settings.processData==1)
   
             delayModel.daqFilterFrequencyHz = ...
                 fittingResults.filterFrequencyHz;
-            
+
+            flag_displayDelayData=0;
+            if(flag_displayDelayData==1)
+              fprintf('%1.3e s\t phase delay\n%1.3f Hz\tlpf freq\n\n',...
+                     delayModel.phaseDelay,...
+                     delayModel.daqFilterFrequencyHz);
+              here=1;
+            end
   
           end
           if(modelSettings.useManuallySetDaqDelay==1 ...
@@ -1573,9 +1579,9 @@ if(settings.processData==1)
         segmentJson.force   = auroraData.Data.Fin.Values(dataIndex,1);  
 
         if(isempty(activeIntervals))
-          segmentJson.bias= biasForceSet(indexSetOfTrials).passive;
+          segmentJson.bias= biasForceSet(idxTrial).passive;
         else
-          segmentJson.bias= biasForceSet(indexSetOfTrials).active;          
+          segmentJson.bias= biasForceSet(idxTrial).active;          
         end
 
         segmentJson.pre.filter.frequencyHz=settings.isometricNoiseFilterCutoffFrequencyHz;

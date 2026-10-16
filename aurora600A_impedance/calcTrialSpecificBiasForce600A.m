@@ -1,12 +1,14 @@
 function biasForceSet = calcTrialSpecificBiasForce600A(...
-  setOfTrials,experimentJson,categories,dataFolder,settings,fidLogFile)
+  experimentJson,categories,dataFolder,settings,fidLogFile)
 
 
-  biasForceSet(length(setOfTrials))=...
+  
+
+  biasForceSet(length(experimentJson.measurements))=...
     struct('trialIndex',[],'isActive',[],'lengthNominal',0,...
             'indexPassiveBias',0,'indexActiveBias',0,'biasForce',0,...
             'passive',[],'active',[]);
-  for idxT=1:1:length(setOfTrials)
+  for idxT=1:1:length(experimentJson.measurements)
     biasForceSet(idxT)=...
       struct('trialIndex',[],'isActive',[],'lengthNominal',0,...
             'indexPassiveBias',0,'indexActiveBias',0,'biasForce',0,...
@@ -21,44 +23,47 @@ function biasForceSet = calcTrialSpecificBiasForce600A(...
 
 
 
-  for indexSetOfTrials=1:1:length(setOfTrials)
-
-    idxTrial = setOfTrials(indexSetOfTrials);  
-    biasForceSet(indexSetOfTrials).trials = experimentJson.measurements(idxTrial);
-    biasForceSet(indexSetOfTrials).isActive = 0;
-    if(contains(experimentJson.measurements(idxTrial),'_active_'))
-      biasForceSet(indexSetOfTrials).isActive = 1;
+  for idxTrial=1:1:length(experimentJson.measurements)
+ 
+    biasForceSet(idxTrial).trials = experimentJson.measurements(idxTrial);
+    biasForceSet(idxTrial).isActive = 0;
+    if(contains(experimentJson.measurements(idxTrial),categories.active.str))
+      biasForceSet(idxTrial).isActive = 1;
     end
-    biasForceSet(indexSetOfTrials).trialIndex = idxTrial;          
+    biasForceSet(idxTrial).trialIndex = idxTrial;          
 
     found=0;
     for idxL=1:1:length(categories.length.value)
       if(contains(experimentJson.measurements(idxTrial),categories.length.str{idxL}))
         assert(found==0);
-        biasForceSet(indexSetOfTrials).lengthNominal=categories.length.value(idxL);
+        biasForceSet(idxTrial).lengthNominal=categories.length.value(idxL);
         found=1;
       end
     end
     assert(found==1);
 
-    biasForceSet(indexSetOfTrials)= ...
-      extractBiasForce600A(biasForceSet(indexSetOfTrials),experimentJson,...
+    biasForceSet(idxTrial)= ...
+      extractBiasForce600A(biasForceSet(idxTrial),experimentJson,...
                            dataFolder,settings,fidLogFile);  
     here=1;
   end
 
   indexActiveBias=nan;
   indexPassiveBias=nan;
-  for indexSetOfTrials=1:1:length(setOfTrials)
-    idxTrial = setOfTrials(indexSetOfTrials); 
+  for idxTrial=1:1:length(experimentJson.measurements)
     for indexKeyword =1:1:length(settings.biasForce.keywords)
       if(~isempty(settings.biasForce.keywords{indexKeyword}))
         if(contains(experimentJson.measurements{idxTrial},...
                 settings.biasForce.keywords{indexKeyword}))
+
           if(settings.biasForce.isActive(indexKeyword))
-            indexActiveBias=indexSetOfTrials;
+            if(isnan(indexActiveBias))
+              indexActiveBias=idxTrial;
+            end
           else
-            indexPassiveBias=indexSetOfTrials;          
+            if(isnan(indexPassiveBias))
+              indexPassiveBias=idxTrial;          
+            end
           end
         end
       end
@@ -72,43 +77,49 @@ function biasForceSet = calcTrialSpecificBiasForce600A(...
 
 
   %Calculate the total bias force for each trial
-  for indexSetOfTrials=1:1:length(setOfTrials)
+  for idxTrial=1:1:length(experimentJson.measurements)
 
-    idxTrial = setOfTrials(indexSetOfTrials);  
     %The active force bias contains the passive force at this
     %length, so we need to add it back.
     %
     %Get the passive force bias
-    idxPassiveBias = biasForceSet(indexSetOfTrials).indexPassiveBias;
-    forcePassiveBias=biasForceSet(idxPassiveBias).passive.force;
+    forcePassiveBias=0;
+    if(~isnan(biasForceSet(idxTrial).indexPassiveBias))
+      idxPassiveBias = biasForceSet(idxTrial).indexPassiveBias;
+      forcePassiveBias=biasForceSet(idxPassiveBias).passive.force;
+    end
 
-    if(biasForceSet(indexSetOfTrials).isActive==1)
+    if(biasForceSet(idxTrial).isActive==1)
       %Get the passive force at the current length
-      lengthNominal = biasForceSet(indexSetOfTrials).lengthNominal;
+      lengthNominal = biasForceSet(idxTrial).lengthNominal;
       found=0;
       for idxT=1:1:length(biasForceSet)
         if(biasForceSet(idxT).isActive == 0 ...
             && abs(biasForceSet(idxT).lengthNominal-lengthNominal)<1e-6)
-          assert(found==0);
-          forcePassive = biasForceSet(idxT).passive.force-forcePassiveBias;
-          found=1;
+          if(found==0)
+            forcePassive = biasForceSet(idxT).passive.force-forcePassiveBias;
+            found=1;
+          end
         end
       end
       
-      yActiveBias  = biasForceSet(indexSetOfTrials).active.force;
+      yActiveBias  = biasForceSet(idxTrial).active.force;
       yPassiveBias = forcePassive;
       yBias        = yActiveBias-yPassiveBias;
-      biasForceSet(indexSetOfTrials).biasForce=yBias;
+      biasForceSet(idxTrial).biasForce=yBias;
     else
-      biasForceSet(indexSetOfTrials).biasForce=forcePassiveBias;
+      biasForceSet(idxTrial).biasForce=forcePassiveBias;
     end
   end
 
 
   flag_debugBiasSet=0;
   if(flag_debugBiasSet==1)
+    activeLength=[];
     activeBias=[];
     passiveBias=[];
+    passiveLength=[];
+    
     for idxNL=1:1:length(categories.length.value)
       found=0;
       for idxT=1:1:length(biasForceSet)
@@ -116,18 +127,25 @@ function biasForceSet = calcTrialSpecificBiasForce600A(...
           found=1;
           if(biasForceSet(idxT).isActive==1)
             activeBias = [activeBias;biasForceSet(idxT).active.force];
+            activeLength=[activeLength;categories.length.value(idxNL)];
           else
             passiveBias = [passiveBias;biasForceSet(idxT).passive.force];          
+            passiveLength=[passiveLength;categories.length.value(idxNL)];
+            
           end
         end
       end
       assert(found==1);
     end    
     fig_debugBiasSet=figure;
-    plot(categories.length.value,passiveBias,'-b');
-    hold on;
-    plot(categories.length.value,activeBias,'-r');
-    hold on;
+    if(~isempty(passiveBias))
+      plot(passiveLength,passiveBias,'ob','MarkerFaceColor',[0,0,1]);
+      hold on;
+    end
+    if(~isempty(activeBias))
+      plot(activeLength,activeBias,'or','MarkerFaceColor',[1,0,0]);
+      hold on;
+    end
     xlabel('Norm. Length');
     ylabel('Force (mN)');
     close(fig_debugBiasSet);

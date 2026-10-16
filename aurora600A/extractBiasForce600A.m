@@ -24,7 +24,7 @@ for idxBiasTrial = 1:1:length(biasForce.trials)
       fileType = {'data','protocol'};
       filePaths = [{''};{''}];
       for j=1:1:length(fileType)
-        if(length(trialJson.(fileType{j}).file)>0)
+        if(~isempty(trialJson.(fileType{j}).file))
           filePaths{j} = trialJson.(fileType{j}).file{1};
           if(length(trialJson.(fileType{j}).file)>1)
             for k=2:1:length(trialJson.(fileType{j}).file)

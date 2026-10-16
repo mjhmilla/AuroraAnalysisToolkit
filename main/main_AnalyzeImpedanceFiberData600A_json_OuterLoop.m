@@ -28,55 +28,131 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
       ' I have not yet derived the phase delay of a Maxwell-Kelvin-Voigt ',...
       'rod yet.']);
 
-% experimentsToProcess = {
-%   '20260116_impedance_larb_spring'};   
-% passiveBiasTrialKeyword='';
-% activeBiasTrialKeyword='';
-%
-% experimentsToProcess = {
-%   '20251114_degradation_larb_1',...
-%   '20251119_degradation_larb_2',...
-%   '20251121_degradation_larb_3',...
-%   '20251121_degradation_larb_4'};
-% passiveBiasTrialKeyword='';
-% activeBiasTrialKeyword='larb_01';
- 
+dataSettings.processImpedanceSet         =0;
+dataSettings.processDegradationSet       =0;
+dataSettings.processCalibrationSpring    =0;
+dataSettings.processCalibrationFixedFiber=1;
+
+calibrationSettings.useCalibrationSpring=0;
+calibrationSettings.springCalibrationFile=...
+  '20260116_impedance_larb_spring';
+
+calibrationSettings.useCalibrationFixedFiber=0;
+calibrationSettings.fixedFiberCalibrationFile=...
+  '20260930_impedance_calibration_rigor_fixation';
+
+
+dsFields=fields(dataSettings);
+dsSum=0;
+for idxDS=1:1:length(dsFields)
+  dsSum = dsSum + dataSettings.(dsFields{idxDS});
+end
+assert(dsSum <= 1, 'Error: only one data set can be processed at once');
+
+if(dataSettings.processCalibrationSpring==1)
+  experimentsToProcess = {
+   '20260116_impedance_larb_spring'};    
+  passiveBiasTrialKeyword={'Passive_'};
+  activeBiasTrialKeyword={''};
+
+%   experimentsToProcess = {
+%    '20261009_impedance_larb_spring'};    
+%   passiveBiasTrialKeyword={'Passive_'};
+%   activeBiasTrialKeyword={''};  
+
+
+  categories.length.value = ...
+    [1];
+  categories.length.str   = ...
+    {'100Lo'};  
+  categories.length.indexLopt=1;
+  categories.active.str   ={'zActive'};   
+
+  calibrationSettings.useCalibrationSpring=0;
+  calibrationSettings.useCalibrationFixedFiber=0;
+  
+end
+
+if(dataSettings.processDegradationSet==1)
+
+  experimentsToProcess = {
+    '20251114_degradation_larb_1',...
+    '20251119_degradation_larb_2',...
+    '20251121_degradation_larb_3',...
+    '20251121_degradation_larb_4'};
+  passiveBiasTrialKeyword='';
+  activeBiasTrialKeyword='larb_01';
+
+  categories.length.value = ...
+    [1];
+  categories.length.str   = ...
+    {'100Lo'};  
+  categories.length.indexLopt=1;
+  categories.active.str   ={};  
+
+  calibrationSettings.useCalibrationSpring=1;
+  calibrationSettings.springCalibrationFile='20260116_impedance_larb_spring';
+  
+end 
+
 %
 % To add: 20261001_impedance_larb_sine_8
 %
-experimentsToProcess =    { '20251118_impedance_larb_1',...
-                            '20251118_impedance_larb_2',...
-                            '20251120_impedance_larb_3',...
-                            '20251121_impedance_larb_4',...
-                            '20251121_impedance_larb_5',...
-                            '20251128_impedance_larb_6',...
-                            '20251203_impedance_larb_7'};
-passiveBiasTrialKeyword = '_passive_055Lo_';
-activeBiasTrialKeyword  = '_active_055Lo_';
-useCalibrationSpring=1;
-
-categories.length.value = ...
-  [0.55,0.70,0.85,1.00,1.15,1.30,1.45];
-categories.length.str   = ...
-  {'055Lo','070Lo','085Lo','100Lo','115Lo','130Lo','145Lo'};  
-categories.length.indexLopt=4;
-categories.active.str   ={'active','passive'};
-
-% experimentsToProcess=...
-%   {'20260827_impedance_calibration_rigor_fixation_01',...
-%    '20260926_impedance_calibration_rigor_fixation',...
-%    '20260930_impedance_calibration_rigor_fixation',...
-%    '20261001_impedance_larb_sine_8'};
-% passiveBiasTrialKeyword='__01_screen';
-% activeBiasTrialKeyword ='__01_screen';
-% useCalibrationSpring=0;
 
 
-% experimentsToProcess = ...
-%  { '20260827_impedance_calibration_rigor_fixation_01'};
-% passiveBiasTrialKeyword='zcal_01_screen';
-% activeBiasTrialKeyword ='zcal_01_screen';
-%useCalibrationSpring=0;
+if(dataSettings.processImpedanceSet==1)
+  experimentsToProcess =    { '20251118_impedance_larb_1',...
+                              '20251118_impedance_larb_2',...
+                              '20251120_impedance_larb_3',...
+                              '20251121_impedance_larb_4',...
+                              '20251121_impedance_larb_5',...
+                              '20251128_impedance_larb_6',...
+                              '20251203_impedance_larb_7'};
+  passiveBiasTrialKeyword = '_passive_055Lo_';
+  activeBiasTrialKeyword  = '_active_055Lo_';
+  useCalibrationSpring=1;
+  
+  categories.length.value = ...
+    [0.55,0.70,0.85,1.00,1.15,1.30,1.45];
+  categories.length.str   = ...
+    {'055Lo','070Lo','085Lo','100Lo','115Lo','130Lo','145Lo'};  
+  categories.length.indexLopt=4;
+  categories.active.str   ={'active','passive'};
+
+  calibrationSettings.useCalibrationSpring=1;
+  calibrationSettings.springCalibrationFile='20260116_impedance_larb_spring';
+  
+
+end
+
+if(dataSettings.processCalibrationFixedFiber==1)
+  experimentsToProcess=...
+    {'20260827_impedance_calibration_rigor_fixation_01',...
+     '20260926_impedance_calibration_rigor_fixation',...
+     '20260930_impedance_calibration_rigor_fixation',...
+     '20261001_impedance_larb_sine_8'};
+
+  passiveBiasTrialKeyword={'zPassive'};
+  activeBiasTrialKeyword ={'zActive'};
+
+  categories.length.value = ...
+    [1];
+  categories.length.str   = ...
+    {'100Lo'};  
+  categories.length.indexLopt=1;
+  categories.active.str   ={'zActive'};
+
+
+  calibrationSettings.useCalibrationFixedFiber=0;
+  calibrationSettings.fixedFiberCalibrationFile=...
+    '20260930_impedance_calibration_rigor_fixation';  
+
+  % experimentsToProcess = ...
+  %  { '20260827_impedance_calibration_rigor_fixation_01'};
+  % passiveBiasTrialKeyword='zcal_01_screen';
+  % activeBiasTrialKeyword ='zcal_01_screen';
+  %useCalibrationSpring=0;
+end
 
 skipToTrialWithKeyword = [];
  
@@ -94,7 +170,7 @@ checkFileOrder=1;
 
 settingsImpedanceAnalysis = ...
   getImpedanceAnalysisSettings600A(...
-    useCalibrationSpring,...
+    calibrationSettings,...
     checkSha256Sum, ...
     checkFileOrder,...
     passiveBiasTrialKeyword,...
