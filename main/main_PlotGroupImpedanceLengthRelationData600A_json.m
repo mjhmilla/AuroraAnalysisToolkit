@@ -13,6 +13,8 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_0Presentation_1Publication = 1;
 
+flag_createDataSet = 0;
+
 flag_makeCalibrationPlots               = 0;
 flag_makeFrequencyResponsePlots         = 0;
 flag_makeForceLengthImpedancePlots      = 1;
@@ -98,27 +100,50 @@ if(flag_makeForceLengthImpedancePlots==1)
 
   categories.length.value = ...
     [0.55,0.70,0.85,1.00,1.15,1.30,1.45];
+  categories.isLo = ...
+    [   0,   0,   0,   1,   0,   0,   0];
+  
   categories.length.str   = ...
     {'055Lo','070Lo','085Lo','100Lo','115Lo','130Lo','145Lo'};  
   categories.length.indexLopt=4;
   categories.active.str   ={'active','passive'};
 
-
   segmentSeries = [1,2,3,4];
 
 
-  keyWords.active='active';
-  keyWords.passive='passive';
   
-  numberOfTableRows=150; %should be bigger than the longest vector
-  dataSet = createImpedanceLengthDataSet600A(...
-                          experimentList,...
-                          segmentSeries,...
-                          categories,...
-                          keyWords,...
-                          numberOfTableRows,...
-                          projectFolders,...
-                          settings);
+
+  settingsDataSet.numberOfTableRows=150; %should be bigger than the longest vector
+  settingsDataSet.keyWordActive='active';
+  settingsDataSet.keyWordPassive='passive';  
+  settingsDataSet.minimumBandwidthFractionForPassiveInclusion=0.75;
+  settingsDataSet.forceUnit='mN';
+  settingsDataSet.lengthUnit='mm';
+  settingsDataSet.timeUnit='ms';  
+  
+  settingsDataSet.normalizationSegment=1; 
+  %Ensures that we take lo and fo 
+  %before any perturbations are applied
+
+
+  if(flag_createDataSet==1)
+    dataSet = createImpedanceLengthDataSet600A(...
+                            experimentList,...
+                            segmentSeries,...
+                            categories,...
+                            projectFolders,...
+                            settingsDataSet);
+    save(fullfile(projectFolders.output600A_structs,...
+          'impedance_length_relation_larb',...
+          'dataSet_impedanceLengthRelationLarb.mat'),'dataSet');
+
+  else
+    tmp=load(fullfile(projectFolders.output600A_structs,...
+          'impedance_length_relation_larb',...
+          'dataSet_impedanceLengthRelationLarb.mat'));
+    dataSet=tmp.dataSet;
+  end
+
 
   modeNormalization=1;
 
