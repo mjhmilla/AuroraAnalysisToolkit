@@ -40,12 +40,12 @@ function biasForceSet = calcTrialSpecificBiasForce600A(...
         found=1;
       end
     end
-    assert(found==1);
 
-    biasForceSet(idxTrial)= ...
-      extractBiasForce600A(biasForceSet(idxTrial),experimentJson,...
-                           dataFolder,settings,fidLogFile);  
-    here=1;
+    if(found==1)
+      biasForceSet(idxTrial)= ...
+        extractBiasForce600A(biasForceSet(idxTrial),experimentJson,...
+                             dataFolder,settings,fidLogFile);  
+    end
   end
 
   indexActiveBias=nan;

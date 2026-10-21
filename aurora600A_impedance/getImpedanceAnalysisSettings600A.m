@@ -44,7 +44,7 @@ assert( (calibrationSettings.useCalibrationSpring ...
 
 if(calibrationSettings.useCalibrationSpring==1)
 
-  assert(length(calibrationSettings.springCalibrationFile)==1);
+  assert(~isempty(calibrationSettings.springCalibrationFile));
 
   switch calibrationSettings.springCalibrationFile
     case '20260116_impedance_larb_spring'

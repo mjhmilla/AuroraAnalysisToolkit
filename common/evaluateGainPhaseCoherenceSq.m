@@ -60,7 +60,8 @@ if(length(xTimeDomain)>10 && length(yTimeDomain)>10 ...
     frequencyResponse.idxBWC2       = [];
     frequencyResponse.bandwidthHzC2 = [];
 
-    if(~isempty(idxFirst) && ~isempty(idxLast))
+    flag_expandBWC2FromMiddle=0;
+    if(~isempty(idxFirst) && ~isempty(idxLast) && flag_expandBWC2FromMiddle==1)
       %Go to the middle of the interval and grow the interval until the
       %first points are found that do not meet the threshold;
 

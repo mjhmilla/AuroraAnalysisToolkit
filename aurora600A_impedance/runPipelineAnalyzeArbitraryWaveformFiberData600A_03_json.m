@@ -1543,11 +1543,15 @@ if(settings.processData==1)
         %%
         % Record the analysis to a segment json file
         %%
-        lengthSummary = ...
-          getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
-        forceSummary = ...
-          getSummaryStatistics(auroraData.Data.Fin.Values(dataIndex,1));
-        if(experimentJson.experiment.temperature_control)
+        lengthSummary =[];
+        forceSummary = [];
+        if(xyDataIsValid==1)
+          lengthSummary = ...
+            getSummaryStatistics(auroraData.Data.Lin.Values(dataIndex,1));
+          forceSummary = ...
+            getSummaryStatistics(auroraData.Data.Fin.Values(dataIndex,1));
+        end
+        if(experimentJson.experiment.temperature_control && xyDataIsValid==1)
           temperatureSummary = ...
           getSummaryStatistics(auroraData.Data.Aux1_C.Values(dataIndex,1));
         else
