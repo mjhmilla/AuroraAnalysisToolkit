@@ -12,6 +12,7 @@ addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_createDataSet            = 0;
+flag_calculateStatistics      = 0;
 flag_makeResultsPlotsTables   = 1;
 
 flag_0Presentation_1Publication = 1;
@@ -49,6 +50,12 @@ settingsDataSet.lengthUnit='mm';
 settingsDataSet.timeUnit='ms';    
 settingsDataSet.normalizationSegment=1; 
 
+settingsZLvsFL.individualTrialNumber=[4];
+settingsZLvsFL.flag_0Presentation_1Publication=1;
+settingsZLvsFL.pairwiseComparison={'storageAi','forceA';...
+                                   'lossAi','forceA'};
+
+
 %
 % Create/load the dataset
 %
@@ -70,19 +77,34 @@ else
   dataSet=tmp.dataSet;
 end
 
+if(flag_calculateStatistics==1)
+  dataSetStats= calcImpedanceLengthStatistics600A(dataSet,settingsZLvsFL);
+
+  save(fullfile(projectFolders.output600A_structs,...
+        'impedance_length_relation_larb',...
+        'dataSetStats_impedanceLengthRelationLarb.mat'),'dataSetStats');
+
+else
+  tmp=load(fullfile(projectFolders.output600A_structs,...
+        'impedance_length_relation_larb',...
+        'dataSetStats_impedanceLengthRelationLarb.mat'));
+  dataSetStats=tmp.dataSetStats;
+
+end
 
 %
 % Create the main results plots and tables
 %
 if(flag_makeResultsPlotsTables==1)
-  settingsZLvsFL.individualTrialNumber=[4];
-  settingsZLvsFL.flag_0Presentation_1Publication=1;
-  settingsZLvsFL.pairwiseComparison={'storageAi','forceA';...
-                                     'lossAi','forceA'};
+  success=createZLvsFLTable600A(...
+                    dataSet,...
+                    dataSetStats,...
+                    segmentSeries,...
+                    categories,...
+                    projectFolders,...
+                    settingsZLvsFL);
 
-  dataSetStats= calcImpedanceLengthStatistics600A(dataSet,settingsZLvsFL);
-
-  success=createZLvsFLPlotTable600A(...
+  success=createZLvsFLPlot600A(...
                     dataSet,...
                     dataSetStats,...
                     segmentSeries,...
