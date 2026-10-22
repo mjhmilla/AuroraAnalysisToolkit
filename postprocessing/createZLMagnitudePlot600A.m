@@ -25,8 +25,11 @@ bwWidth = 0.05;
 cs=getPaulTolColourSchemes('vibrant');
 
 
-xDataMap = [1,3,2,4];
-
+xDataMap = [2,4,1,3];
+%1 0.02 35
+%2 0.02 90
+%3 0.002 35
+%4 0.002 90
 
 %
 % Figure layout
@@ -97,9 +100,7 @@ for idS=1:1:length(segmentSeries)
       segmentColors(idS,idC).fillColor= [1,1,1];
     end      
 
-  end
-  
-
+  end  
 end
 
 
@@ -213,8 +214,8 @@ slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 %
 figure(figFLZmag);
 
-xTickTextStorage=[];
-xTickTextLoss=[];
+xTickTextStorage=cell(1,4);
+xTickTextLoss=cell(1,4);
 
 for i=1:1:length(slSeriesPub)
   idS = slSeriesPub(i).segment;
@@ -231,12 +232,13 @@ for i=1:1:length(slSeriesPub)
         value= storageAtLo/(forceAtLo/lengthAtLo);
         slSeriesPub(i).yData=[slSeriesPub(i).yData;value];
         slSeriesPub(i).xData=ones(size(slSeriesPub(i).yData)).*xDataMap(idS);
+        slSeriesPub(i).xValue=xDataMap(idS);
       case 'lossNormAtLo'
 
         value= lossAtLo/(forceAtLo/lengthAtLo);
         slSeriesPub(i).yData=[slSeriesPub(i).yData;value];
         slSeriesPub(i).xData=ones(size(slSeriesPub(i).yData)).*xDataMap(idS);
-        
+        slSeriesPub(i).xValue=xDataMap(idS);
       otherwise
         assert(0,'Error: unrecognized quantity');
     end
@@ -253,10 +255,12 @@ for i=1:1:length(slSeriesPub)
   slSeriesPub(i).xTickText = sprintf([ampFmt,'%s %1.0f Hz'],...
                                ampLo,'$$\ell_o$$', bwHz);
   if(contains(slSeriesPub(i).y,'storage'))
-    xTickTextStorage = [xTickTextStorage, {slSeriesPub(i).xTickText}];
+    idxX = xDataMap(idS);
+    xTickTextStorage(idxX) = {slSeriesPub(i).xTickText};
   end
   if(contains(slSeriesPub(i).y,'loss'))
-    xTickTextLoss = [xTickTextLoss, {slSeriesPub(i).xTickText}];
+    idxX = xDataMap(idS);
+    xTickTextLoss(idxX) = {slSeriesPub(i).xTickText};
   end
 end
 
@@ -291,7 +295,7 @@ subplot('Position',reshape(subPlotPanelFLZmag(1,1,:),1,4));
   title(slSeriesPub(1).title);
   
   xticks(slSeriesPub(1).xTicks);
-  xticklabels(xTickTextStorage(xDataMap));
+  xticklabels(xTickTextStorage);
   xtickangle(45);
   yticks(slSeriesPub(1).yTicks);
 
@@ -305,7 +309,7 @@ subplot('Position',reshape(subPlotPanelFLZmag(1,2,:),1,4));
   title(slSeriesPub(2).title);
 
   xticks(slSeriesPub(2).xTicks);
-  xticklabels(xTickTextLoss(xDataMap));
+  xticklabels(xTickTextLoss);
   xtickangle(45);
   yticks(slSeriesPub(2).yTicks);  
 

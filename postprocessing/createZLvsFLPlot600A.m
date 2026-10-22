@@ -162,7 +162,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
         xyGroup(idx).col=idxC;  
         
         xyGroup(idx).x      = 'lengthNominal';
-        xyGroup(idx).xData  = 'length';
+        xyGroup(idx).xData  = [];
         xyGroup(idx).xTicks = categories.length.value;
         xyGroup(idx).xLim   = [min(categories.length.value),...
                                    max(categories.length.value)] + [-1,1].*0.15;
