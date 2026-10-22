@@ -61,8 +61,8 @@ for idS=1:1:nS
     end
   end
 end
-
-fprintf('Extracting statistics: segment x experiment\n');
+fprintf('\ncalcImpedanceLengthStatistics600A\n');
+fprintf('\tsegment x experiment\n');
 for idS=1:1:nS
   for idE=1:1:nE
     for idC=1:1:nC 
@@ -153,8 +153,7 @@ for idS=1:1:nS
   end
 
 end
-
-fprintf('Extracting statistics: segment\n');
+fprintf('\tsegment\n');
 for idS=1:1:nS
   for idC=1:1:nC 
 
@@ -192,7 +191,7 @@ for idS=1:1:nS
         ss=getSummaryStatistics(y1);
         assert(abs(ss.x(5)-0.75)<1e-6 && abs(ss.x(3)-0.25)<1e-6);
         
-        w = ss.y(5)-ss.y(3);        
+        w = (ss.y(5)-ss.y(3)) ;        
         statsSL_diff(idS,idL).diffMedianNorm(idC,1)=(m1-m2)/w;       
       else
         statsSL_diff(idS,idL).diffMedian(idC,1)=nan;

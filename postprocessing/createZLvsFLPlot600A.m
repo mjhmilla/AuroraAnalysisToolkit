@@ -133,7 +133,7 @@ isStorageSet = [1,0,1,0;...
 isLossSet    =  1-isStorageSet;
 
 titleLabels = {'A.','B.','A.','B.';...
-               'C.','D.','C.','D.'};
+               'A.','B.','A.','B.'};
 
 idx=0;
 
