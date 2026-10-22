@@ -19,7 +19,7 @@ nC=size(settings.pairwiseComparison,1);
 success=0;
 
 figFLZ    = figure;
-
+figFLZmag = figure;
 
 bwWidth = 0.05;
 cs=getPaulTolColourSchemes('vibrant');
@@ -53,38 +53,6 @@ switch settings.flag_0Presentation_1Publication
 end
 
 [subPlotPanelFLZ, pageWidthFLZ,pageHeightFLZ]= ...
-  plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
-                      numberOfVerticalPlotRowsGeneric,...
-                      plotWidth,...
-                      plotHeight,...
-                      plotHorizMarginCm,...
-                      plotVertMarginCm,...
-                      baseFontSize); 
-
-
-numberOfHorizontalPlotColumnsGeneric  = 4;
-numberOfVerticalPlotRowsGeneric       = 2;
-
-switch settings.flag_0Presentation_1Publication
-  case 0
-    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
-    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5;
-    plotHorizMarginCm         = 1;
-    plotVertMarginCm          = 1.25;
-    baseFontSize              = 6;
-    
-  case 1
-    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*7;
-    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*7;
-    plotHorizMarginCm         = 2;
-    plotVertMarginCm          = 2;
-    baseFontSize              = 8;
-
-  otherwise
-    assert(0,'Error: settings.flag_0Presentation_1Publication should be 0 or 1');
-end
-
-[subPlotPanelFLZmag, pageWidthFLZmag,pageHeightFLZmag]= ...
   plotConfigGeneric(  numberOfHorizontalPlotColumnsGeneric,...
                       numberOfVerticalPlotRowsGeneric,...
                       plotWidth,...
