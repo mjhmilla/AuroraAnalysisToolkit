@@ -41,6 +41,7 @@ statsS(nS) = ...
          'corr_n',zeros(nC,1).*nan,...
          'vars',[]);
 
+
 %
 % Individual statistics
 %

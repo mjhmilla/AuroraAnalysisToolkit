@@ -50,10 +50,6 @@ settingsDataSet.lengthUnit='mm';
 settingsDataSet.timeUnit='ms';    
 settingsDataSet.normalizationSegment=1; 
 
-settingsZLvsFL.individualTrialNumber=[4];
-settingsZLvsFL.flag_0Presentation_1Publication=1;
-settingsZLvsFL.pairwiseComparison={'storageAi','forceA';...
-                                   'lossAi','forceA'};
 
 
 %
@@ -77,6 +73,15 @@ else
   dataSet=tmp.dataSet;
 end
 
+settingsZLvsFL.individualTrialNumber=[4];
+settingsZLvsFL.flag_0Presentation_1Publication=1;
+settingsZLvsFL.pairwiseComparison={'storageAi','forceA';...
+                                   'lossAi','forceA'};
+settingsZLvsFL.segmentColors=...
+  getImpedanceLengthSegmentColors600A(segmentSeries,dataSet);
+
+
+
 if(flag_calculateStatistics==1)
   dataSetStats= calcImpedanceLengthStatistics600A(dataSet,settingsZLvsFL);
 
@@ -96,6 +101,16 @@ end
 % Create the main results plots and tables
 %
 if(flag_makeResultsPlotsTables==1)
+
+
+
+  success=createFrequencyResponseComparisonPlot600A(...
+                  dataSet,...
+                  dataSetStats,...
+                  segmentSeries,...
+                  categories,...
+                  projectFolders,...
+                  settingsZLvsFL);
 
   success=createZLComparisonPlot600A(...
                     dataSet,...
@@ -128,5 +143,6 @@ if(flag_makeResultsPlotsTables==1)
                     categories,...
                     projectFolders,...
                     settingsZLvsFL);
+  here=1;
 end
 

@@ -11,6 +11,32 @@ function cs = getPaulTolColourSchemes(nameOfColourScheme)
 %%
 
 switch nameOfColourScheme
+  case 'sunset'
+     hexColors ={'364B9A', '4A7BB7', '6EA6CD', '98CAE1',...
+                 'C2E4EF', 'EAECCC', 'FEDA8B', 'FDB366', ...
+                 'F67E4B', 'DD3D2D', 'A50026'};
+
+     rgbColors = zeros(length(hexColors),3);
+     hexIdx = [1,2;3,4;5,6];
+     for i=1:1:size(rgbColors,1)
+       hexStr=hexColors{i};
+        for j=1:1:size(hexIdx,1)
+          rgbColors(i,j)=hex2dec(hexStr(hexIdx(j,:)));
+        end
+     end
+     rgbColors=rgbColors./256;
+     cs.blue0=rgbColors(1,:);
+     cs.blue1=rgbColors(2,:);
+     cs.blue2=rgbColors(3,:);
+     cs.blue3=rgbColors(4,:);
+     cs.blue4=rgbColors(5,:);
+     cs.green=rgbColors(6,:);
+     cs.red4 =rgbColors(7,:);
+     cs.red3 =rgbColors(8,:);
+     cs.red2 =rgbColors(9,:);
+     cs.red1 =rgbColors(10,:);
+     cs.red0 =rgbColors(11,:);
+
     case 'bright'
         cs.blue     = [68,119,170]./255;
         cs.cyan     = [102,204,238]./255;

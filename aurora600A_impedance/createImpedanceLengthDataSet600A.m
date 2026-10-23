@@ -560,7 +560,7 @@ for idxS=1:1:length(segmentSeries)
 
 
   forceAtLoG    = mean(forceAtLo);
-  lengthAtLoG   = mean(lengthAtLo);
+lengthAtLoG   = mean(lengthAtLo);
   storageAtLoG  = mean(storageAtLo);
   lossAtLoG     = mean(lossAtLo);
   amplitudeLo   = individualProperties(idxS,idxL,idxE).amplitudeLo;

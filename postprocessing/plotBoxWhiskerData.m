@@ -36,13 +36,26 @@ hold on;
 fill(box(:,1),box(:,2),boxColor,'EdgeColor','none');
 hold on;
 
-plot(box(:,1),box(:,2),'-','Color',lineColor);
-hold on;
+colorDiff=norm(boxColor-lineColor);
 
-plot([x-0.5*boxWidth;x+0.5*boxWidth],...
-     [             y50; y50        ],...
-     '-','Color',lineColor);
-hold on;
+if(colorDiff > 1e-6)
+  plot(box(:,1),box(:,2),'-','Color',lineColor);
+  hold on;
+end
+
+
+if(colorDiff > 1e-6)
+  plot([x-0.5*boxWidth;x+0.5*boxWidth],...
+       [             y50; y50        ],...
+       '-','Color',lineColor);
+  hold on;
+else
+  plot([x-0.5*boxWidth;x+0.5*boxWidth],...
+       [             y50; y50        ],...
+       '-','Color',[1,1,1]);
+  hold on;
+
+end
 
 plot([x-0.5*boxWidth; x+0.5*boxWidth],...
      [           y95; y95           ],...

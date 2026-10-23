@@ -22,7 +22,6 @@ figFLZ    = figure;
 figFLZmag = figure;
 
 bwWidth = 0.05;
-cs=getPaulTolColourSchemes('vibrant');
 
 
 
@@ -129,28 +128,14 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
     end
   
     if(isStorage==1)
-      if(ampLo > 0.009)
-        leftColor = cs.orange;
-      else
-        leftColor = cs.red;
-      end
+      leftLineColor=settings.segmentColors(idS,1).lineColor;
+      leftFillColor=settings.segmentColors(idS,1).fillColor;
     end
     if(isLoss==1)
-      if(ampLo > 0.009)
-        leftColor = cs.cyan;
-      else
-        leftColor = cs.blue;
-      end  
+      leftLineColor=settings.segmentColors(idS,2).lineColor;
+      leftFillColor=settings.segmentColors(idS,2).fillColor;
     end
-  
-    if(bwHz > 45)
-      leftLineColor=leftColor;
-      leftFillColor=leftColor.*0.25 + [1,1,1].*0.75;
-    else
-      leftLineColor=leftColor;
-      leftFillColor=[1,1,1];
-    end
-  
+
     switch idx
       case 1
         %
@@ -174,12 +159,12 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
                                     max(xyGroup(idx).left.yTicks)] ...
                                     + [-1,1].*sqrt(eps);
   
-        normUnit='S_o';
+        normUnit='S_{o}';
         if(contains(settings.pairwiseComparison{1,1},'Ai'))
-          normUnit='S_o^i';
+          normUnit='S_{o}^i';
         end
         if(contains(settings.pairwiseComparison{1,1},'Ag'))
-          normUnit='S_o';        
+          normUnit='S_{o}';        
         end
   
         xyGroup(idx).left.yLabel = ['Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(',normUnit,')$$)'];
@@ -187,7 +172,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
         xyGroup(idx).left.fillColor  = leftFillColor;
         xyGroup(idx).left.legend = '$$\tilde{S}$$';
   
-        normUnit='f_o';
+        normUnit='f_{o}';
         if(contains(settings.pairwiseComparison{1,2},'Ai'))
           normUnit='f_o^i';
         end

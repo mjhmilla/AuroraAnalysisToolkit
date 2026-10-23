@@ -22,8 +22,10 @@ figFLZmag    = figure;
 
 
 bwWidth = 0.05;
-cs=getPaulTolColourSchemes('vibrant');
 
+
+idCS=1;
+idCL=2;
 
 xDataMap = [2,4,1,3];
 %1 0.02 35
@@ -68,40 +70,7 @@ end
 %
 % Plot configuration
 %
-segmentColors(4,2)=struct('lineColor',[],'fillColor',[]);
-idCS=1;
-idCL=2;
-for idS=1:1:length(segmentSeries)
-  ampLo=dataSet.individual(idS,1,1).amplitudeLo;
-  bwHz =dataSet.individual(idS,1,1).bandwidthHz;
-   
-  for idC=1:1:2
-    switch idC
-      case 1
-        if(ampLo > 0.009)
-          segmentColors(idS,idC).lineColor=cs.orange;
-        else
-          segmentColors(idS,idC).lineColor=cs.red;
-        end
-      case 2
-        if(ampLo > 0.009)
-          segmentColors(idS,idC).lineColor=cs.cyan;
-        else
-          segmentColors(idS,idC).lineColor=cs.blue;
-        end        
-      otherwise 
-        assert(0,'Error: unrecognized idC value');
-    end
-    
-    if(bwHz > 45)
-      segmentColors(idS,idC).fillColor= ...
-        segmentColors(idS,idC).lineColor.*0.25 + [1,1,1].*0.75;
-    else
-      segmentColors(idS,idC).fillColor= [1,1,1];
-    end      
 
-  end  
-end
 
 
 slSeriesPub(8)=struct('segment',nan,'row',nan,'col',nan,...
@@ -131,11 +100,13 @@ slSeriesPub(idx).yTicks = [0:10:70];
 slSeriesPub(idx).yLim=...
   [min(slSeriesPub(idx).yTicks),...
    max(slSeriesPub(idx).yTicks)]+[-1,1].*0.5;
-slSeriesPub(idx).yLabel='Norm. Storage ($$S^A_o/(f_o/\ell_o)$$)';
+slSeriesPub(idx).yLabel='Norm. Storage ($$S_{o}^i/(f_o/\ell_o)$$)';
 slSeriesPub(idx).yData=[];
-slSeriesPub(idx).title={'A. Median Active Storage Modulus at $$\ell_o$$'};
+slSeriesPub(idx).title=...
+  sprintf('A. Median Active Storage Modulus %s at %s',...
+          '$$S_{o}^i$$','$$\ell_o$$');
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCS);
+  settings.segmentColors(slSeriesPub(idx).segment,idCS);
 
 idx=idx+1;
 slSeriesPub(idx).segment=1;
@@ -153,11 +124,14 @@ slSeriesPub(idx).yTicks = [0:5:35];
 slSeriesPub(idx).yLim=...
   [min(slSeriesPub(idx).yTicks),...
    max(slSeriesPub(idx).yTicks)]+[-1,1].*0.5;
-slSeriesPub(idx).yLabel='Norm. Loss ($$L^A_o/(f_o/\ell_o)$$)';
+slSeriesPub(idx).yLabel='Norm. Loss ($$L_{o}^i/(f_o/\ell_o)$$)';
 slSeriesPub(idx).yData=[];
-slSeriesPub(idx).title={'B. Median Active Loss Modulus at $$\ell_o$$'};
+%slSeriesPub(idx).title={'B. Median Active Loss Modulus at $$\ell_o$$'};
+slSeriesPub(idx).title=...
+  sprintf('B. Median Active Loss Modulus %s at %s',...
+          '$$L_{o}^i$$','$$\ell_o$$');
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCL);
+  settings.segmentColors(slSeriesPub(idx).segment,idCL);
 
 
 
@@ -166,7 +140,7 @@ slSeriesPub(idx)=slSeriesPub(1);
 slSeriesPub(idx).segment =2;
 slSeriesPub(idx).xValue=xDataMap(slSeriesPub(idx).segment);
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCS);
+  settings.segmentColors(slSeriesPub(idx).segment,idCS);
 slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 
 
@@ -175,7 +149,7 @@ slSeriesPub(idx)=slSeriesPub(2);
 slSeriesPub(idx).segment =2;
 slSeriesPub(idx).xValue=xDataMap(slSeriesPub(idx).segment);
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCL);
+  settings.segmentColors(slSeriesPub(idx).segment,idCL);
 slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 
 idx=idx+1;
@@ -183,7 +157,7 @@ slSeriesPub(idx)=slSeriesPub(1);
 slSeriesPub(idx).segment =3;
 slSeriesPub(idx).xValue=xDataMap(slSeriesPub(idx).segment);
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCS);
+  settings.segmentColors(slSeriesPub(idx).segment,idCS);
 slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 
 idx=idx+1;
@@ -191,7 +165,7 @@ slSeriesPub(idx)=slSeriesPub(2);
 slSeriesPub(idx).segment =3;
 slSeriesPub(idx).xValue=xDataMap(slSeriesPub(idx).segment);
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCL);
+  settings.segmentColors(slSeriesPub(idx).segment,idCL);
 slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 
 idx=idx+1;
@@ -199,7 +173,7 @@ slSeriesPub(idx)=slSeriesPub(1);
 slSeriesPub(idx).segment =4;
 slSeriesPub(idx).xValue=xDataMap(slSeriesPub(idx).segment);
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCS);
+  settings.segmentColors(slSeriesPub(idx).segment,idCS);
 slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 
 idx=idx+1;
@@ -207,7 +181,7 @@ slSeriesPub(idx)=slSeriesPub(2);
 slSeriesPub(idx).segment =4;
 slSeriesPub(idx).xValue=xDataMap(slSeriesPub(idx).segment);
 slSeriesPub(idx).color = ...
-  segmentColors(slSeriesPub(idx).segment,idCL);
+  settings.segmentColors(slSeriesPub(idx).segment,idCL);
 slSeriesPub(idx).xData = xDataMap(slSeriesPub(idx).segment);
 %
 % Figure configuration
@@ -276,8 +250,8 @@ for i=1:1:length(slSeriesPub)
   col=slSeriesPub(i).col;
   subplot('Position',reshape(subPlotPanelFLZmag(row,col,:),1,4));
   plot(slSeriesPub(i).xData,slSeriesPub(i).yData,...
-       'o','Color',segmentColors(idS,col).lineColor,...
-       'MarkerFaceColor',segmentColors(idS,col).fillColor,...
+       'o','Color',settings.segmentColors(idS,col).lineColor,...
+       'MarkerFaceColor',settings.segmentColors(idS,col).fillColor,...
        'MarkerSize',5);
   hold on;
 
@@ -374,7 +348,7 @@ for idxC=1:1:length(segComparison)
   if(hS==1)
     xS=sort(xStorage);
     xS=[xS(1),xS(1),xS(2),xS(2)];
-    yS=[1,1,1,1].*yStorage + [1,0,0,1].*dyS;
+    yS=[1,1,1,1].*yStorage + [1,0,0,1].*(dyS*0.5);
     plot(xS,yS,'-k');
     hold on;
     text(mean(xS),yStorage(1)-dyS*0.5,...
@@ -382,7 +356,7 @@ for idxC=1:1:length(segComparison)
          'HorizontalAlignment','center',...
          'VerticalAlignment','middle');
     hold on;
-    ySOffset=ySOffset+2*dyS;
+    ySOffset=ySOffset+4*dyS;
   end  
 
   subplot('Position',...
@@ -400,7 +374,7 @@ for idxC=1:1:length(segComparison)
          'HorizontalAlignment','center',...
          'VerticalAlignment','middle');
     hold on;
-    yLOffset=yLOffset+2*dyL;
+    yLOffset=yLOffset+4*dyL;
 
   end
   
