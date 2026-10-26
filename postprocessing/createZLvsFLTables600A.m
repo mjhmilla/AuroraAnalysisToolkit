@@ -30,17 +30,15 @@ idx=0;
 idCS=1;
 idCL=2;
 
-corrColorMap(5)=struct('lim',[],'color',[]);
-corrColorMap(1).lim=[0,0.1];
-corrColorMap(1).color='gray4';
-corrColorMap(2).lim=[0.1,0.3];
-corrColorMap(2).color='gray3';
-corrColorMap(3).lim=[0.3,0.5];
-corrColorMap(3).color='gray2';
-corrColorMap(4).lim=[0.5,0.7];
-corrColorMap(4).color='gray1';
-corrColorMap(5).lim=[0.7,1.0];
-corrColorMap(5).color='';
+corrColorMap(4)=struct('lim',[],'color',[]);
+corrColorMap(1).lim=[0,0.3];
+corrColorMap(1).color='gray3';
+corrColorMap(2).lim=[0.3,0.6];
+corrColorMap(2).color='gray2';
+corrColorMap(3).lim=[0.6,0.8];
+corrColorMap(3).color='gray1';
+corrColorMap(4).lim=[0.8,1.0];
+corrColorMap(4).color='';
 
 diffNormColorMap(7)=struct('lim',[],'color',[]);
 diffNormColorMap(1).lim=[-inf,-2.5];

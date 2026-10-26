@@ -12,7 +12,7 @@ addpath(projectFolders.experiments);
 addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_createDataSet            = 0;
-flag_calculateStatistics      = 0;
+flag_calculateStatistics      = 1;
 flag_makeResultsPlotsTables   = 1;
 
 flag_0Presentation_1Publication = 1;

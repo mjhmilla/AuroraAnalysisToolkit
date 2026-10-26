@@ -118,12 +118,12 @@ for idS=1:1:nS
         end
       end 
       if(~isempty(medianSet1))
-        [rhoM,pvalM] = corr(medianSet1,medianSet2,'Type','Pearson');
+        [rhoM,pvalM] = corr(medianSet1,medianSet2,'Type','Spearman');
         statsSE(idS,idE).corrMedian_n(idC)    = length(medianSet1);       
         statsSE(idS,idE).corrMedian_rho(idC)  = rhoM;   
         statsSE(idS,idE).corrMedian_pval(idC) = pvalM;  
     
-        [rho,pval] = corr(dataSet1,dataSet2,'Type','Pearson');
+        [rho,pval] = corr(dataSet1,dataSet2,'Type','Spearman');
         statsSE(idS,idE).corr_n(idC)    = length(dataSet1);       
         statsSE(idS,idE).corr_rho(idC)  = rho;   
         statsSE(idS,idE).corr_pval(idC) = pval;  
@@ -203,12 +203,12 @@ for idS=1:1:nS
 
 
     end 
-    [rhoM,pvalM] = corr(medianSet1,medianSet2,'Type','Pearson');
+    [rhoM,pvalM] = corr(medianSet1,medianSet2,'Type','Spearman');
     statsS(idS).corrMedian_n(idC)    = length(medianSet1);       
     statsS(idS).corrMedian_rho(idC)  = rhoM;   
     statsS(idS).corrMedian_pval(idC) = pvalM;  
 
-    [rho,pval] = corr(dataSet1,dataSet2,'Type','Pearson');
+    [rho,pval] = corr(dataSet1,dataSet2,'Type','Spearman');
     statsS(idS).corr_n(idC)    = length(dataSet1);       
     statsS(idS).corr_rho(idC)  = rho;   
     statsS(idS).corr_pval(idC) = pval;     

@@ -312,7 +312,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
       xySeries(idx).xLabel = 'Frequency (Hz)';
       
       xySeries(idx).left.y      = 'storageA';
-      xySeries(idx).left.yTicks = [0:10:90];
+      xySeries(idx).left.yTicks = [-10:10:100];
       xySeries(idx).left.yLim   = [min(xySeries(idx).left.yTicks),...
                                    max(xySeries(idx).left.yTicks)] ...
                                  + [-1,1].*sqrt(eps);
@@ -326,7 +326,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
   
 
       xySeries(idx).left.yLabel = ...
-        ['Norm. Storage ($$(\mathrm{mN}/\mathrm{mm})/(',normUnit,')$$)'];
+        ['Storage ($$(\mathrm{mN}/\mathrm{mm})/(',normUnit,')$$)'];
       xySeries(idx).left.lineColor  = subPlotSet(idxR,idxC).storageLineColor(idxAB,:);
       xySeries(idx).left.fillColor  = subPlotSet(idxR,idxC).storageFillColor(idxAB,:);
       xySeries(idx).left.axisColor = subPlotSet(idxR,idxC).axisColor(1,:);
@@ -345,7 +345,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
       xySeries(idx).right=xySeries(idx).left;
       xySeries(idx).right.y='lossA';
       xySeries(idx).right.yLabel = ...
-        ['Norm. Loss ($$(\mathrm{mN}/\mathrm{mm})/(',normUnit,')$$)'];
+        ['Loss ($$(\mathrm{mN}/\mathrm{mm})/(',normUnit,')$$)'];
       xySeries(idx).right.lineColor = subPlotSet(idxR,idxC).lossLineColor(idxAB,:);
       xySeries(idx).right.fillColor = subPlotSet(idxR,idxC).lossFillColor(idxAB,:);
       xySeries(idx).right.axisColor = subPlotSet(idxR,idxC).axisColor(2,:);
@@ -483,21 +483,23 @@ for i=1:1:length(xySeries)
       meanLineColor=xySeries(i).(side).lineColor;
 
     end
-  
+
+    plot(freqInterp(idV),resTop(idV),...
+          '-','Color',[1,1,1],...
+          'LineWidth',0.5);
+    hold on;
+    plot(freqInterp(idV),resBottom(idV),...
+          '-','Color',[1,1,1],...
+          'LineWidth',0.5);
+    hold on;    
+
     fill([freqInterp(idV); fliplr(freqInterp(idV)')'],...
          [resBottom(idV); fliplr(resTop(idV)')'],...
          xySeries(i).(side).fillColor,...
          'EdgeColor','none');
     hold on;
 
-    plot(freqInterp(idV),resTop(idV),...
-          '-','Color',xySeries(i).(side).lineColor,...
-          'LineWidth',0.5);
-    hold on;
-    plot(freqInterp(idV),resBottom(idV),...
-          '-','Color',xySeries(i).(side).lineColor,...
-          'LineWidth',0.5);
-    hold on;    
+
 
     for idE=1:1:nE
       lineColor = xySeries(i).(side).fillColor.*0.5+[1,1,1].*0.5;
@@ -509,7 +511,7 @@ for i=1:1:length(xySeries)
     end
     plot(freqInterp(idV),meanInterpY(idV),...
          '-','Color',meanLineColor,...
-         'LineWidth',1);
+         'LineWidth',0.75);
     hold on;
 
     ylabel(xySeries(i).(side).yLabel);
@@ -629,8 +631,11 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
       xTxt=dataSetComp(idxR,idxC,idxLR).frequencyA(idxT0);
 
       id0=idxT0;
-      id1=id0+min([20,round(length(idxAB)*0.5)]);
+      id1=min([id0+20,id0 + round(0.5*(min(idxA,idxB)-id0))]);
 
+      if(id1 > length(dataSetComp(idxR,idxC,idxLR).dataB))
+        here=1;
+      end
       yA= max(max(dataSetComp(idxR,idxC,idxLR).dataA(id0:id1,:)));
       yB= max(max(dataSetComp(idxR,idxC,idxLR).dataB(id0:id1,:)));
       yTxt=max(yA,yB);
@@ -691,52 +696,88 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
         switch idxLR
           case 1
             lineColor = [0,0,0];
-          case 2
-            lineColor = [0,0,0];          
-          otherwise
-            assert(0,'Error: unrecogized idxLR index');
-        end
-  
-        plot(freqBDiff,meanBDiff,'-','Color',[1,1,1],...
-          'LineWidth',2);
-        hold on;      
-        plot(freqBDiff,meanBDiff,'-','Color',lineColor,...
-          'LineWidth',1);
-        hold on;
-  
-        %Legend entries
-        freqMaxA=max(dataSetComp(idxR,idxC,idxLR).frequencyA);
-        freqMaxB=max(dataSetComp(idxR,idxC,idxLR).frequencyB);
-        freqMax=max([freqMaxA,freqMaxB]);
+            diffLine=freqBDiff;
+            idxD=find(~isnan(diffLine));
+            diffLine(idxD)=80;
 
-        switch idxLR
-          case 1
-            dx=freqMax*0.05;
-            dy=diff(xySeries(1).(side).yLim)*0.05;
-            xL=0;
-            yL=xySeries(1).(side).yLim(2)+yOffset(idxR,idxC).(side);
+            plot(freqBDiff,diffLine,'-','Color',[1,1,1],...
+              'LineWidth',2);
+            hold on;      
+            plot(freqBDiff,diffLine,'-','Color',[0,0,0],...
+              'LineWidth',1);
+            hold on;
+
             legendEntry = '$$\rho < 0.05$$: $$\tilde{S}^A\,\&\,\tilde{S}^B$$';
+                        
+            text(freqBDiff(idxD(1)),diffLine(idxD(1)),...
+             legendEntry,...
+             'FontSize',8,...
+             'HorizontalAlignment','left',...
+             'VerticalAlignment','bottom');
+            hold on;
+
           case 2
-            dx=freqMax*0.05;
-            dy=diff(xySeries(1).(side).yLim)*0.05;
-            xL=freqMax-dx*11;
-            yL=xySeries(1).(side).yLim(2)+yOffset(idxR,idxC).(side);
-            legendEntry = '$$\rho < 0.05$$: $$\tilde{L}^A\,\&\,\tilde{L}^B$$';          
-          otherwise
-            assert(0,'Error: unrecognized side index');
-        end      
-  
-        plot([xL,(xL+0.5*dx)],[(yL-0.7*dy),(yL-0.7*dy)],'-',...
-          'Color',lineColor,...
-          'LineWidth',1);
-        hold on;
-      
-        text(xL+0.75*dx,yL,...
+            lineColor = [0,0,0];
+            diffLine=freqBDiff;
+            idxD=find(~isnan(diffLine));
+            diffLine(idxD)=-4;
+
+            plot(freqBDiff,diffLine,'-','Color',[1,1,1],...
+              'LineWidth',2);
+            hold on;      
+            plot(freqBDiff,diffLine,'-','Color',[0,0,0],...
+              'LineWidth',1);
+            hold on;
+
+            legendEntry = '$$\rho < 0.05$$: $$\tilde{L}^A\,\&\,\tilde{L}^B$$'; 
+
+            text(freqBDiff(idxD(1)),diffLine(idxD(1))-1,...
              legendEntry,...
              'FontSize',8,...
              'HorizontalAlignment','left',...
              'VerticalAlignment','top');
-        hold on;        
+            hold on;            
+
+          otherwise
+            assert(0,'Error: unrecogized idxLR index');
+        end
+  
+
+
+        here=1;
+%         %Legend entries
+%         freqMaxA=max(dataSetComp(idxR,idxC,idxLR).frequencyA);
+%         freqMaxB=max(dataSetComp(idxR,idxC,idxLR).frequencyB);
+%         freqMax=max([freqMaxA,freqMaxB]);
+% 
+%         switch idxLR
+%           case 1
+%             dx=freqMax*0.05;
+%             dy=diff(xySeries(1).(side).yLim)*0.05;
+%             xL=0;
+%             yL=xySeries(1).(side).yLim(2)+yOffset(idxR,idxC).(side);
+%             legendEntry = '$$\rho < 0.05$$: $$\tilde{S}^A\,\&\,\tilde{S}^B$$';
+%           case 2
+%             dx=freqMax*0.05;
+%             dy=diff(xySeries(1).(side).yLim)*0.05;
+%             xL=freqMax-dx*11;
+%             yL=xySeries(1).(side).yLim(2)+yOffset(idxR,idxC).(side);
+%             legendEntry = '$$\rho < 0.05$$: $$\tilde{L}^A\,\&\,\tilde{L}^B$$';          
+%           otherwise
+%             assert(0,'Error: unrecognized side index');
+%         end      
+%   
+%         plot([xL,(xL+0.5*dx)],[(yL-0.7*dy),(yL-0.7*dy)],'-',...
+%           'Color',lineColor,...
+%           'LineWidth',1);
+%         hold on;
+%       
+%         text(xL+0.75*dx,yL,...
+%              legendEntry,...
+%              'FontSize',8,...
+%              'HorizontalAlignment','left',...
+%              'VerticalAlignment','top');
+%         hold on;        
 
       end
 

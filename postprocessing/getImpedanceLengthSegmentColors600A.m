@@ -11,6 +11,7 @@ idCL=2;
 assert(length(segmentSeries)==4);
 
 cs=getPaulTolColourSchemes('sunset');
+cs.blue0=[0,0,0];
 
 segmentColors(4,2)=struct('lineColor',[],'fillColor',[]);
 

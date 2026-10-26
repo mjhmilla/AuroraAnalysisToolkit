@@ -121,7 +121,7 @@ settingsImpedanceAnalysis.phaseDelayTolerance    = 1e-5;
 settingsImpedanceAnalysis.phaseDelayMaxIteration = 50;
 
 settingsImpedanceAnalysis.normFittingBandwidth = [0.05,1];
-settingsImpedanceAnalysis.minAcceptableBandwidthFraction = 0.67;
+settingsImpedanceAnalysis.minAcceptableBandwidthFraction = 0.5;
 
 settingsImpedanceAnalysis.impedanceTemperatureBaseLineFilterHz = 2;
 
