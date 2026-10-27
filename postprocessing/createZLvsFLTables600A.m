@@ -20,7 +20,7 @@ success=0;
 
 nSeg = 4;
 nCat = nSeg*2;
-nCorr= nSeg*4;
+nCorr= nSeg*8;
 nDiff= nSeg*2*2;
 nEntry = nCat+nCorr+nDiff;
 
@@ -41,19 +41,19 @@ corrColorMap(4).lim=[0.8,1.0];
 corrColorMap(4).color='';
 
 diffNormColorMap(7)=struct('lim',[],'color',[]);
-diffNormColorMap(1).lim=[-inf,-2.5];
+diffNormColorMap(1).lim=[-inf,-3];
 diffNormColorMap(1).color='blue3';
-diffNormColorMap(2).lim=[-2.5,-1.5];
+diffNormColorMap(2).lim=[-3,-2];
 diffNormColorMap(2).color='blue2';
-diffNormColorMap(3).lim=[-1.5,-0.5];
+diffNormColorMap(3).lim=[-2,-1];
 diffNormColorMap(3).color='blue1';
-diffNormColorMap(4).lim=[-0.5,0.5];
+diffNormColorMap(4).lim=[-1,1];
 diffNormColorMap(4).color='';
-diffNormColorMap(5).lim=[0.5,1.5];
+diffNormColorMap(5).lim=[1,2];
 diffNormColorMap(5).color='red1';
-diffNormColorMap(6).lim=[1.5,2.5];
+diffNormColorMap(6).lim=[2,3];
 diffNormColorMap(6).color='red2';
-diffNormColorMap(7).lim=[2.5,inf];
+diffNormColorMap(7).lim=[3,inf];
 diffNormColorMap(7).color='red3';
 
 diffColorMap(7)=struct('lim',[],'color',[]);
@@ -101,6 +101,12 @@ for idS=1:1:4
   varMap(idx).str=str;
   assert(contains(dataSetStats.corrS(idS).vars{idCS},'storage'));
 
+  %n 50 S-F
+  idx=idx+1;  
+  varMap(idx).symbol=sprintf('<%in50SF>',idS); 
+  value = dataSetStats.corrS(idS).corrMedian_n(idCS);
+  varMap(idx).str = sprintf('%i',value);
+  
   %rho S-F
   idx=idx+1;    
   varMap(idx).symbol=sprintf('<%irhoSF>',idS);
@@ -108,6 +114,13 @@ for idS=1:1:4
   str   = sprintf('%1.2f',value);
   str   = applyColorMapToLaTeXTableEntry(str,value, corrColorMap);
   varMap(idx).str=str;
+
+  %n S-F
+  idx=idx+1;  
+  varMap(idx).symbol=sprintf('<%inSF>',idS); 
+  value = dataSetStats.corrS(idS).corr_n(idCS);
+  varMap(idx).str = sprintf('%i',value);
+
 
   %rho 50 L-F
   idx=idx+1;  
@@ -118,6 +131,12 @@ for idS=1:1:4
   varMap(idx).str=str;
   assert(contains(dataSetStats.corrS(idS).vars{idCL},'loss'));
 
+  idx=idx+1;  
+  varMap(idx).symbol=sprintf('<%in50LF>',idS);
+  value = dataSetStats.corrS(idS).corrMedian_n(idCL);
+  varMap(idx).str = sprintf('%i',value);  
+
+
   %rho L-F
   idx=idx+1;  
   varMap(idx).symbol=sprintf('<%irhoLF>',idS);
@@ -125,6 +144,12 @@ for idS=1:1:4
   str   = sprintf('%1.2f',value);
   str   = applyColorMapToLaTeXTableEntry(str,value,corrColorMap);  
   varMap(idx).str=str;      
+
+  idx=idx+1;  
+  varMap(idx).symbol=sprintf('<%inLF>',idS);
+  value = dataSetStats.corrS(idS).corr_n(idCL);
+  varMap(idx).str = sprintf('%i',value);  
+  
 end
 
 %Differences

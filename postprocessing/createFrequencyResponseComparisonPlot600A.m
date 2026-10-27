@@ -640,7 +640,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
       yB= max(max(dataSetComp(idxR,idxC,idxLR).dataB(id0:id1,:)));
       yTxt=max(yA,yB);
 
-      text(xTxt,yTxt,sprintf('%s=%1.2f','$$\rho$$',rho),...
+      text(xTxt,yTxt,sprintf('%s=%1.2f','$$\rho_\mu$$',rho),...
            'HorizontalAlignment','left',...
            'VerticalAlignment','bottom',...
            'FontSize',8);
@@ -707,7 +707,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
               'LineWidth',1);
             hold on;
 
-            legendEntry = '$$\rho < 0.05$$: $$\tilde{S}^A\,\&\,\tilde{S}^B$$';
+            legendEntry = '$$p < 0.05$$: $$\tilde{S}^A\,\&\,\tilde{S}^B$$';
                         
             text(freqBDiff(idxD(1)),diffLine(idxD(1)),...
              legendEntry,...
@@ -729,7 +729,7 @@ for idxR=1:1:numberOfVerticalPlotRowsGeneric
               'LineWidth',1);
             hold on;
 
-            legendEntry = '$$\rho < 0.05$$: $$\tilde{L}^A\,\&\,\tilde{L}^B$$'; 
+            legendEntry = '$$p < 0.05$$: $$\tilde{L}^A\,\&\,\tilde{L}^B$$'; 
 
             text(freqBDiff(idxD(1)),diffLine(idxD(1))-1,...
              legendEntry,...

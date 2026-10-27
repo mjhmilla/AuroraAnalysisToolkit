@@ -291,7 +291,7 @@ subplot('Position',reshape(subPlotPanelFLZmag(1,2,:),1,4));
 %
 % Make the comparisons
 %
-segComparison = [1,3; 2,4; 1,2; 3,4];
+segComparison = [1,3; 2,4; 1,2; 3,4; 1,4; 2,3];
 % 1. 0.02 35
 % 2. 0.02 90
 % 3. 0.002 35
