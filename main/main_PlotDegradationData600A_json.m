@@ -21,7 +21,7 @@ outputFolder = 'degredation_larb';
 
 flag_subtractReferenceForce=0;
 timeUnit = 'ms';
-s2ms = 0.001;
+ms2s = 0.001;
 
 %%
 % Plot configuration
@@ -97,12 +97,12 @@ for i = 1:1:length(experimentsToProcess)
 
             actTime = timeB-timeA;
             if(strcmp(timeUnit,'ms'))
-              actTime = actTime.*s2ms;
+              actTime = actTime.*ms2s;
             end
 
             fiso = dataJson(1).segment.pre.force(1);
             
-            fprintf('(%i, %i). %1.2f s - %1.2f s\n',i,j,timeA*s2ms, timeB*s2ms);
+            fprintf('(%i, %i). %1.2f s - %1.2f s\n',i,j,timeA*ms2s, timeB*ms2s);
 
 
             fpre = [fpre;fiso];
@@ -123,7 +123,7 @@ for i = 1:1:length(experimentsToProcess)
                 'Error: temperature varied by more than 5% between trials');
 
             if(i==1)
-              subplot('Position',reshape(subPlotPanelDegradation(2,1,:),1,4));              
+              subplot('Position',reshape(subPlotPanelDegradation(1,2,:),1,4));              
                 colorA = [0,0,0];
                 colorB = [0,0,1];
                 nj=(trialCount-1)/(numTrials-1);
@@ -134,12 +134,12 @@ for i = 1:1:length(experimentsToProcess)
 
 
 
-                plot( auroraData.Data.Time.Values(idxAB).*s2ms,...
+                plot( auroraData.Data.Time.Values(idxAB).*ms2s,...
                       auroraData.Data.Fin.Values(idxAB),...
                      '-',...
                      'Color',lineColorj,'LineWidth',0.5);
                 hold on;
-                xyEnd = [(auroraData.Data.Time.Values(idxAB(end))).*s2ms,...
+                xyEnd = [(auroraData.Data.Time.Values(idxAB(end))).*ms2s,...
                           auroraData.Data.Fin.Values(idxAB(end))];                  
                 if(trialCount ==1)
                   text(xyEnd(1,1),xyEnd(1,2),...
@@ -156,6 +156,22 @@ for i = 1:1:length(experimentsToProcess)
                        'VerticalAlignment','top', ...
                        'FontSize',6);
                   hold on;
+
+                  %plot([1,1].*timeB*ms2s,[0,0.9],...
+                  %     '-','Color',[1,1,1],'LineWidth',2);
+                  %hold on;
+                  plot([1,1].*timeB*ms2s,[0.4,0.6],...
+                      '-','Color',[0,0,0],'LineWidth',1);
+                  hold on;
+                
+
+
+                  text(timeB*ms2s,0.4,sprintf(['Sample time for %s after',...
+                    ' \n%1.1f s of activation'],'$$f_i$$',actTime),...
+                    'HorizontalAlignment','right',...
+                    'VerticalAlignment','top',...
+                    'FontSize',6);
+                  hold on;                  
                 end
                 timeSeriesFiber=i;
 
@@ -191,6 +207,20 @@ for i = 1:1:length(experimentsToProcess)
               'FontSize',6,...
               'Rotation',0);
 
+        if(i==1)
+          text(1.8, 0.85,sprintf('Range of %s','$$f_i/f_1$$'),...
+                    'HorizontalAlignment','left',...
+                    'VerticalAlignment','bottom',...
+                    'FontSize',6,...
+                    'Rotation',0);
+
+          text(1.8, 0.55,sprintf('Values of %s','$$f_1$$'),...
+                    'HorizontalAlignment','left',...
+                    'VerticalAlignment','bottom',...
+                    'FontSize',6,...
+                    'Rotation',0);
+          
+        end
         text(2,0.8-(i-1)*0.05,...
             sprintf('%i. %1.1f-%1.1f %s',...
                      i,...
@@ -202,8 +232,16 @@ for i = 1:1:length(experimentsToProcess)
                     'FontSize',6,...
                     'Rotation',0);
 
+        text(2,0.5-(i-1)*0.05,...
+            sprintf('%i. %1.3f mN',...
+                     i,fpre(1,1)),...
+                    'HorizontalAlignment','left',...
+                    'VerticalAlignment','bottom',...
+                    'FontSize',6,...
+                    'Rotation',0);
 
-    subplot('Position',reshape(subPlotPanelDegradation(1,2,:),1,4));
+
+    subplot('Position',reshape(subPlotPanelDegradation(2,1,:),1,4));
         plot(iteration,fpre,'-','Color',lineColor,'LineWidth',0.5);
         hold on;
         plot(iteration,fpre,'o','Color',[1,1,1],...
@@ -253,12 +291,13 @@ subplot('Position',reshape(subPlotPanelDegradation(1,1,:),1,4));
 
     xlabel('Trial Number');
     ylabel('Norm. Force ($f_i / f_1)$');
-    title({sprintf('A. Norm. Isometric force after %1.1fs',actTime),...
-           sprintf('of activation at %1.0f %s',...
+    title({sprintf('A. Normalized isometric force after repeated'),...
+           sprintf('perturbation trials at %s and %1.0f %s',...
+                  '$$\ell_o$$',...
                   dataJsonFirst(1).segment.summary.temperature.mean,...
                   dataJsonFirst(1).segment.unit.temperature)});
 
-subplot('Position',reshape(subPlotPanelDegradation(1,2,:),1,4));
+subplot('Position',reshape(subPlotPanelDegradation(2,1,:),1,4));
     axis tight;
     xlimits=xlim;
     ylimits=ylim; 
@@ -277,22 +316,21 @@ subplot('Position',reshape(subPlotPanelDegradation(1,2,:),1,4));
     box off;
     xlabel('Trial Number');
     ylabel(['Force (',dataJsonFirst(1).segment.unit.force,')']);
-    title({sprintf('B. Isometric force after %1.1fs',actTime),...
+    title({sprintf('C. Isometric force after %1.1fs',actTime),...
            sprintf('of activation at %1.0f %s',...
                   dataJsonFirst(1).segment.summary.temperature.mean,...
                   dataJsonFirst(1).segment.unit.temperature)});
     
-subplot('Position',reshape(subPlotPanelDegradation(2,1,:),1,4));
+subplot('Position',reshape(subPlotPanelDegradation(1,2,:),1,4));
   axis tight;
   ylimits=ylim; 
   yDelta = diff(ylimits).*0.1;
   ylim([0,ylimits(1,2)+yDelta]);
-
+  
   box off;
   xlabel('Time (s)');
   ylabel('Force (mN)');
-    title({'C. Example time-series data',...
-           sprintf('from fiber %i',timeSeriesFiber)});  
+    title({sprintf('B. Example time-series data from fiber %i',timeSeriesFiber),''});  
 
 outputPlotDir = fullfile(projectFolders.output600A_plots,outputFolder);
 if(~exist(outputPlotDir))
