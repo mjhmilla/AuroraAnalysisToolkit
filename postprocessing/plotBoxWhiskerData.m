@@ -9,11 +9,13 @@ for i=1:1:length(p)
              'Error: ySummaryStatistics.x has changed');
 end
 
+y00 = ySummaryStatistics.y(1,1);
 y05 = ySummaryStatistics.y(1,2);
 y25 = ySummaryStatistics.y(1,3);
 y50 = ySummaryStatistics.y(1,4);
 y75 = ySummaryStatistics.y(1,5);
 y95 = ySummaryStatistics.y(1,6);
+y100 = ySummaryStatistics.y(1,7);
 
 
 box = [ x+boxWidth*0.5, y25;...
@@ -30,7 +32,7 @@ box = [ x+boxWidth*0.5, y25;...
 % hold on;
 
 
-plot([x;x],[y05;y95],'-','Color',lineColor);
+plot([x;x],[y00;y100],'-','Color',lineColor);
 hold on;
 
 fill(box(:,1),box(:,2),boxColor,'EdgeColor','none');

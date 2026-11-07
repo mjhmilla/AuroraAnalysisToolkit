@@ -3,7 +3,7 @@
 %
 % SPDX-License-Identifier: MIT
 %%
-function [subPlotPanel,subPlotSettings, pageWidth,pageHeight]  = ...
+function [subPlotPanel,subPlotSettings]  = ...
     plotConfigAdvanced(numberOfHorizontalPlotColumns, ...
                       numberOfVerticalPlotRows,...
                       plotWidth,...
@@ -86,9 +86,9 @@ set(groot, 'defaultFigurePaperSize',[pageWidth pageHeight]);
 set(groot,'defaultFigurePaperType','A4');
 
 subPlotSettings.topLeft               = topLeft;
-subPlotSettings.pageWidth             = pageWidth;
+subPlotSettings.pageWidthCm           = pageWidth;
 subPlotSettings.pageHeightCm          = pageHeight;
-subPlotSettings.plotWidthCm           = plotWidthNorm;
+subPlotSettings.plotWidth             = plotWidthNorm;
 subPlotSettings.plotHeight            = plotHeightNorm;
 subPlotSettings.plotHorizontalMargin  = plotHorizMargin;
 subPlotSettings.plotVerticalMargin    = plotVertMargin;
