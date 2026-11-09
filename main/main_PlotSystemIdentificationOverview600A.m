@@ -36,8 +36,9 @@ xStep=xStepNM/loptNM;
 numberOfHorizontalPlotColumnsGeneric    = 2;
 numberOfVerticalPlotRowsGeneric         = 2;
 
-plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
-plotHeight         = ones(numberOfVerticalPlotRowsGeneric,1).*5;
+plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*4.5;
+plotHeight         = ones(numberOfVerticalPlotRowsGeneric,1).*4.5;
+plotHorizPageMarginCm=2.5;
 plotHorizMarginCm  = 2.5;
 plotVertMarginCm   = 2;
 baseFontSize       = 10;
@@ -47,6 +48,7 @@ baseFontSize       = 10;
                       numberOfVerticalPlotRowsGeneric,...
                       plotWidth,...
                       plotHeight,...
+                      plotHorizPageMarginCm,...
                       plotHorizMarginCm,...
                       plotVertMarginCm,...
                       baseFontSize); 
@@ -83,32 +85,45 @@ nPlots=numberOfVerticalPlotRowsGeneric*numberOfHorizontalPlotColumnsGeneric;
 xyGroup(nPlots)=struct('idS',nan,'row',nan,'col',nan,...
                 'x','','xTicks',[],'xLim',[],'xLabel','','xData',[],...
                 'left',[],'right',[],...
-                'title',[]);
+                'title',[],'xLine',[],'xLineAnnotation',[],'xAnnotationHAlign',[],...
+                'useC2BW',0);
 
 for i=1:1:nPlots
   xyGroup(i)=struct('idS',nan,'row',nan,'col',nan,...
                 'x','','xTicks',[],'xLim',[],'xLabel','','xData',[],...
                 'left',[],'right',[],...
-                'title',[]);
+                'title',[],'xLine',[],'xLineAnnotation',[],'xAnnotationHAlign',[],...
+                'useC2BW',0);
 
   xyGroup(i).left  = ...
     struct('y','','first',0,'yTicks',[],'yLim',[],'yLabel','',...
            'lineColor',[],'fillColor',[],'legend','',...
-           'scale',1);
+           'scale',1,'addBoxWhisker',0,'xBoxWhisker',0,'xBoxWidth',0,...
+           'addZeroLine',0);
 
   xyGroup(i).right = ...
     struct('y','','yTicks',[],'yLim',[],'yLabel','',...
            'lineColor',[],'fillColor',[],'legend','',...
-           'scale',1);    
+           'scale',1,'addBoxWhisker',0,'xBoxWhisker',0,'xBoxWidth',0,...
+           'addZeroLine',0);    
 end
 
 scaleLength=1000;
 scaleForce =1000;
 scalePhase=(180/pi);
-lengthUnit='mm';
-forceUnit='mN';
-scaledLengthUnit='\mu m';
-scaledForceUnit='\mu N';
+lengthUnit='\mathrm{mm}';
+forceUnit='\mathrm{mN}';
+scaledLengthUnit='\mu \mathrm{m}';
+scaledForceUnit='\mu \mathrm{N}';
+
+
+xMargin=10;
+xTicksFreq=[0:30:90];
+xLimFreq=[(min(xTicksFreq)-sqrt(eps)),(max(xTicksFreq)+sqrt(eps))];
+
+xLines = analysis(segId).segment.H2.bandwidthHzC2;
+xLinesAnnotation=[{sprintf('%1.1fHz',xLines(1))},...
+                  {sprintf('%1.1fHz',xLines(2))}];
 
 ssx=getSummaryStatistics(analysis(segId).segment.H2.x.*scaleLength);
 ssy=getSummaryStatistics(analysis(segId).segment.H2.y.*scaleForce);
@@ -129,6 +144,7 @@ xyGroup(idx).xLim =[0,2^12/1000] + [-1,1].*sqrt(eps);
 xyGroup(idx).xLabel='Time (s)';
 xyGroup(idx).xData =[];
 xyGroup(idx).title='A. Length and force measurements';
+xyGroup(idx).useC2BW = 0;
 
 xyGroup(idx).left.first=0;
 xyGroup(idx).left.y='x';
@@ -140,7 +156,8 @@ xyGroup(idx).left.yLim=xyGroup(idx).left.yLim ...
 xyGroup(idx).left.yLabel=sprintf('Length (%s)',['$$',scaledLengthUnit,'$$']);
 xyGroup(idx).left.lineColor = [0,0,0];
 xyGroup(idx).left.fillColor = xyGroup(idx).left.lineColor.*0.5+[1,1,1].*0.5;
-xyGroup(idx).left.legend = '';
+
+
 
 xyGroup(idx).right.y='y';
 xyGroup(idx).right.scale=scaleForce;
@@ -151,7 +168,7 @@ xyGroup(idx).right.yLim=xyGroup(idx).right.yLim ...
 xyGroup(idx).right.yLabel=sprintf('Force (%s)',['$$',scaledForceUnit,'$$']);
 xyGroup(idx).right.lineColor = cs.teal;
 xyGroup(idx).right.fillColor = xyGroup(idx).right.lineColor.*0.5+[1,1,1].*0.5;
-xyGroup(idx).right.legend = '';
+
 
 %Coherence-sq
 idx=idx+1;
@@ -159,12 +176,17 @@ xyGroup(idx).idS=segId;
 xyGroup(idx).row=1;
 xyGroup(idx).col=2;
 xyGroup(idx).x='frequencyHz';
-xyGroup(idx).xTicks=[0:30:90];
-xyGroup(idx).xLim =[-10,100];
+xyGroup(idx).xTicks=xTicksFreq;
+xyGroup(idx).xLim =xLimFreq;
 xyGroup(idx).xLabel='Frequency (Hz)';
 xyGroup(idx).xData =[];
 xyGroup(idx).title='B. Linearity assessment';
+xyGroup(idx).xLine=xLines;
+xyGroup(idx).xLineAnnotation=xLinesAnnotation;
+xyGroup(idx).xAnnotationHAlign =[{'left','right'}];
+xyGroup(idx).useC2BW = 0;
 
+xyGroup(idx).left.first=1;
 xyGroup(idx).left.y='coherenceSq';
 xyGroup(idx).left.scale=1;
 xyGroup(idx).left.yTicks = ...
@@ -172,11 +194,11 @@ xyGroup(idx).left.yTicks = ...
 xyGroup(idx).left.yLim= [min(xyGroup(idx).left.yTicks),...
                          max(xyGroup(idx).left.yTicks)];
 xyGroup(idx).left.yLim=xyGroup(idx).left.yLim ...
-                       + [-0.01,0.01].*diff(xyGroup(idx).left.yLim);
-xyGroup(idx).left.yLabel=sprintf('Coherence%s','$$^2$$');
+                       + [-0.01,0.1].*diff(xyGroup(idx).left.yLim);
+xyGroup(idx).left.yLabel=sprintf('Coherence Squared %s (%s)','$$\phi^2$$','$$\mathrm{m}^2 \mathrm{N}^2 / (\mathrm{m}^2 \mathrm{N}^2)$$');
 xyGroup(idx).left.lineColor = [0,0,0];
 xyGroup(idx).left.fillColor = xyGroup(idx).left.lineColor.*0.5+[1,1,1].*0.5;
-xyGroup(idx).left.legend = '';
+xyGroup(idx).left.addZeroLine=1;
 
 xyGroup(idx).right.y      = [];
 xyGroup(idx).right.scale  = [];
@@ -186,7 +208,9 @@ xyGroup(idx).right.yLim   = [];
 xyGroup(idx).right.yLabel = '';
 xyGroup(idx).right.lineColor = [];
 xyGroup(idx).right.fillColor = [];
-xyGroup(idx).right.legend = '';
+
+
+
 
 %Gain-phase
 idx=idx+1;
@@ -194,36 +218,42 @@ xyGroup(idx).idS=segId;
 xyGroup(idx).row=2;
 xyGroup(idx).col=1;
 xyGroup(idx).x='frequencyHz';
-xyGroup(idx).xTicks=[0:30:90];
-xyGroup(idx).xLim =[-10,100];
+xyGroup(idx).xTicks=xTicksFreq;
+xyGroup(idx).xLim =xLimFreq;
 xyGroup(idx).xLabel='Frequency (Hz)';
 xyGroup(idx).xData =[];
 xyGroup(idx).title='C. Gain \& phase response';
+xyGroup(idx).xLine=xLines;
+xyGroup(idx).xLineAnnotation=xLinesAnnotation;
+xyGroup(idx).xAnnotationHAlign =[{'left','right'}];
+xyGroup(idx).useC2BW = 1;
 
-
+xyGroup(idx).left.first=1;
 xyGroup(idx).left.y='gain';
 xyGroup(idx).left.scale=1;
 xyGroup(idx).left.yTicks = [0:5:15];
 xyGroup(idx).left.yLim= [min(xyGroup(idx).left.yTicks),...
                          max(xyGroup(idx).left.yTicks)];
 xyGroup(idx).left.yLim=xyGroup(idx).left.yLim ...
-                       + [-0.01,0.01].*diff(xyGroup(idx).left.yLim);
+                       + [-0.1,0.01].*diff(xyGroup(idx).left.yLim);
 xyGroup(idx).left.yLabel=sprintf('Gain (%s)',['N/m']);
 xyGroup(idx).left.lineColor = [0,0,0];
 xyGroup(idx).left.fillColor = xyGroup(idx).left.lineColor.*0.5+[1,1,1].*0.5;
-xyGroup(idx).left.legend = '';
+xyGroup(idx).left.addZeroLine=1;
+
 
 xyGroup(idx).right.y='phase';
 xyGroup(idx).right.scale=scalePhase;
-xyGroup(idx).right.yTicks = [0:10:30];
+xyGroup(idx).right.yTicks = [0:15:45];
 xyGroup(idx).right.yLim= [min(xyGroup(idx).right.yTicks),...
                          max(xyGroup(idx).right.yTicks)];
 xyGroup(idx).right.yLim=xyGroup(idx).right.yLim ...
-                       + [-0.01,0.01].*diff(xyGroup(idx).right.yLim);
+                       + [-0.1,0.01].*diff(xyGroup(idx).right.yLim);
 xyGroup(idx).right.yLabel=sprintf('Phase (%s)',['$$^\circ$$']);
 xyGroup(idx).right.lineColor = cs.magenta;
 xyGroup(idx).right.fillColor = xyGroup(idx).right.lineColor.*0.5+[1,1,1].*0.5;
-xyGroup(idx).right.legend = '';
+xyGroup(idx).right.addZeroLine=1;
+
 
 %Storage loss
 idx=idx+1;
@@ -231,36 +261,49 @@ xyGroup(idx).idS=segId;
 xyGroup(idx).row=2;
 xyGroup(idx).col=2;
 xyGroup(idx).x='frequencyHz';
-xyGroup(idx).xTicks=[0:30:90];
-xyGroup(idx).xLim =[-10,100];
+xyGroup(idx).xTicks=xTicksFreq;
+xyGroup(idx).xLim =xLimFreq;
 xyGroup(idx).xLabel='Frequency (Hz)';
 xyGroup(idx).xData =[];
 xyGroup(idx).title='D. Storage \& loss response';
+xyGroup(idx).xLine=xLines;
+xyGroup(idx).xLineAnnotation=xLinesAnnotation;
+xyGroup(idx).xAnnotationHAlign =[{'left','right'}];
+xyGroup(idx).useC2BW = 1;
 
+xyGroup(idx).left.first=1;
 xyGroup(idx).left.y='storage';
 xyGroup(idx).left.scale=1;
 xyGroup(idx).left.yTicks = [0:5:15];
 xyGroup(idx).left.yLim= [min(xyGroup(idx).left.yTicks),...
                          max(xyGroup(idx).left.yTicks)];
 xyGroup(idx).left.yLim=xyGroup(idx).left.yLim ...
-                       + [-0.01,0.01].*diff(xyGroup(idx).left.yLim);
+                       + [-0.1,0.01].*diff(xyGroup(idx).left.yLim);
 xyGroup(idx).left.yLabel=sprintf('Storage (%s)',['N/m']);
 xyGroup(idx).left.lineColor = cs.red;
 xyGroup(idx).left.fillColor = xyGroup(idx).left.lineColor.*0.5+[1,1,1].*0.5;
 xyGroup(idx).left.legend = '';
+xyGroup(idx).left.addBoxWhisker=1;
+xyGroup(idx).left.xBoxWhisker=min(xTicksFreq)-0.5*xMargin;
+xyGroup(idx).left.xBoxWidth=xMargin*(1/3);
+xyGroup(idx).left.addZeroLine=1;
+
 
 xyGroup(idx).right.y='loss';
 xyGroup(idx).right.scale=1;
-xyGroup(idx).right.yTicks = [0:10:30];
+xyGroup(idx).right.yTicks = [0:5:15];
 xyGroup(idx).right.yLim= [min(xyGroup(idx).right.yTicks),...
                          max(xyGroup(idx).right.yTicks)];
 xyGroup(idx).right.yLim=xyGroup(idx).right.yLim ...
-                       + [-0.01,0.01].*diff(xyGroup(idx).right.yLim);
+                       + [-0.1,0.01].*diff(xyGroup(idx).right.yLim);
 xyGroup(idx).right.yLabel=sprintf('Loss (%s)',['N/m']);
 xyGroup(idx).right.lineColor = cs.blue;
 xyGroup(idx).right.fillColor = xyGroup(idx).right.lineColor.*0.5+[1,1,1].*0.5;
 xyGroup(idx).right.legend = '';
-
+xyGroup(idx).right.addBoxWhisker=1;
+xyGroup(idx).right.xBoxWhisker=max(xTicksFreq)+0.5*xMargin;
+xyGroup(idx).right.xBoxWidth=xMargin*(1/3);
+xyGroup(idx).right.addZeroLine=1;
 
 
 
@@ -294,51 +337,85 @@ for i=1:1:length(xyGroup)
 
   for j=1:1:length(lrOrder)
     k=lrOrder(j);
+    side='';
     switch k
       case 1
         if(isLeftRightPlot==1)
           yyaxis left;
         end
+        side='left';
 
-        plot(analysis(segId).segment.H2.(xField),...
-         analysis(segId).segment.H2.(yLField).*xyGroup(i).left.scale,...
-         '-','Color',[1,1,1],'LineWidth',2);
-        hold on;
-
-        plot(analysis(segId).segment.H2.(xField),...
-         analysis(segId).segment.H2.(yLField).*xyGroup(i).left.scale,...
-         '-','Color',xyGroup(i).left.lineColor,'LineWidth',1);
-        hold on;
-        ylabel(xyGroup(i).left.yLabel);          
-        yticks(xyGroup(i).left.yTicks);
-        ylim(xyGroup(i).left.yLim);
-
-        xlabel('Time (s)');
-        xticks(xyGroup(i).xTicks);
-        xlabel(xyGroup(i).xLabel);          
-        xlim(xyGroup(i).xLim);
       case 2
         yyaxis right;
-
-        plot(analysis(segId).segment.H2.(xField),...
-         analysis(segId).segment.H2.(yRField).*xyGroup(i).right.scale,...
-         '-','Color',[1,1,1],'LineWidth',2);
-        hold on;
+        side='right';
         
-        plot(analysis(segId).segment.H2.(xField),...
-         analysis(segId).segment.H2.(yRField).*xyGroup(i).right.scale,...
-         '-','Color',xyGroup(i).right.lineColor,'LineWidth',1);
-        hold on;
-        ylabel(xyGroup(i).right.yLabel);          
-        yticks(xyGroup(i).right.yTicks);
-        ylim(xyGroup(i).right.yLim);          
       otherwise
         assert(0);
     end
 
-  
+    yField = xyGroup(i).(side).y;    
+    
+    if(xyGroup(i).useC2BW == 1)
+      idxC2BW = analysis(segId).segment.H2.idxBWC2;
+      dataX = analysis(segId).segment.H2.(xField)(idxC2BW);
+      dataY = analysis(segId).segment.H2.(yField)(idxC2BW).*xyGroup(i).(side).scale;
+    else
+      dataX = analysis(segId).segment.H2.(xField);
+      dataY = analysis(segId).segment.H2.(yField).*xyGroup(i).(side).scale;
+    end
+    plot(dataX,dataY,...
+     '-','Color',[1,1,1],'LineWidth',2);
+    hold on;
+
+    plot(dataX,dataY,...
+     '-','Color',xyGroup(i).(side).lineColor,'LineWidth',1);
+    hold on;
+
+    if(xyGroup(i).(side).addBoxWhisker==1)
+
+      ss=getSummaryStatistics(dataY);
+
+      plotBoxWhiskerData(xyGroup(i).(side).xBoxWhisker, ...
+                         ss,...
+                         xyGroup(i).(side).xBoxWidth,...
+                         xyGroup(i).(side).lineColor,...
+                         xyGroup(i).(side).fillColor);
+      hold on;
+    end
+
+    if(xyGroup(i).(side).addZeroLine==1)
+      plot(xyGroup(i).xLim,[0,0],...
+           '-','Color',[1,1,1].*0.5);
+      hold on;      
+    end
+
+    ylabel(xyGroup(i).(side).yLabel);          
+    yticks(xyGroup(i).(side).yTicks);
+    ylim(xyGroup(i).(side).yLim);
+
+
   end
 
+  if(~isempty(xyGroup(i).xLine))
+    for j=1:1:length(xyGroup(i).xLine)
+      plot([1,1].*xyGroup(i).xLine(j),...
+           xyGroup(i).(side).yLim,...
+           '-','Color',[1,1,1].*0.5);
+      hold on;
+      text(xyGroup(i).xLine(j),xyGroup(i).(side).yLim(1),...
+           xyGroup(i).xLineAnnotation{j},...
+           'HorizontalAlignment',xyGroup(i).xAnnotationHAlign{j},...
+           'VerticalAlignment','bottom',...
+           'FontSize',6);
+      hold on;
+
+    end
+  end
+
+
+  xticks(xyGroup(i).xTicks);
+  xlabel(xyGroup(i).xLabel);          
+  xlim(xyGroup(i).xLim);  
 
   box off;
 

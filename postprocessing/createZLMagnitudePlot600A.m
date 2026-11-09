@@ -48,8 +48,8 @@ switch settings.flag_0Presentation_1Publication
     baseFontSize              = 6;
     
   case 1
-    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*7;
-    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*7;
+    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5.2;
+    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5.2;
     plotHorizMarginCm         = 2;
     plotVertMarginCm          = 2;
     baseFontSize              = 8;
@@ -354,7 +354,8 @@ for idxC=1:1:length(segComparison)
     text(mean(xS),yStorage(1)-dyS*0.5,...
          sprintf('*\n%1.2e',pS),...
          'HorizontalAlignment','center',...
-         'VerticalAlignment','middle');
+         'VerticalAlignment','middle',...
+         'FontSize',6);
     hold on;
     ySOffset=ySOffset+4*dyS;
   end  
@@ -372,7 +373,8 @@ for idxC=1:1:length(segComparison)
     text(mean(xLoss),yLoss(1)-dyL*0.5,...
          sprintf('*\n%1.2e',pL),...
          'HorizontalAlignment','center',...
-         'VerticalAlignment','middle');
+         'VerticalAlignment','middle',...
+         'FontSize',6);
     hold on;
     yLOffset=yLOffset+4*dyL;
 

@@ -29,9 +29,9 @@ ms2s = 0.001;
 numberOfHorizontalPlotColumnsGeneric    = 2;
 numberOfVerticalPlotRowsGeneric         = 2;
 
-plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*6;
-plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*6;
-plotHorizMarginCm                       = 2;
+plotWidth                               = ones(1,numberOfHorizontalPlotColumnsGeneric).*4.5;
+plotHeight                              = ones(numberOfVerticalPlotRowsGeneric,1).*4.5;
+plotHorizMarginCm                       = 2.5;
 plotVertMarginCm                        = 2.5;
 baseFontSize                            = 10;
 

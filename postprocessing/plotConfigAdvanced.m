@@ -8,6 +8,7 @@ function [subPlotPanel,subPlotSettings]  = ...
                       numberOfVerticalPlotRows,...
                       plotWidth,...
                       plotHeight,...
+                      plotHorizLeftPageMarginCm,...
                       plotHorizMarginCm,...
                       plotVertMarginCm,...
                       baseFontSize)
@@ -17,7 +18,7 @@ for i=1:1:numberOfHorizontalPlotColumns
     pageWidth   = pageWidth ...
                     + plotWidth(1,i)+plotHorizMarginCm;
 end
-pageWidth = pageWidth +plotHorizMarginCm;
+pageWidth = pageWidth +plotHorizMarginCm+plotHorizLeftPageMarginCm;
 
 pageHeight = plotVertMarginCm;
 for i=1:1:numberOfVerticalPlotRows
@@ -30,6 +31,7 @@ pageHeight = pageHeight +plotVertMarginCm;
 plotWidthNorm  = plotWidth./pageWidth;
 plotHeightNorm = plotHeight./pageHeight;
 
+plotHorizPageMargin=plotHorizLeftPageMarginCm/pageWidth;
 plotHorizMargin = plotHorizMarginCm/pageWidth;
 plotVertMargin  = plotVertMarginCm/pageHeight;
 
@@ -50,8 +52,8 @@ for ai=1:1:numberOfVerticalPlotRows
 
   for aj=1:1:numberOfHorizontalPlotColumns
 
-      horizOffset=0;
-      if(aj > 1)
+      horizOffset=plotHorizPageMargin;
+      if(aj > 1)        
           for i=1:1:(aj-1)
             horizOffset=horizOffset+ plotWidthNorm(1,i) + plotHorizMargin;
           end
