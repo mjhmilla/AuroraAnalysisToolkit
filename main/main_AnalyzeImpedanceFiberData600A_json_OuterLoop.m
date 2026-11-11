@@ -28,9 +28,9 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
       ' I have not yet derived the phase delay of a Maxwell-Kelvin-Voigt ',...
       'rod yet.']);
 
-dataSettings.processImpedanceSet         =1;
+dataSettings.processImpedanceSet         =0;
 dataSettings.processDegradationSet       =0;
-dataSettings.processCalibrationSpring    =0;
+dataSettings.processCalibrationSpring    =1;
 dataSettings.processCalibrationFixedFiber=0;
 
 calibrationSettings.useCalibrationSpring=0;

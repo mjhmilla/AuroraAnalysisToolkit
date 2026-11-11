@@ -117,9 +117,9 @@ scaledLengthUnit='\mu \mathrm{m}';
 scaledForceUnit='\mu \mathrm{N}';
 
 
-xMargin=10;
+xMargin=5;
 xTicksFreq=[0:30:90];
-xLimFreq=[(min(xTicksFreq)-sqrt(eps)),(max(xTicksFreq)+sqrt(eps))];
+xLimFreq=[(min(xTicksFreq)-xMargin),(max(xTicksFreq)+xMargin)];
 
 xLines = analysis(segId).segment.H2.bandwidthHzC2;
 xLinesAnnotation=[{sprintf('%1.1fHz',xLines(1))},...
@@ -149,7 +149,7 @@ xyGroup(idx).useC2BW = 0;
 xyGroup(idx).left.first=0;
 xyGroup(idx).left.y='x';
 xyGroup(idx).left.scale=scaleLength;
-xyGroup(idx).left.yTicks = round([-10,ssx.min,ssx.max,10],1);
+xyGroup(idx).left.yTicks = round([-10,-1,1,10],1);
 xyGroup(idx).left.yLim= [-10,10];
 xyGroup(idx).left.yLim=xyGroup(idx).left.yLim ...
                        + [-0.01,0.01].*diff(xyGroup(idx).left.yLim);
@@ -161,7 +161,7 @@ xyGroup(idx).left.fillColor = xyGroup(idx).left.lineColor.*0.5+[1,1,1].*0.5;
 
 xyGroup(idx).right.y='y';
 xyGroup(idx).right.scale=scaleForce;
-xyGroup(idx).right.yTicks = round([-10,-ssy.std,0,ssy.std,10],1);
+xyGroup(idx).right.yTicks = round([-10,-1,1,10],1);
 xyGroup(idx).right.yLim= [-10,10];
 xyGroup(idx).right.yLim=xyGroup(idx).right.yLim ...
                        + [-0.01,0.01].*diff(xyGroup(idx).right.yLim);
@@ -285,7 +285,7 @@ xyGroup(idx).left.fillColor = xyGroup(idx).left.lineColor.*0.5+[1,1,1].*0.5;
 xyGroup(idx).left.legend = '';
 xyGroup(idx).left.addBoxWhisker=1;
 xyGroup(idx).left.xBoxWhisker=min(xTicksFreq)-0.5*xMargin;
-xyGroup(idx).left.xBoxWidth=xMargin*(1/3);
+xyGroup(idx).left.xBoxWidth=xMargin*(3/4);
 xyGroup(idx).left.addZeroLine=1;
 
 
@@ -302,7 +302,7 @@ xyGroup(idx).right.fillColor = xyGroup(idx).right.lineColor.*0.5+[1,1,1].*0.5;
 xyGroup(idx).right.legend = '';
 xyGroup(idx).right.addBoxWhisker=1;
 xyGroup(idx).right.xBoxWhisker=max(xTicksFreq)+0.5*xMargin;
-xyGroup(idx).right.xBoxWidth=xMargin*(1/3);
+xyGroup(idx).right.xBoxWidth=xMargin*(3/4);
 xyGroup(idx).right.addZeroLine=1;
 
 
@@ -368,7 +368,7 @@ for i=1:1:length(xyGroup)
     hold on;
 
     plot(dataX,dataY,...
-     '-','Color',xyGroup(i).(side).lineColor,'LineWidth',1);
+     '-','Color',xyGroup(i).(side).lineColor,'LineWidth',0.75);
     hold on;
 
     if(xyGroup(i).(side).addBoxWhisker==1)
