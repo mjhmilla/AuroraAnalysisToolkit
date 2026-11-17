@@ -1,7 +1,8 @@
 function delay = calcPhaseDelayOfElasticMedium(...
                     frequencyHz,gain,phase,...
                     lengthMM,...
-                    experimentJson,mm2m)
+                    experimentJson,mm2m,...
+                    fixedSpringPhaseDelay)
 
 k = nan;
 m = nan;
@@ -33,6 +34,10 @@ if(strcmp(experimentJson.experiment.specimen,'Spring'))
     v = l*sqrt(k/m);
     delay = l/v;
     here=1;
+
+    if(~isempty(fixedSpringPhaseDelay))
+      delay=fixedSpringPhaseDelay;
+    end
 
 elseif(strcmp(experimentJson.experiment.material,'nitrile'))
    

@@ -191,6 +191,24 @@ figure(figFLZmag);
 xTickTextStorage=cell(1,4);
 xTickTextLoss=cell(1,4);
 
+ratioLossToStorage = [];
+
+idL=4;
+for idS=1:1:nS
+  for idE=1:1:nE  
+    lossAtLo  = dataSet.individual(idS,idL,idE).lossAtLo;
+    storageAtLo=dataSet.individual(idS,idL,idE).storageAtLo;
+    ratioLossToStorage=[ratioLossToStorage,(lossAtLo/storageAtLo)];
+  end
+end
+
+disp('Ratio of Loss to Storage');
+fprintf('%1.3f\tMin\n',min(ratioLossToStorage));
+fprintf('%1.3f\tMax\n',max(ratioLossToStorage));
+fprintf('%1.3f\tMean\n',mean(ratioLossToStorage));
+
+
+
 for i=1:1:length(slSeriesPub)
   idS = slSeriesPub(i).segment;
   idL = categories.length.indexLopt;
@@ -213,6 +231,8 @@ for i=1:1:length(slSeriesPub)
         slSeriesPub(i).yData=[slSeriesPub(i).yData;value];
         slSeriesPub(i).xData=ones(size(slSeriesPub(i).yData)).*xDataMap(idS);
         slSeriesPub(i).xValue=xDataMap(idS);
+        
+
       otherwise
         assert(0,'Error: unrecognized quantity');
     end
@@ -254,6 +274,7 @@ for i=1:1:length(slSeriesPub)
        'MarkerFaceColor',settings.segmentColors(idS,col).fillColor,...
        'MarkerSize',5);
   hold on;
+
 
 
 end

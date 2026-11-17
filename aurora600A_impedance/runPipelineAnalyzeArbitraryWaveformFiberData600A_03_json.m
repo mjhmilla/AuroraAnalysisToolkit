@@ -178,6 +178,11 @@ for indexSetOfTrials=1:1:length(setOfTrialsVerified)
   end
   trialJson = jsondecode(trialStr);
 
+  isCalibrationMaterial=0;
+  if(strcmp(specimenType,'spring') ...
+      || contains(experimentJson.measurements{i},'Karnovsky'))
+    isCalibrationMaterial=1;
+  end
 
   %%
   % Count the number of segments to plot and check if wave files exist
@@ -899,7 +904,8 @@ if(settings.processData==1)
                         H.phase(idxFit),...
                         auroraData.Data.Lin.Values(dataIndex,1),...
                         experimentJson,...
-                        mm2m);
+                        mm2m,...
+                        settings.springFixedPhaseDelay);
   
             if(~isnan(delay))
               timeDelayedVec  = segData.time + delay;
@@ -988,9 +994,9 @@ if(settings.processData==1)
             delayModel.daqFilterFrequencyHz = ...
                 fittingResults.filterFrequencyHz;
 
-            flag_displayDelayData=0;
+            flag_displayDelayData=1;
             if(flag_displayDelayData==1)
-              fprintf('%1.3e s\t phase delay\n%1.3f Hz\tlpf freq\n\n',...
+              fprintf('%1.3e s\t phase delay\n%1.13f Hz\tlpf freq\n\n',...
                      delayModel.phaseDelay,...
                      delayModel.daqFilterFrequencyHz);
               here=1;
@@ -1033,12 +1039,14 @@ if(settings.processData==1)
           % stable force for long.
           %%
           if(strcmp(trialType,'impedance_temperature'))
+
             wn = settings.impedanceTemperatureBaseLineFilterHz ...
                  / (0.5*segData.sampleFrequency);
             [b,a] = butter(2,wn,'low');
             yBase0 = filtfilt(b,a,segData.H2.y);
             yFlat = segData.H2.y-yBase0;
             yBase1= filtfilt(b,a,yFlat);
+
             segData.H3 = evaluateGainPhaseCoherenceSq(  ...
                           segData.H2.time,...
                           segData.H2.x,...
@@ -1048,6 +1056,7 @@ if(settings.processData==1)
                           segData.sampleFrequency,...
                           settings.coherenceSquaredThreshold,...
                           settings.minAcceptableBandwidthFraction); 
+
             flag_debugH3=0;
             if(flag_debugH3==1)
               figDebugFlat = figure;
@@ -1781,24 +1790,32 @@ if(settings.processData==1)
           subplot('Position',reshape(...
             subPlotPanelSegment(idxRow,indexSetOfTrials,:),1,4)); 
   
-  
+
           plot(segData.H0.frequencyHz(segData.H0.idxBW),...
              segData.H0.gain(segData.H0.idxBW),...
             '-','Color',settings.colorData0);
           hold on;
+          gMax = max(segData.H0.gain(segData.H0.idxBW));
+
           plot(segData.H1.frequencyHz(segData.H1.idxBW),...
              segData.H1.gain(segData.H1.idxBW),...
             '-','Color',settings.colorData1);
           hold on;
+          gMax = max([gMax,max(segData.H1.gain(segData.H0.idxBW))]);
+
           plot(segData.H2.frequencyHz(segData.H2.idxBW),...
             segData.H2.gain(segData.H2.idxBW),...
             '-','Color',settings.colorData2);
           hold on;
+          gMax = max([gMax,max(segData.H2.gain(segData.H0.idxBW))]);
+          
           if(isfield(segData,'H3'))
             plot(segData.H3.frequencyHz(segData.H3.idxBW),...
               segData.H3.gain(segData.H3.idxBW),...
               '-','Color',settings.colorData3);
             hold on;
+            gMax = max([gMax,max(segData.H3.gain(segData.H0.idxBW))]);
+
           end
             
           if(~isempty(segData.H.idxBWC2))
@@ -1818,6 +1835,35 @@ if(settings.processData==1)
                     max(segData.H.gain(segData.H.idxBW))],...
                    '-','Color',lineColors.grey);
               hold on;
+            end
+          end
+
+          xRange = segData.H0.bandwidthHz;
+          yRange = [0, gMax*1.5];
+          xlim(xRange);
+          ylim(yRange);
+
+          if(isCalibrationMaterial==1)
+            hSeries={'H0','H1','H2','H3'};
+            xySeries = [0,1.*yRange(2);...
+                        0,0.9.*yRange(2);...
+                        0,0.8.*yRange(2);...
+                        0,0.7.*yRange(2)];
+
+            flag_delayDataPlotted=0;
+            for idxH=1:1:length(hSeries)
+              if(isfield(segData,hSeries{idxH}))
+                idxBWH=segData.(hSeries{idxH}).idxBW;
+                gMean=mean(segData.(hSeries{idxH}).gain(idxBWH));
+                gStd =std(segData.(hSeries{idxH}).gain(idxBWH));
+                text(xySeries(idxH,1),xySeries(idxH,2),...
+                     sprintf('%s. %1.2e +/- %1.2e (%1.2e)',...
+                       hSeries{idxH},gMean,gStd,gStd/gMean),...
+                       'HorizontalAlignment','left',...
+                       'VerticalAlignment','top',...
+                       'FontSize',6);
+                hold on;
+              end
             end
           end
           box off;  
@@ -1841,6 +1887,7 @@ if(settings.processData==1)
              segData.H0.phase(segData.H0.idxBW).*(180/pi),...
              '-','Color',settings.colorData0);
           hold on;
+
           plot(segData.H1.frequencyHz(segData.H1.idxBW),...
              segData.H1.phase(segData.H1.idxBW).*(180/pi),...
              '-','Color',settings.colorData1);
@@ -1875,7 +1922,51 @@ if(settings.processData==1)
             end
           end
           
-          
+          if(isCalibrationMaterial==1)
+            hSeries={'H0','H1','H2','H3'};
+            xySeries = [0,40;0,30;0,20;0,10];
+            flag_delayDataPlotted=0;
+            for idxH=1:1:length(hSeries)
+              if(isfield(segData,hSeries{idxH}))
+                idxHBW=segData.(hSeries{idxH}).idxBW;
+                x = segData.(hSeries{idxH}).frequencyHz(idxHBW);
+                y = segData.(hSeries{idxH}).phase(idxHBW);
+                fitObj=fit(x,y,'poly1');
+                yf = feval(fitObj,x);
+                plot(x,yf.*(180/pi),'-b');
+                hold on;
+                text(x(end),yf(end).*(180/pi),...
+                      hSeries{idxH},...
+                      'HorizontalAlignment','left',...
+                      'VerticalAlignment','top',...
+                      'FontSize',6);
+                hold on;
+                if(flag_delayDataPlotted==0)
+                  text(xySeries(idxH,1),xySeries(idxH,2),...
+                    sprintf('%s. %1.2f deg, %1.2e Phase delay, %1.1f Hz iLPF',...
+                            hSeries{idxH},...
+                            yf(end)*(180/pi),...
+                            delayModel.phaseDelay,...
+                            delayModel.daqFilterFrequencyHz),...
+                            'HorizontalAlignment','left',...
+                            'VerticalAlignment','top',...
+                            'FontSize',6);
+                  hold on;
+                  flag_delayDataPlotted=1;
+                else
+                  text(xySeries(idxH,1),xySeries(idxH,2),...
+                    sprintf('%s. %1.2f deg',...
+                            hSeries{idxH},...
+                            yf(end)*(180/pi)),...
+                            'HorizontalAlignment','left',...
+                            'VerticalAlignment','top',...
+                            'FontSize',6);
+                  hold on;
+                end
+                
+              end
+            end
+          end
           
           box off;  
           xlabel('Frequency (Hz)');

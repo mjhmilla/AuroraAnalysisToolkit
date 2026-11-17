@@ -28,9 +28,12 @@ disp(['3b. The phase delay for the fibers varies with frequency, and ',...
       ' I have not yet derived the phase delay of a Maxwell-Kelvin-Voigt ',...
       'rod yet.']);
 
-dataSettings.processImpedanceSet         =0;
+useFixedPhaseDelay=1;
+springFixedPhaseDelay= 1.0185e-04;
+
+dataSettings.processImpedanceSet         =1;
 dataSettings.processDegradationSet       =0;
-dataSettings.processCalibrationSpring    =1;
+dataSettings.processCalibrationSpring    =0;
 dataSettings.processCalibrationFixedFiber=0;
 
 calibrationSettings.useCalibrationSpring=0;
@@ -52,13 +55,13 @@ assert(dsSum <= 1, 'Error: only one data set can be processed at once');
 if(dataSettings.processCalibrationSpring==1)
   experimentsToProcess = {
    '20260116_impedance_larb_spring'};    
-  passiveBiasTrialKeyword={'Passive_'};
-  activeBiasTrialKeyword={''};
+%   passiveBiasTrialKeyword={'Passive_'};
+%   activeBiasTrialKeyword={''};
 
 %   experimentsToProcess = {
 %    '20261009_impedance_larb_spring'};    
-%   passiveBiasTrialKeyword={'Passive_'};
-%   activeBiasTrialKeyword={''};  
+  passiveBiasTrialKeyword={'Passive_'};
+  activeBiasTrialKeyword={''};  
 
 
   categories.length.value = ...
@@ -126,12 +129,16 @@ if(dataSettings.processImpedanceSet==1)
 end
 
 if(dataSettings.processCalibrationFixedFiber==1)
-  experimentsToProcess=...
-    {'20260827_impedance_calibration_rigor_fixation_01',...
-     '20260926_impedance_calibration_rigor_fixation',...
-     '20260930_impedance_calibration_rigor_fixation',...
-     '20261001_impedance_larb_sine_8'};
+%   experimentsToProcess=...
+%     {'20260827_impedance_calibration_rigor_fixation_01',...
+%      '20260926_impedance_calibration_rigor_fixation',...
+%      '20260930_impedance_calibration_rigor_fixation',...
+%      '20261001_impedance_larb_sine_8'};
 
+  experimentsToProcess=...
+    {'20260930_impedance_calibration_rigor_fixation'};
+
+  
   passiveBiasTrialKeyword={'zPassive'};
   activeBiasTrialKeyword ={'zActive'};
 
@@ -173,10 +180,15 @@ settingsImpedanceAnalysis = ...
     calibrationSettings,...
     checkSha256Sum, ...
     checkFileOrder,...
+    useFixedPhaseDelay,...
     passiveBiasTrialKeyword,...
     activeBiasTrialKeyword);
 
-
+if(useFixedPhaseDelay==1)
+  settingsImpedanceAnalysis.springFixedPhaseDelay = springFixedPhaseDelay;
+else
+  settingsImpedanceAnalysis.springFixedPhaseDelay = [];
+end
 lineColors = getPaulTolColourSchemes('bright');
 
 %

@@ -50,6 +50,9 @@ for i=1:1:numberOfIterations
         end
     end
     deltaMag = deltaMag*0.5;
+    if(i > 1 && abs(deltaMag)<(eps*10))
+      break;
+    end
 end
 
 fittingResults.filterFrequencyHz    = omegaHzBest;
