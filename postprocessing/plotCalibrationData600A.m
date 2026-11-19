@@ -7,8 +7,8 @@ function figH = plotCalibrationData600A(...
                       flag_savePlot)
 
 
-  numberOfHorizontalPlotColumnsGeneric  = 1;
-  numberOfVerticalPlotRowsGeneric       = 2;
+  numberOfHorizontalPlotColumnsGeneric  = 2;
+  numberOfVerticalPlotRowsGeneric       = 1;
 
 
   
@@ -20,8 +20,8 @@ function figH = plotCalibrationData600A(...
       plotVertMarginCm          = 1;
       baseFontSize              = 8;
     case 1
-      plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5;
-      plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5;
+      plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*6.5;
+      plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*6.5;
       plotHorizMarginCm         = 2;
       plotVertMarginCm          = 2;
       baseFontSize              = 8;
@@ -67,6 +67,7 @@ xyTickSeries(2).yTicks = [-20,0,5];
 
 xLabelSeries={'Frequency (Hz)','Frequency (Hz)'};
 yLabelSeries={'Gain (mN/mm)','Phase ($$^\circ$$)'};
+titleSeries={'A. Calibration spring gain','B. Calibration spring phase'};
 
 figure(figH);
 
@@ -74,7 +75,7 @@ figure(figH);
   for iH=1:1:length(hSet)
     for iS = 1:1:length(series)
 
-      subplot('Position',reshape(subPlotPanelCal(iS,1,:),1,4));
+      subplot('Position',reshape(subPlotPanelCal(1,iS,:),1,4));
       idxBW = jsonData.segment.(hSet{iH}).idxBW;
       if(iH==1)
         switch iS
@@ -104,6 +105,7 @@ figure(figH);
       
       xlabel(xLabelSeries{iS});
       ylabel(yLabelSeries{iS});
+      title(titleSeries{iS});
 
       xLimSeries = [min(xyTickSeries(iS).xTicks),...
                     max(xyTickSeries(iS).xTicks)]...

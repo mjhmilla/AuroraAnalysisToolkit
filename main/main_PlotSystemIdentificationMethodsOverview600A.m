@@ -36,8 +36,8 @@ xStep=xStepNM/loptNM;
 numberOfHorizontalPlotColumnsGeneric    = 2;
 numberOfVerticalPlotRowsGeneric         = 2;
 
-plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*4.5;
-plotHeight         = ones(numberOfVerticalPlotRowsGeneric,1).*4.5;
+plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*6.5;
+plotHeight         = ones(numberOfVerticalPlotRowsGeneric,1).*6.5;
 plotHorizPageMarginCm=2.5;
 plotHorizMarginCm  = 2.5;
 plotVertMarginCm   = 2;
@@ -406,7 +406,7 @@ for i=1:1:length(xyGroup)
            xyGroup(i).xLineAnnotation{j},...
            'HorizontalAlignment',xyGroup(i).xAnnotationHAlign{j},...
            'VerticalAlignment','bottom',...
-           'FontSize',6);
+           'FontSize',8);
       hold on;
 
     end

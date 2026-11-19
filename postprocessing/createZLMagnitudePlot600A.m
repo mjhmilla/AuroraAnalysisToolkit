@@ -48,8 +48,8 @@ switch settings.flag_0Presentation_1Publication
     baseFontSize              = 6;
     
   case 1
-    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*5.2;
-    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*5.2;
+    plotWidth                 = ones(1,numberOfHorizontalPlotColumnsGeneric).*7;
+    plotHeight                = ones(numberOfVerticalPlotRowsGeneric,1).*7;
     plotHorizMarginCm         = 2;
     plotVertMarginCm          = 2;
     baseFontSize              = 8;
@@ -100,11 +100,11 @@ slSeriesPub(idx).yTicks = [0:10:70];
 slSeriesPub(idx).yLim=...
   [min(slSeriesPub(idx).yTicks),...
    max(slSeriesPub(idx).yTicks)]+[-1,1].*0.5;
-slSeriesPub(idx).yLabel='Storage ($$S_{o}^i/(f_o/\ell_o)$$)';
+slSeriesPub(idx).yLabel='Storage ($$_{i}S_{50}(\ell_o)/(f_o/\ell_o)$$)';
 slSeriesPub(idx).yData=[];
 slSeriesPub(idx).title=...
-  sprintf('A. Median Active Storage Modulus %s at %s',...
-          '$$S_{o}^i$$','$$\ell_o$$');
+  sprintf('A. Median Active Storage Modulus %s',...
+          '$$_{i}S_{50}(\ell_o)$$');
 slSeriesPub(idx).color = ...
   settings.segmentColors(slSeriesPub(idx).segment,idCS);
 
@@ -124,12 +124,12 @@ slSeriesPub(idx).yTicks = [0:5:35];
 slSeriesPub(idx).yLim=...
   [min(slSeriesPub(idx).yTicks),...
    max(slSeriesPub(idx).yTicks)]+[-1,1].*0.5;
-slSeriesPub(idx).yLabel='Loss ($$L_{o}^i/(f_o/\ell_o)$$)';
+slSeriesPub(idx).yLabel='Loss ($$_{i}L_{50}(\ell_o)/(f_o/\ell_o)$$)';
 slSeriesPub(idx).yData=[];
 %slSeriesPub(idx).title={'B. Median Active Loss Modulus at $$\ell_o$$'};
 slSeriesPub(idx).title=...
-  sprintf('B. Median Active Loss Modulus %s at %s',...
-          '$$L_{o}^i$$','$$\ell_o$$');
+  sprintf('B. Median Active Loss Modulus %s',...
+          '$$_{i}L_{50}(\ell_o)$$');
 slSeriesPub(idx).color = ...
   settings.segmentColors(slSeriesPub(idx).segment,idCL);
 
@@ -376,7 +376,7 @@ for idxC=1:1:length(segComparison)
          sprintf('*\n%1.2e',pS),...
          'HorizontalAlignment','center',...
          'VerticalAlignment','middle',...
-         'FontSize',6);
+         'FontSize',8);
     hold on;
     ySOffset=ySOffset+4*dyS;
   end  
@@ -395,7 +395,7 @@ for idxC=1:1:length(segComparison)
          sprintf('*\n%1.2e',pL),...
          'HorizontalAlignment','center',...
          'VerticalAlignment','middle',...
-         'FontSize',6);
+         'FontSize',8);
     hold on;
     yLOffset=yLOffset+4*dyL;
 

@@ -36,10 +36,10 @@ xStep=xStepNM/loptNM;
 numberOfHorizontalPlotColumnsGeneric    = 4;
 numberOfVerticalPlotRowsGeneric         = 2;
 
-plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*2.5;
+plotWidth          = ones(1,numberOfHorizontalPlotColumnsGeneric).*3.5;
 plotHeight         = ones(numberOfVerticalPlotRowsGeneric,1).*3.5;
 plotHorizLeftPageMarginCm=2;
-plotHorizMarginCm  = 0.4;
+plotHorizMarginCm  = 0.6;
 plotVertMarginCm   = 1.5;
 baseFontSize       = 10;
 
@@ -192,12 +192,11 @@ for i=1:1:4
   y1 = lopt*(1+amp(i));
   y1L= lopt*(1+amp(1));
 
-  labelFormat='%s %1.0f Hz-%1.2f %s';
+  labelFormat='%1.0f Hz-%1.2f %s';
   if(amp(i)<0.01)
-    labelFormat='%s %1.0f Hz-%1.3f %s';    
+    labelFormat='%1.0f Hz-%1.3f %s';    
   end 
   labelText=sprintf(labelFormat,...
-              plotLabel{i},...
               metaData.segments(i).meta_data.bandwidth_Hz(2),...
               metaData.segments(i).meta_data.amplitude_Lo(1)*2,'$$\ell_o$$');
 

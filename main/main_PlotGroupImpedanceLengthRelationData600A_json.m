@@ -15,9 +15,9 @@ flag_0Presentation_1Publication = 1;
 
 flag_createDataSet = 0;
 
-flag_makeCalibrationPlots               = 0;
+flag_makeCalibrationPlots               = 1;
 flag_makeFrequencyResponsePlots         = 0;
-flag_makeForceLengthImpedancePlots      = 1;
+flag_makeForceLengthImpedancePlots      = 0;
 flag_makeImpedanceModelPlots            = 0;
 flag_makeImpedanceLengthArbSinusoidPlots= 0;
 
