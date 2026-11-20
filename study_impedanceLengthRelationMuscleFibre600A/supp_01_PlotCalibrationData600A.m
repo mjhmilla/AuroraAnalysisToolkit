@@ -1,27 +1,13 @@
-clc;
-close all;
-clear all;
+function success = supp_01_PlotCalibrationData600A(projectFolders)
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
+disp('--------------------------------------------------');
+disp('supp_01_PlotCalibrationData600A');
+disp('--------------------------------------------------');
 
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 flag_0Presentation_1Publication = 1;
-
-flag_createDataSet = 0;
-
-flag_makeCalibrationPlots               = 1;
-flag_makeFrequencyResponsePlots         = 0;
-flag_makeForceLengthImpedancePlots      = 0;
-flag_makeImpedanceModelPlots            = 0;
-flag_makeImpedanceLengthArbSinusoidPlots= 0;
-
-flag_savePlot=1;
+flag_makeCalibrationPlots       = 1;
+flag_savePlot                   = 1;
 
 if(flag_makeCalibrationPlots==1)
   calibrationExperiment = {'20260116_impedance_larb_spring'};
@@ -40,3 +26,5 @@ if(flag_makeCalibrationPlots==1)
     close(figCal);
   end
 end
+
+success=1;

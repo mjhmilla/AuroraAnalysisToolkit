@@ -1,0 +1,104 @@
+%%
+% SPDX-FileCopyrightText: 2023 Matthew Millard <millard.matthew@gmail.com>
+%
+% SPDX-License-Identifier: MIT
+%
+% If you use this code in your work please cite the pre-print of this paper
+% or the most recent peer-reviewed version of this paper:
+%
+%    Matthew Millard, David W. Franklin, Walter Herzog. 
+%    A three filament mechanistic model of musculotendon force and impedance. 
+%    bioRxiv 2023.03.27.534347; doi: https://doi.org/10.1101/2023.03.27.534347 
+%
+%%
+
+function projectFolders = getProjectFolders(rootProjectDirectoryFullPath)
+
+currDir = pwd();
+
+%check the root directory
+cd(rootProjectDirectoryFullPath);
+rootDirContents = dir();
+
+
+flag_rootDirPathValid = 0;
+for i=1:1:length(rootDirContents)
+    if(strcmp(rootDirContents(i).name,'.rootDirectory') && ...
+       rootDirContents(i).isdir == 0)
+        flag_rootDirPathValid = 1;
+    end
+end
+cd(currDir);
+
+assert(flag_rootDirPathValid==1, ['Error: the rootProjectDirectoryFullPath ',...
+    'does not appear to be the root project directory because it is missing ',...
+    'hidden file (.rootDirectory) that marks it as the root project directory.']);
+
+projectFolders.root = rootProjectDirectoryFullPath;
+
+projectFolders.main =  fullfile(rootProjectDirectoryFullPath,'main');
+
+projectFolders.data     = ...
+    fullfile(rootProjectDirectoryFullPath,'data' );   
+projectFolders.data600A = ...
+    fullfile(rootProjectDirectoryFullPath,'data','600A');   
+projectFolders.data610A = ...
+    fullfile(rootProjectDirectoryFullPath,'data','610A');   
+
+projectFolders.common = fullfile(rootProjectDirectoryFullPath,'common');   
+
+projectFolders.postprocessing = ...
+    fullfile(rootProjectDirectoryFullPath,'postprocessing');   
+
+
+projectFolders.aurora600A = ...
+    fullfile(rootProjectDirectoryFullPath,'aurora600A');   
+
+projectFolders.aurora600ACompiled = ...
+    fullfile(rootProjectDirectoryFullPath,'aurora600ACompiled');   
+
+projectFolders.aurora610A = ...
+    fullfile(rootProjectDirectoryFullPath,'aurora610A');   
+
+projectFolders.output600A         = ...
+    fullfile(rootProjectDirectoryFullPath,'output','600A');  
+projectFolders.output600A_plots   = ...
+    fullfile(rootProjectDirectoryFullPath,'output','600A','plots');  
+projectFolders.output600A_json    = ...
+    fullfile(rootProjectDirectoryFullPath,'output','600A','json');  
+projectFolders.output600A_structs = ...
+    fullfile(rootProjectDirectoryFullPath,'output','600A','structs');  
+projectFolders.output600A_tables = ...
+    fullfile(rootProjectDirectoryFullPath,'output','600A','tables');  
+
+projectFolders.output610A         = ...
+    fullfile(rootProjectDirectoryFullPath,'output','610A');  
+projectFolders.output610A_plots   = ...
+    fullfile(rootProjectDirectoryFullPath,'output','610A','plots');  
+projectFolders.output610A_json    = ...
+    fullfile(rootProjectDirectoryFullPath,'output','610A','json');  
+projectFolders.output610A_structs = ...
+    fullfile(rootProjectDirectoryFullPath,'output','610A','structs');  
+
+
+projectFolders.experiments    = ...
+  fullfile(rootProjectDirectoryFullPath,...
+    'experiments'   );  
+projectFolders.experiments_SW1982        = ...
+  fullfile(projectFolders.experiments, ...
+    'StephensonWilliams1982'              ); 
+projectFolders.experiments_TWHSS2021     = ...
+  fullfile(projectFolders.experiments, ...
+    'TomalkaWeidnerHahnSieberlSiebert2021'); 
+projectFolders.experiments_TRSS2017      = ...
+  fullfile(projectFolders.experiments, ...
+    'TomalkaRodeSchumacherSiebert2017'); 
+projectFolders.experiments_WTRS2024      = ...
+  fullfile(projectFolders.experiments, ...
+    'WeidnerTomalkaRodeSiebert2024'); 
+projectFolders.experiments_ZHGL1995      = ...
+  fullfile(projectFolders.experiments, ...
+    'ZuurbierHeslingaGrootLaarse1995'); 
+
+
+

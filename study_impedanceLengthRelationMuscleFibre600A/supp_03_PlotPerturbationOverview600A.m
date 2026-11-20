@@ -1,15 +1,9 @@
-clc;
-close all;
-clear all;
+function success=supp_03_PlotPerturbationOverview600A(projectFolders)
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
+disp('--------------------------------------------------');
+disp('supp_03_PlotPerturbationOverview600A');
+disp('--------------------------------------------------');
 
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 experimentFolder  = '20251118_impedance_larb_1';
 metaDataFile      = 'larb_08_active_100Lo_20251118.json';
@@ -340,3 +334,5 @@ print('-dpdf', fullfile(projectFolders.output600A_plots, ...
 saveas(fig_perturbation,fullfile(projectFolders.output600A_plots,...
                                  outputFolder,[fileName,'.fig']));
 close(fig_perturbation);
+
+success=1;

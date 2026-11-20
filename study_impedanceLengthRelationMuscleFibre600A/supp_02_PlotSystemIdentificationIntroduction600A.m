@@ -1,15 +1,8 @@
-clc;
-close all;
-clear all;
+function success = supp_02_PlotSystemIdentificationIntroduction600A(projectFolders)
+disp('--------------------------------------------------');
+disp('supp_02_PlotSystemIdentificationIntroduction600A');
+disp('--------------------------------------------------');
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
-
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
 
 outputFolder = 'system_identification';
 
@@ -616,4 +609,6 @@ saveas(fig_sigIntro,fullfile(projectFolders.output600A_plots,...
                                  outputFolder,[fileName,'.fig']));
 close(fig_sigIntro);
 
+
+success=1;
 

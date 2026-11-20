@@ -1,40 +1,28 @@
-clc;
-close all;
-clear all;
+function success = study_00_calcImpedance600A(settingsCalcImpedance,...
+                                          projectFolders)
+disp('--------------------------------------------------');
+disp('study_00_calcImpedance600A');
+disp('--------------------------------------------------');
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
+%
+% Used to evaluate the sensitivity of the analysis to the phase delay
+% that we expect to see in the calibration spring. The phase delay
+% below is about 1/4 of what we calculate for the spring, and this
+% phase-delay would account for the difference in phase shift that
+% we see between a fixed fibre and the calibration spring. In principle,
+% the only difference between these two materials should be the phase
+% delay that the spring introduces due to its much higher mass and lower
+% stiffness.
+%
+success = 0;
 
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
-
-
-
-disp('Note:')
-disp(['1. The phase delay of the specimen is reported using an',...
-       ' elastic rod model and the average specimen stiffness']);
-disp('2. The phase delay is only used to compensate springs');
-disp('3. The phase delay for muscle fibers is not used for two reasons');
-disp(['3a. Between 0-90 Hz the phase delay causes at most 1 degree', ...
-     ' of phase error']);
-disp(['3b. The phase delay for the fibers varies with frequency, and ',...
-      'need to be evaluated using a model. I have derived this model',...
-      'for a Kelvin-Voigt rod. Unfortunately a Kelvin-Voigt element',...
-      'does not fit the response of fibers very well. A Maxwell ',...
-      'element in series with a Kelvin-Voigt element is much better.',...
-      ' I have not yet derived the phase delay of a Maxwell-Kelvin-Voigt ',...
-      'rod yet.']);
-
-useFixedPhaseDelay=1;
+useFixedPhaseDelay   = 0;
 springFixedPhaseDelay= 1.0185e-04;
 
-dataSettings.processImpedanceSet         =1;
-dataSettings.processDegradationSet       =0;
-dataSettings.processCalibrationSpring    =0;
-dataSettings.processCalibrationFixedFiber=0;
+% settingsCalcImpedance.processImpedanceSet         =1;
+% settingsCalcImpedance.processDegradationSet       =0;
+% settingsCalcImpedance.processCalibrationSpring    =0;
+% settingsCalcImpedance.processCalibrationFixedFiber=0;
 
 calibrationSettings.useCalibrationSpring=0;
 calibrationSettings.springCalibrationFile=...
@@ -45,14 +33,14 @@ calibrationSettings.fixedFiberCalibrationFile=...
   '20260930_impedance_calibration_rigor_fixation';
 
 
-dsFields=fields(dataSettings);
+dsFields=fields(settingsCalcImpedance);
 dsSum=0;
 for idxDS=1:1:length(dsFields)
-  dsSum = dsSum + dataSettings.(dsFields{idxDS});
+  dsSum = dsSum + settingsCalcImpedance.(dsFields{idxDS});
 end
 assert(dsSum <= 1, 'Error: only one data set can be processed at once');
 
-if(dataSettings.processCalibrationSpring==1)
+if(settingsCalcImpedance.processCalibrationSpring==1)
   experimentsToProcess = {
    '20260116_impedance_larb_spring'};    
 %   passiveBiasTrialKeyword={'Passive_'};
@@ -76,7 +64,7 @@ if(dataSettings.processCalibrationSpring==1)
   
 end
 
-if(dataSettings.processDegradationSet==1)
+if(settingsCalcImpedance.processDegradationSet==1)
 
   experimentsToProcess = {
     '20251114_degradation_larb_1',...
@@ -91,19 +79,15 @@ if(dataSettings.processDegradationSet==1)
   categories.length.str   = ...
     {'100Lo'};  
   categories.length.indexLopt=1;
-  categories.active.str   ={};  
+  categories.active.str   ={'active'};  
 
   calibrationSettings.useCalibrationSpring=1;
   calibrationSettings.springCalibrationFile='20260116_impedance_larb_spring';
   
 end 
 
-%
-% To add: 20261001_impedance_larb_sine_8
-%
 
-
-if(dataSettings.processImpedanceSet==1)
+if(settingsCalcImpedance.processImpedanceSet==1)
   experimentsToProcess =    { '20251118_impedance_larb_1',...
                               '20251118_impedance_larb_2',...
                               '20251120_impedance_larb_3',...
@@ -128,7 +112,7 @@ if(dataSettings.processImpedanceSet==1)
 
 end
 
-if(dataSettings.processCalibrationFixedFiber==1)
+if(settingsCalcImpedance.processCalibrationFixedFiber==1)
 %   experimentsToProcess=...
 %     {'20260827_impedance_calibration_rigor_fixation_01',...
 %      '20260926_impedance_calibration_rigor_fixation',...
@@ -191,8 +175,11 @@ else
 end
 lineColors = getPaulTolColourSchemes('bright');
 
+
 %
-% Spring-Damper Network Description
+% Spring-Damper Network Description: Not used in the impedeance-length
+%                                    relation paper. But maybe in the
+%                                    future
 %
 % Most spring-damper networks can be described by putting Kelvin-Voigt
 % and Maxwell elements in a series parallel network which has this topology
@@ -356,3 +343,5 @@ for i=1:1:length(experimentsToProcess)
 
     end
 end
+
+success=1;

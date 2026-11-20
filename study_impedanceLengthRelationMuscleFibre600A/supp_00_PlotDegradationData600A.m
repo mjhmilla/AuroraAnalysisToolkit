@@ -1,15 +1,8 @@
-clc;
-close all;
-clear all;
+function success = supp_00_PlotDegradationData600A(projectFolders)
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
-
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
+disp('--------------------------------------------------');
+disp('supp_00_PlotDegradationData600A');
+disp('--------------------------------------------------');
 
 experimentsToProcess = ...
     {'20251121_degradation_larb_4',...
@@ -103,14 +96,14 @@ for i = 1:1:length(experimentsToProcess)
             auroraData = readAuroraData600A(dataPath,flag_readHeader);
             
             timeA=dataJson(1).segment.bias.time;
-            timeB=dataJson(1).segment.pre.time(1);
+            timeB=dataJson(1).segment.pre.raw.time(1);
 
             actTime = timeB-timeA;
             if(strcmp(timeUnit,'ms'))
               actTime = actTime.*ms2s;
             end
 
-            fiso = dataJson(1).segment.pre.force(1);
+            fiso = dataJson(1).segment.pre.raw.force(1);
             
             fprintf('(%i, %i). %1.2f s - %1.2f s\n',i,j,timeA*ms2s, timeB*ms2s);
 
@@ -436,3 +429,5 @@ end
 print('-dpdf', fullfile(outputPlotDir,[fileName,'.pdf']));    
 saveas(figDegradation,fullfile(outputPlotDir,[fileName,'.fig']));
 close(figDegradation);
+
+success=1;

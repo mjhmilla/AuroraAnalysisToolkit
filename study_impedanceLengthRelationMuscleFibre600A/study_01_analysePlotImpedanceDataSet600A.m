@@ -1,19 +1,9 @@
-clc;
-close all;
-clear all;
+function success=study_01_analysePlotImpedanceDataSet600A(settingsAnalysePlot,...
+                                                      projectFolders)
+disp('--------------------------------------------------');
+disp('study_01_analysePlotImpedanceDataSet600A');
+disp('--------------------------------------------------');
 
-rootDir         = getRootProjectDirectory();
-projectFolders  = getProjectFolders(rootDir);
-
-addpath(projectFolders.aurora600A);
-addpath(projectFolders.common);
-addpath(projectFolders.postprocessing);
-addpath(projectFolders.experiments);
-addpath(fullfile(rootDir,'aurora600A_impedance'));
-
-flag_createDataSet            = 0;
-flag_calculateStatistics      = 0;
-flag_makeResultsPlotsTables   = 1;
 
 flag_0Presentation_1Publication = 1;
 
@@ -55,7 +45,7 @@ settingsDataSet.normalizationSegment=1;
 %
 % Create/load the dataset
 %
-if(flag_createDataSet==1)
+if(settingsAnalysePlot.flag_createDataSet==1)
   dataSet = createImpedanceLengthDataSet600A(...
                           experimentList,...
                           segmentSeries,...
@@ -128,7 +118,7 @@ settingsZLvsFL.segmentColors=...
 
 
 
-if(flag_calculateStatistics==1)
+if(settingsAnalysePlot.flag_calculateStatistics==1)
   verbose=0;
   dataSetStats= calcImpedanceLengthStatistics600A(dataSet,settingsZLvsFL,...
                                                                verbose);
@@ -148,7 +138,7 @@ end
 %
 % Create the main results plots and tables
 %
-if(flag_makeResultsPlotsTables==1)
+if(settingsAnalysePlot.flag_makeResultsPlotsTables==1)
 
   success=createZLMagnitudePlot600A(...
                     dataSet,...

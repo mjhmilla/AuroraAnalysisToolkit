@@ -93,6 +93,7 @@ function biasForceSet = calcTrialSpecificBiasForce600A(...
       %Get the passive force at the current length
       lengthNominal = biasForceSet(idxTrial).lengthNominal;
       found=0;
+      forcePassive=nan;
       for idxT=1:1:length(biasForceSet)
         if(biasForceSet(idxT).isActive == 0 ...
             && abs(biasForceSet(idxT).lengthNominal-lengthNominal)<1e-6)
@@ -102,9 +103,17 @@ function biasForceSet = calcTrialSpecificBiasForce600A(...
           end
         end
       end
-      
+      if(found==0)
+        here=1;
+      end
       yActiveBias  = biasForceSet(idxTrial).active.force;
-      yPassiveBias = forcePassive;
+
+      %To accomodate for the degradation studies that do not include
+      %a passive trial
+      yPassiveBias = 0;
+      if(~isnan(forcePassive))
+        yPassiveBias = forcePassive;
+      end
       yBias        = yActiveBias-yPassiveBias;
       biasForceSet(idxTrial).biasForce=yBias;
     else
