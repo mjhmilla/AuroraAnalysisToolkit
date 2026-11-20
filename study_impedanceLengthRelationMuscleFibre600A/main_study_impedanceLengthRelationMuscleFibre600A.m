@@ -16,11 +16,12 @@ addpath(fullfile(rootDir,'aurora600A_impedance'));
 % -32 GiB ram, 
 % -SSD hard-drive, 
 % -Ubuntu 22.04
-flag_processAllData                         = 0; 
+flag_processAllData                         = 1; 
 
 %Requires 1-2 minutes
-flag_analysePlotImpedanceLengthRelationData = 0;
+flag_analysePlotImpedanceLengthRelationData = 1;
 
+%Requires 1-2 minutes
 flag_plotSupportingMaterial                 = 1;
 
 
