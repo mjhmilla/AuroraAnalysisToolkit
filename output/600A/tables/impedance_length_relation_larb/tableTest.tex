@@ -1,0 +1,83 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{amsmath}
+
+\definecolor{gray1}{rgb}{0.8 0.8 0.8}
+\definecolor{gray2}{rgb}{0.6 0.6 0.6}
+\definecolor{gray3}{rgb}{0.4 0.4 0.4}
+\definecolor{gray4}{rgb}{0.2 0.2 0.2}
+
+\definecolor{green4}{rgb}{1.00 1 1.00}
+\definecolor{green3}{rgb}{0.75 1 0.75}
+\definecolor{green2}{rgb}{0.50 1 0.50}
+\definecolor{green1}{rgb}{0.25 1 0.25}
+\definecolor{green1}{rgb}{0.00 1 0.00}
+
+
+\definecolor{blue1}{rgb}{0.8 0.8 1}
+\definecolor{blue2}{rgb}{0.6 0.6 1}
+\definecolor{blue3}{rgb}{0.4 0.4 1}
+
+\definecolor{red1}{rgb}{1 0.8 0.8}
+\definecolor{red2}{rgb}{1 0.6 0.6}
+\definecolor{red3}{rgb}{1 0.4 0.4}
+
+
+\begin{document}
+
+\begin{tabular}{c c || c c | c c}
+$\mathrm{A}_{\mathrm{pp}}$ & $\omega_{\mathrm{B}}$ & $\rho(\tilde{S}_{\mathrm{50}}^\mathrm{L},\tilde{f}_{\mathrm{50}}^\mathrm{L})$ & $\rho(\tilde{S}^\mathrm{L},\tilde{f}^\mathrm{L})$ & $\rho(\tilde{L}_{\mathrm{50}}^\mathrm{L},\tilde{f}_{\mathrm{50}}^\mathrm{L})$ & $\rho(\tilde{L}^\mathrm{L},\tilde{f}^\mathrm{L})$ \\
+\hline
+0.002 & 35 & 0.97 & 0.83 & 0.89 & \colorbox{gray2}{0.41} \\
+0.02 & 35 & 0.98 & 0.89 & 0.72 & \colorbox{gray1}{0.56} \\
+0.002 & 90 & 0.96 & \colorbox{gray1}{0.70} & 0.71 & \colorbox{gray2}{0.47} \\
+0.02 & 90 & 0.97 & 0.85 & \colorbox{gray1}{0.52} & \colorbox{gray2}{0.36} \\
+\end{tabular}
+
+
+\begin{tabular}{c c || c c }
+$\mathrm{A}_{\mathrm{pp}}$ & $\omega_{\mathrm{B}}$ & $\tilde{S}_{\mathrm{50}}^\mathrm{L}(\ell^*)-\tilde{f}_{\mathrm{50}}^\mathrm{L}(\ell^*)$ & $\tilde{L}_{\mathrm{50}}^\mathrm{L}(\ell^*)-\tilde{f}_{\mathrm{50}}^\mathrm{L}(\ell^*)$  \\
+\hline
+& & \multicolumn{2}{ c }{$\ell^* = 0.55\,\ell_\circ$}\\
+\hline
+0.002 & 35 & \colorbox{red1}{0.22} & \colorbox{red1}{0.17} \\
+0.02 & 35 & 0.10 & \colorbox{red1}{0.23} \\
+0.002 & 90 & \colorbox{red1}{0.17} & \colorbox{red1}{0.20} \\
+0.02 & 90 & \colorbox{red1}{0.13} & \colorbox{red2}{0.34} \\
+\hline
+& & \multicolumn{2}{ c }{$\ell^* = 1.45\,\ell_\circ$}\\
+\hline
+0.002 & 35 & -0.00 & \colorbox{blue1}{-0.22} \\
+0.02 & 35 & -0.07 & \colorbox{blue1}{-0.30} \\
+0.002 & 90 & -0.06 & \colorbox{blue2}{-0.30} \\
+0.02 & 90 & -0.09 & \colorbox{blue2}{-0.37} \\
+\end{tabular}
+
+\begin{tabular}{c c || c c }
+$\mathrm{A}_{\mathrm{pp}}$ & $\omega_{\mathrm{B}}$ & $\dfrac{\tilde{S}_{\mathrm{50}}^\mathrm{L}(\ell^*)-\tilde{f}_{\mathrm{50}}^\mathrm{L}(\ell^*)}{\mathrm{IQR}(\tilde{S}^\mathrm{L}(\ell^*))}$ & $\dfrac{\tilde{L}_{\mathrm{50}}^\mathrm{L}(\ell^*)-\tilde{f}_{\mathrm{50}}^\mathrm{L}(\ell^*)}{\mathrm{IQR}(\tilde{L}^\mathrm{L}(\ell^*))}$  \\
+\hline
+& & \multicolumn{2}{ c }{$\ell^* = 0.55\,\ell_\circ$}\\
+\hline
+0.002 & 35 & \colorbox{red1}{1.41} & \colorbox{red1}{0.56} \\
+0.02 & 35 & \colorbox{red1}{0.64} & \colorbox{red1}{0.99} \\
+0.002 & 90 & \colorbox{red1}{0.78} & \colorbox{red1}{0.79} \\
+0.02 & 90 & \colorbox{red1}{0.77} & \colorbox{red1}{1.25} \\
+\hline
+& & \multicolumn{2}{ c }{$\ell^* = 1.45\,\ell_\circ$}\\
+\hline
+0.002 & 35 & -0.01 & \colorbox{blue1}{-0.91} \\
+0.02 & 35 & \colorbox{blue1}{-0.50} & \colorbox{blue2}{-2.20} \\
+0.002 & 90 & -0.26 & \colorbox{blue1}{-1.42} \\
+0.02 & 90 & \colorbox{blue1}{-0.61} & \colorbox{blue2}{-1.69} \\
+\end{tabular}
+
+
+
+
+
+
+
+
+
+\end{document}

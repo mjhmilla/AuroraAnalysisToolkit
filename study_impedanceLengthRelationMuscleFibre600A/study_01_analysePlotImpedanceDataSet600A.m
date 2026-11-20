@@ -41,6 +41,23 @@ settingsDataSet.timeUnit='ms';
 settingsDataSet.normalizationSegment=1; 
 
 
+plotDir = fullfile(projectFolders.output600A_plots,...
+                  'impedance_length_relation_larb');
+if(~exist(plotDir,'dir'))
+  mkdir(plotDir);
+end
+
+
+if(~exist(projectFolders.output600A_structs,'dir'))
+  mkdir(projectFolders.output600A_structs);
+end
+
+dataSetDir = fullfile(projectFolders.output600A_structs,...
+                     'impedance_length_relation_larb');
+
+if(~exist(dataSetDir,'dir'))
+  mkdir(dataSetDir);
+end
 
 %
 % Create/load the dataset
@@ -52,13 +69,14 @@ if(settingsAnalysePlot.flag_createDataSet==1)
                           categories,...
                           projectFolders,...
                           settingsDataSet);
-  save(fullfile(projectFolders.output600A_structs,...
-        'impedance_length_relation_larb',...
+
+
+
+  save(fullfile(dataSetDir,...
         'dataSet_impedanceLengthRelationLarb.mat'),'dataSet');
 
 else
-  tmp=load(fullfile(projectFolders.output600A_structs,...
-        'impedance_length_relation_larb',...
+  tmp=load(fullfile(dataSetDir,...
         'dataSet_impedanceLengthRelationLarb.mat'));
   dataSet=tmp.dataSet;
 end
