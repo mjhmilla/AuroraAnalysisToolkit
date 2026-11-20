@@ -24,6 +24,7 @@ flag_analysePlotImpedanceLengthRelationData = 1;
 %Requires 1-2 minutes
 flag_plotSupportingMaterial                 = 1;
 
+checkSha256Sum = 0; %Only set this to 1 if you are using Linux and have sha256sum installed
 
 %%
 % This is the function that does the first phase in processing,
@@ -90,24 +91,28 @@ if(flag_processAllData==1)
   settings00CalcImpedance.processDegradationSet       =0;
   settings00CalcImpedance.processCalibrationSpring    =1;
   settings00CalcImpedance.processCalibrationFixedFiber=0;
+  settings00CalcImpedance.checkSha256Sum              = checkSha256Sum;
   success = study_00_calcImpedance600A(settings00CalcImpedance,projectFolders);
   
   settings00CalcImpedance.processImpedanceSet         =0;
   settings00CalcImpedance.processDegradationSet       =0;
   settings00CalcImpedance.processCalibrationSpring    =0;
   settings00CalcImpedance.processCalibrationFixedFiber=1;
+  settings00CalcImpedance.checkSha256Sum              = checkSha256Sum;  
   success = study_00_calcImpedance600A(settings00CalcImpedance,projectFolders);
   
   settings00CalcImpedance.processImpedanceSet         =0;
   settings00CalcImpedance.processDegradationSet       =1;
   settings00CalcImpedance.processCalibrationSpring    =0;
   settings00CalcImpedance.processCalibrationFixedFiber=0;
+  settings00CalcImpedance.checkSha256Sum              = checkSha256Sum;  
   success = study_00_calcImpedance600A(settings00CalcImpedance,projectFolders);
   
   settings00CalcImpedance.processImpedanceSet         =1;
   settings00CalcImpedance.processDegradationSet       =0;
   settings00CalcImpedance.processCalibrationSpring    =0;
   settings00CalcImpedance.processCalibrationFixedFiber=0;
+  settings00CalcImpedance.checkSha256Sum              = checkSha256Sum;  
   success = study_00_calcImpedance600A(settings00CalcImpedance,projectFolders);
 end
 

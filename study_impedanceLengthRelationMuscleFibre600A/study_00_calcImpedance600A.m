@@ -156,7 +156,7 @@ sinSetOfTrialsOverride  = [];
 % [2,3,5,6,8,9,11,12,14,15,17,18,20,21,24,25]
 sinSetOfSegmentsOverride= [];
 
-checkSha256Sum=1; 
+checkSha256Sum=settingsCalcImpedance.checkSha256Sum; 
 checkFileOrder=1;
 
 settingsImpedanceAnalysis = ...
